@@ -18,6 +18,7 @@ import Verkaeufer from './components/verkaeufer';
 import VerkaeuferDetails from './components/verkaeuferDetails';
 import VerkaeuferEdit from './components/verkaeuferEdit';
 import Statistiken from './components/stats';
+import { Layout } from './components/layout';
 
 // 🛡️ Route-Schutz-Komponente
 const ProtectedRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
@@ -44,41 +45,30 @@ const AppRoutes: React.FC = () => {
 
   return (
     <Routes>
-      {/* Login bleibt immer zugänglich */}
+      {/* Login immer erreichbar */}
       <Route path="/login" element={<LoginForm />} />
 
-      {/* Wenn kein User vorhanden ist, ALLE anderen Routen => Login */}
+      {/* Nicht eingeloggt → alles auf Login umleiten */}
       {!user && <Route path="*" element={<Navigate to="/login" replace />} />}
 
-      {/* Wenn eingeloggt, alle geschützten Routen */}
+      {/* Eingeloggt: Geschützte Layout-Route */}
       {user && (
-        <>
-          <Route
-            path="/"
-            element={
-              <>
-                <NavBar />
-                <Routes>
-                  <Route path="home" element={<Dashboard />} />
-                  <Route path="auftraege" element={<Auftraege />} />
-                  <Route path="auftraege/:id" element={<AuftragDetail />} />
-                  <Route path="artikel" element={<Artikel />} />
-                  <Route path="kunden" element={<Kunden />} />
-                  <Route path="kunden/:id" element={<KundeDetail />} />
-                  <Route path="kunden/edit/:id" element={<KundeEdit />} />
-                  <Route path="kundenaufpreise/:artikelId" element={<KundenaufpreisEditor />} />
-                  <Route path="profil" element={<Profil />} />
-                  <Route path="verkaeufer" element={<Verkaeufer />} />
-                  <Route path="verkaeufer/:id" element={<VerkaeuferDetails />} />
-                  <Route path="verkaeufer/edit/:id" element={<VerkaeuferEdit />} />
-                  <Route path="stats" element={<Statistiken />} />
-                  {/* ALLE ungültigen Pfade => /home */}
-                  <Route path="*" element={<Navigate to="/home" replace />} />
-                </Routes>
-              </>
-            }
-          />
-        </>
+        <Route path="/" element={<Layout />}>
+          <Route path="home" element={<Dashboard />} />
+          <Route path="auftraege" element={<Auftraege />} />
+          <Route path="auftraege/:id" element={<AuftragDetail />} />
+          <Route path="artikel" element={<Artikel />} />
+          <Route path="kunden" element={<Kunden />} />
+          <Route path="kunden/:id" element={<KundeDetail />} />
+          <Route path="kunden/edit/:id" element={<KundeEdit />} />
+          <Route path="kundenaufpreise/:artikelId" element={<KundenaufpreisEditor />} />
+          <Route path="profil" element={<Profil />} />
+          <Route path="verkaeufer" element={<Verkaeufer />} />
+          <Route path="verkaeufer/:id" element={<VerkaeuferDetails />} />
+          <Route path="verkaeufer/edit/:id" element={<VerkaeuferEdit />} />
+          <Route path="stats" element={<Statistiken />} />
+          <Route path="*" element={<Navigate to="/home" replace />} />
+        </Route>
       )}
     </Routes>
   );
