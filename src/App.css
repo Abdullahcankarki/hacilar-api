@@ -36,3 +36,57 @@
     transform: rotate(360deg);
   }
 }
+
+@keyframes drawCircle {
+  from {
+    stroke-dashoffset: 283;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes drawCheck {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+success-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(255, 255, 255, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.success-overlay svg {
+  width: 150px;
+  height: 150px;
+}
+
+.success-circle {
+  fill: none;
+  stroke: #4caf50;
+  stroke-width: 10;
+  stroke-dasharray: 283;
+  stroke-dashoffset: 283;
+  animation: drawCircle 0.6s ease-out forwards;
+}
+
+.success-check {
+  fill: none;
+  stroke: #4caf50;
+  stroke-width: 10;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: drawCheck 0.4s ease-out 0.6s forwards;
+}
