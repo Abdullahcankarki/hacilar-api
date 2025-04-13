@@ -21,7 +21,7 @@ export type VerkaeuferResource = {
   export type AuftragResource = {
     id?: string;
     kunde: string;                    // ID des Kunden
-    kundeName: string;
+    kundeName?: string;
     artikelPosition?: string[];        // Array von IDs der Artikelpositionen
     status: 'offen' | 'in Bearbeitung' | 'abgeschlossen' | 'storniert';
     lieferdatum?: string;             // ISO-Datum als String, optional
