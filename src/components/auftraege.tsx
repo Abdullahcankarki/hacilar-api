@@ -38,24 +38,25 @@ const Auftraege: React.FC = () => {
 
   // Weitere Filter und Suche
   const filteredAuftraege = filteredByUser
-    .filter(auftrag => {
-      // Statusfilter: falls gesetzt
-      if (filterStatus && auftrag.status !== filterStatus) return false;
-      // Suche: Über Auftrag-ID oder (falls vorhanden) KundeName oder Kunde-Feld
-      const customerName = (auftrag as any).kundeName || auftrag.kunde;
-      const term = searchTerm.toLowerCase();
-      return (
-        (auftrag.id && auftrag.id.toLowerCase().includes(term)) ||
-        (customerName && customerName.toLowerCase().includes(term))
-      );
-    })
-    .sort((a, b) => {
-      // Sortieren nach Lieferdatum
-      const dateA = a.lieferdatum ? new Date(a.lieferdatum).getTime() : 0;
-      const dateB = b.lieferdatum ? new Date(b.lieferdatum).getTime() : 0;
-      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
-    });
+  .filter((auftrag) => {
+    if (filterStatus && auftrag.status !== filterStatus) return false;
 
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return true;
+
+    const id = auftrag.id ?? '';
+    const kunde = (auftrag as any).kundeName ?? auftrag.kunde ?? '';
+
+    const idMatch = id.toString().toLowerCase().includes(term);
+    const kundeMatch = kunde ? kunde.toString().toLowerCase().includes(term) : false;
+
+    return idMatch || kundeMatch;
+  })
+  .sort((a, b) => {
+    const dateA = a.lieferdatum ? new Date(a.lieferdatum).getTime() : 0;
+    const dateB = b.lieferdatum ? new Date(b.lieferdatum).getTime() : 0;
+    return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+  });
     // Fügt innerhalb der Komponente (z.B. direkt nach useState) diese Funktionen ein:
 
 // Aktualisiert den Auftragsstatus über die API

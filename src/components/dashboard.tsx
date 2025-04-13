@@ -1,122 +1,140 @@
-// Dashboard.tsx
 import React, { useEffect, useState } from 'react';
-import { Carousel, Modal, Button, Form, Card, Row, Col, InputGroup } from 'react-bootstrap';
-import { useNavigate } from 'react-router-dom';
-import { ArtikelResource, AuftragResource, ArtikelPositionResource } from '../Resources';
-import { api } from '../backend/api';
+import ArtikelListe from './artikelListe';
+import WarenkorbModal from './warenkorb';
+import {
+  ArtikelResource,
+  ArtikelPositionResource,
+  AuftragResource,
+  KundeResource
+} from '../Resources';
+import {
+  getAllArtikel,
+  createAuftrag,
+  createArtikelPosition,
+  getAllKunden
+} from '../backend/api';
 import { useAuth } from '../providers/Authcontext';
-import banner1 from "../assets/Banner1.jpg";
-import banner2 from "../assets/Banner2.jpg";
-import banner3 from "../assets/Banner3.jpg";
-
-// Hilfsfunktion: Wandelt Kommas in Punkte um und parsed den Wert als Zahl
-const parseNumberInput = (value: string): number =>
-  parseFloat(value.replace(',', '.'));
 
 const Dashboard: React.FC = () => {
   const [articles, setArticles] = useState<ArtikelResource[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string>('');
-  
-  // Warenkorb: Hier werden Artikel als Positionen gespeichert, die der Nutzer bearbeiten kann
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortOption, setSortOption] = useState('nameAsc');
   const [cart, setCart] = useState<ArtikelPositionResource[]>([]);
-  const [showCartModal, setShowCartModal] = useState<boolean>(false);
-  
-  // Such- und Sortierzustände
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [sortOption, setSortOption] = useState<string>('nameAsc');
-  
-  const navigate = useNavigate();
+  const [showCart, setShowCart] = useState(false);
+  const [kunden, setKunden] = useState<KundeResource[]>([]);
+  const [ausgewaehlterKunde, setAusgewaehlterKunde] = useState<string | null>(null);
+
   const { user } = useAuth();
 
-  // Artikel laden
+  // Artikel & Kunden laden
   useEffect(() => {
-    const fetchArticles = async () => {
-      try {
-        const data = await api.getAllArtikel();
-        setArticles(data);
-      } catch (err: any) {
-        setError(err.message || 'Fehler beim Laden der Artikel');
-      } finally {
-        setLoading(false);
+    const gespeicherterWarenkorb = localStorage.getItem('warenkorb');
+    if (gespeicherterWarenkorb) {
+      setCart(JSON.parse(gespeicherterWarenkorb));
+    }
+
+    const fetchData = async () => {
+      const data = await getAllArtikel();
+      setArticles(data);
+    };
+
+    fetchData();
+
+    if (user?.role === 'a' || user?.role === 'v') {
+      getAllKunden().then(setKunden);
+    }
+  }, [user]);
+
+  // Warenkorb speichern
+  useEffect(() => {
+    localStorage.setItem('warenkorb', JSON.stringify(cart));
+  }, [cart]);
+
+  const handleAddToCart = (position: ArtikelPositionResource) => {
+    setCart((prevCart) => {
+      const existing = prevCart.find((item) => item.artikel === position.artikel);
+      if (existing) {
+        return prevCart.map((item) =>
+          item.artikel === position.artikel
+            ? { ...item, menge: item.menge! + position.menge! }
+            : item
+        );
+      } else {
+        return [...prevCart, position];
       }
-    };
-    fetchArticles();
-  }, []);
-
-  // Artikel zum Warenkorb hinzufügen (Positionen können jederzeit direkt im Warenkorb bearbeitet werden)
-  const addToCart = (article: ArtikelResource) => {
-    const newPosition: ArtikelPositionResource = {
-      artikel: article.id || '',
-      artikelName: article.name,
-      menge: 1,
-      einheit: 'stück',
-      einzelpreis: article.preis,
-      gesamtgewicht: article.gewichtProStueck || 0,
-      gesamtpreis: article.preis,
-    };
-    setCart(prev => [...prev, newPosition]);
+    });
   };
 
-  // Menge im Warenkorb bearbeiten
-  const updateCartQuantity = (index: number, quantity: number) => {
-    const newCart = [...cart];
-    newCart[index].menge = quantity;
-    newCart[index].gesamtpreis = newCart[index].einzelpreis! * quantity;
-    setCart(newCart);
+  const handleEinheitChange = (
+    index: number,
+    neueEinheit: ArtikelPositionResource['einheit']
+  ) => {
+    setCart((prev) =>
+      prev.map((item, i) =>
+        i === index ? { ...item, einheit: neueEinheit } : item
+      )
+    );
   };
 
-  // Position aus dem Warenkorb entfernen
-  const removeFromCart = (index: number) => {
-    const newCart = [...cart];
-    newCart.splice(index, 1);
-    setCart(newCart);
+  const handleRemoveFromCart = (index: number) => {
+    setCart((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Bestellvorgang: Auftrag wird erstellt, danach werden alle Artikelpositionen angelegt und dem Auftrag zugeordnet
-  const placeOrder = async () => {
-    setError('');
+  const handleQuantityChange = (index: number, menge: number) => {
+    if (menge < 1) return;
+    setCart((prev) =>
+      prev.map((item, i) =>
+        i === index ? { ...item, menge } : item
+      )
+    );
+  };
+
+  const handleSubmit = async (lieferdatum: string) => {
+    const kundeId = user?.role === 'u' ? user.id : ausgewaehlterKunde;
+
+    if (!kundeId) {
+      alert('Bitte einen Kunden auswählen.');
+      return;
+    }
+
     try {
-      // Schritt 1: Auftrag erstellen (ohne Positionen)
-      const orderData: Omit<AuftragResource, 'id' | 'createdAt' | 'updatedAt'> = {
-        kunde: user?.role === 'u' ? user.id : 'dummyCustomerId', // Bei Verkäufern/Admins evtl. Shop-as nutzen
-        kundeName: "",
-        artikelPosition: [], // Initial leer
+      const gespeichertePositionen = await Promise.all(
+        cart.map(async (pos) => {
+          const neuePosition = {
+            artikel: pos.artikel!,
+            menge: pos.menge!,
+            einheit: pos.einheit!,
+            einzelpreis: pos.einzelpreis!,
+          };
+          return await createArtikelPosition(neuePosition);
+        })
+      );
+
+      const artikelPositionIds = gespeichertePositionen.map((p) => p.id!);
+
+      const auftrag: Omit<AuftragResource, 'id' | 'createdAt' | 'updatedAt'> = {
+        artikelPosition: artikelPositionIds,
+        lieferdatum,
+        kunde: kundeId,
         status: 'offen',
-        lieferdatum: new Date().toISOString(),
-        bemerkungen: '',
-        preis: cart.reduce((sum, item) => sum + item.gesamtpreis!, 0),
-        gewicht: cart.reduce((sum, item) => sum + (item.gesamtgewicht! * item.menge!), 0),
       };
-      const order = await api.createAuftrag(orderData);
 
-      // Schritt 2: Für jede Position im Warenkorb wird eine Artikelposition erstellt
-      const positionIds: string[] = [];
-      for (const item of cart) {
-        const pos = await api.createArtikelPosition(item);
-        positionIds.push(pos.id!);
-      }
-
-      // Schritt 3: Auftrag aktualisieren, um die erstellten Artikelpositionen zu übernehmen
-      await api.updateAuftrag(order.id!, { artikelPosition: positionIds });
-
-      // Warenkorb leeren und zur Detailseite des Auftrags navigieren
+      await createAuftrag(auftrag);
+      alert('Bestellung wurde übermittelt!');
       setCart([]);
-      navigate(`/auftraege/${order.id}`);
-    } catch (err: any) {
-      setError(err.message || 'Fehler beim Aufgeben der Bestellung');
+      setShowCart(false);
+      localStorage.removeItem('warenkorb');
+    } catch (error) {
+      alert('Fehler beim Übermitteln der Bestellung');
+      console.error(error);
     }
   };
 
-  // Filter- und Sortierlogik
-  const filteredArticles = articles
-    .filter(a => {
-      const term = searchTerm.toLowerCase();
-      return (
-        a.name.toLowerCase().includes(term) ||
-        a.artikelNummer.toLowerCase().includes(term)
-      );
-    })
+  const filteredAndSorted = articles
+    .filter((a) =>
+      a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      a.artikelNummer.toLowerCase().includes(searchTerm.toLowerCase())
+    )
     .sort((a, b) => {
       if (sortOption === 'nameAsc') return a.name.localeCompare(b.name);
       if (sortOption === 'nameDesc') return b.name.localeCompare(a.name);
@@ -125,189 +143,48 @@ const Dashboard: React.FC = () => {
       return 0;
     });
 
-  if (loading)
-    return (
-      <div className="container text-center my-4">
-        <p>Lädt...</p>
-      </div>
-    );
-  if (error)
-    return (
-      <div className="container my-4">
-        <div className="alert alert-danger">{error}</div>
-      </div>
-    );
-
   return (
-    <div className="container my-4">
-      {/* Banner Carousel */}
-      <Carousel className="mb-4">
-        <Carousel.Item>
-          <img
-            className="d-block w-100"
-            src={banner1}
-            alt="Banner 1"
-            style={{ maxHeight: '500px', objectFit: 'cover' }}
-          />
-          <Carousel.Caption>
-            <h3>Willkommen im Web-Shop</h3>
-            <p>Entdecken Sie unsere exklusiven Produkte!</p>
-          </Carousel.Caption>
-        </Carousel.Item>
-        <Carousel.Item>
-          <img
-            className="d-block w-100"
-            src={banner2}
-            alt="Banner 2"
-            style={{ maxHeight: '500px', objectFit: 'cover' }}
-          />
-          <Carousel.Caption>
-            <h3>Top Angebote</h3>
-            <p>Sparen Sie jetzt mit unseren Sonderaktionen.</p>
-          </Carousel.Caption>
-        </Carousel.Item>
-        <Carousel.Item>
-          <img
-            className="d-block w-100"
-            src={banner3}
-            alt="Banner 3"
-            style={{ maxHeight: '500px', objectFit: 'cover' }}
-          />
-          <Carousel.Caption>
-            <h3>Neu eingetroffen</h3>
-            <p>Sehen Sie sich unsere neuesten Produkte an.</p>
-          </Carousel.Caption>
-        </Carousel.Item>
-      </Carousel>
-
-      {/* Such- und Sortierleiste */}
-      <Row className="mb-4 align-items-center">
-        <Col md={6}>
-          <InputGroup>
-            <Form.Control
-              type="text"
-              placeholder="Artikelname oder Nummer suchen..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <InputGroup.Text>
-              <i className="bi bi-search"></i>
-            </InputGroup.Text>
-          </InputGroup>
-        </Col>
-        <Col md={3}>
-          <Form.Select
-            value={sortOption}
-            onChange={(e) => setSortOption(e.target.value)}
+    <>
+      {/* Kunden-Auswahl nur für Admin/Verkäufer */}
+      {(user?.role === 'a' || user?.role === 'v') && (
+        <div className="container mt-3">
+          <label className="form-label">Kunde auswählen:</label>
+          <select
+            className="form-select"
+            value={ausgewaehlterKunde ?? ''}
+            onChange={(e) => setAusgewaehlterKunde(e.target.value)}
           >
-            <option value="nameAsc">Name: Aufsteigend</option>
-            <option value="nameDesc">Name: Absteigend</option>
-            <option value="preisAsc">Preis: Aufsteigend</option>
-            <option value="preisDesc">Preis: Absteigend</option>
-          </Form.Select>
-        </Col>
-        <Col md={3} className="text-end">
-          <Button variant="success" onClick={() => setShowCartModal(true)}>
-            Warenkorb ({cart.length})
-          </Button>
-        </Col>
-      </Row>
+            <option value="">– bitte wählen –</option>
+            {kunden.map((kunde) => (
+              <option key={kunde.id} value={kunde.id}>
+                {kunde.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
-      {/* Artikelübersicht */}
-      <h2 className="mb-4">Produkte</h2>
-      <Row>
-        {filteredArticles.map(article => (
-          <Col key={article.id} md={4} className="mb-4">
-            <Card className="h-100 shadow-sm">
-              <Card.Img
-                variant="top"
-                src={`https://via.placeholder.com/400x400?text=${encodeURIComponent(article.name)}`}
-                alt={article.name}
-                style={{ maxHeight: '400px', objectFit: 'cover' }}
-              />
-              <Card.Body className="d-flex flex-column">
-                <Card.Title>{article.name}</Card.Title>
-                <Card.Text>
-                  Artikelnummer: {article.artikelNummer} <br />
-                  Preis: {article.preis.toFixed(2)} €
-                </Card.Text>
-                <Button
-                  variant="primary"
-                  className="mt-auto"
-                  onClick={() => addToCart(article)}
-                >
-                  In den Warenkorb
-                </Button>
-              </Card.Body>
-            </Card>
-          </Col>
-        ))}
-      </Row>
+      <ArtikelListe
+        articles={filteredAndSorted}
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        sortOption={sortOption}
+        setSortOption={setSortOption}
+        onAddToCart={handleAddToCart}
+        cartLength={cart.length}
+        onCartClick={() => setShowCart(true)}
+      />
 
-      {/* Warenkorb Modal */}
-      <Modal show={showCartModal} onHide={() => setShowCartModal(false)} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>Warenkorb</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {cart.length === 0 ? (
-            <p>Ihr Warenkorb ist leer.</p>
-          ) : (
-            <div className="table-responsive">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Produkt</th>
-                    <th>Menge</th>
-                    <th>Einzelpreis</th>
-                    <th>Gesamtpreis</th>
-                    <th>Aktionen</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {cart.map((item, index) => (
-                    <tr key={index}>
-                      <td>{item.artikel}</td>
-                      <td>
-                        <Form.Control
-                          type="number"
-                          min="1"
-                          value={item.menge}
-                          onChange={(e) =>
-                            updateCartQuantity(index, parseInt(e.target.value))
-                          }
-                        />
-                      </td>
-                      <td>{item.einzelpreis!.toFixed(2)} €</td>
-                      <td>{(item.einzelpreis! * item.menge!).toFixed(2)} €</td>
-                      <td>
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          onClick={() => removeFromCart(index)}
-                        >
-                          Löschen
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowCartModal(false)}>
-            Schließen
-          </Button>
-          {cart.length > 0 && (
-            <Button variant="primary" onClick={placeOrder}>
-              Bestellung aufgeben
-            </Button>
-          )}
-        </Modal.Footer>
-      </Modal>
-    </div>
+      <WarenkorbModal
+        show={showCart}
+        onHide={() => setShowCart(false)}
+        cart={cart}
+        onQuantityChange={handleQuantityChange}
+        onRemove={handleRemoveFromCart}
+        onSubmit={handleSubmit}
+        onEinheitChange={handleEinheitChange}
+      />
+    </>
   );
 };
 
