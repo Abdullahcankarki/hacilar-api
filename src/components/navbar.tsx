@@ -3,6 +3,7 @@ import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../providers/Authcontext';
 import logo from '../assets/logo.png'; // Pfad zum Logo-Bild
+import 'bootstrap/dist/js/bootstrap.bundle.min';
 
 const NavBar: React.FC = () => {
   const { user, logout } = useAuth();

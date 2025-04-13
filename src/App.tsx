@@ -36,35 +36,50 @@ const ProtectedRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
 
 // 📌 App-Routen
 const AppRoutes: React.FC = () => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <div style={{ padding: '2rem', textAlign: 'center' }}>Lade Benutzerdaten...</div>;
+  }
+
   return (
     <Routes>
+      {/* Login bleibt immer zugänglich */}
       <Route path="/login" element={<LoginForm />} />
-      <Route
-        path="/*"
-        element={
-          <ProtectedRoute>
-            <>
-              <NavBar />
-              <Routes>
-                <Route path="home" element={<Dashboard />} />
-                <Route path="auftraege" element={<Auftraege />} />
-                <Route path="auftraege/:id" element={<AuftragDetail />} />
-                <Route path="artikel" element={<Artikel />} />
-                <Route path="kunden" element={<Kunden />} />
-                <Route path="kunden/:id" element={<KundeDetail />} />
-                <Route path="kunden/edit/:id" element={<KundeEdit />} />
-                <Route path="kundenaufpreise/:artikelId" element={<KundenaufpreisEditor />} />
-                <Route path="profil" element={<Profil />} />
-                <Route path="verkaeufer" element={<Verkaeufer />}/>
-                <Route path="verkaeufer/:id" element={<VerkaeuferDetails />} />
-                <Route path="verkaeufer/edit/:id" element={<VerkaeuferEdit />} />
-                <Route path="stats" element={<Statistiken />}/>
-                <Route path="*" element={<Navigate to="/home" replace />} />
-              </Routes>
-            </>
-          </ProtectedRoute>
-        }
-      />
+
+      {/* Wenn kein User vorhanden ist, ALLE anderen Routen => Login */}
+      {!user && <Route path="*" element={<Navigate to="/login" replace />} />}
+
+      {/* Wenn eingeloggt, alle geschützten Routen */}
+      {user && (
+        <>
+          <Route
+            path="/"
+            element={
+              <>
+                <NavBar />
+                <Routes>
+                  <Route path="home" element={<Dashboard />} />
+                  <Route path="auftraege" element={<Auftraege />} />
+                  <Route path="auftraege/:id" element={<AuftragDetail />} />
+                  <Route path="artikel" element={<Artikel />} />
+                  <Route path="kunden" element={<Kunden />} />
+                  <Route path="kunden/:id" element={<KundeDetail />} />
+                  <Route path="kunden/edit/:id" element={<KundeEdit />} />
+                  <Route path="kundenaufpreise/:artikelId" element={<KundenaufpreisEditor />} />
+                  <Route path="profil" element={<Profil />} />
+                  <Route path="verkaeufer" element={<Verkaeufer />} />
+                  <Route path="verkaeufer/:id" element={<VerkaeuferDetails />} />
+                  <Route path="verkaeufer/edit/:id" element={<VerkaeuferEdit />} />
+                  <Route path="stats" element={<Statistiken />} />
+                  {/* ALLE ungültigen Pfade => /home */}
+                  <Route path="*" element={<Navigate to="/home" replace />} />
+                </Routes>
+              </>
+            }
+          />
+        </>
+      )}
     </Routes>
   );
 };
