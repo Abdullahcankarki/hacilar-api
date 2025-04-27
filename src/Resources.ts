@@ -44,6 +44,7 @@ export type VerkaeuferResource = {
     bemerkung?: string;                        // Optionale Bemerkungen
     gesamtgewicht?: number;                     // Berechnetes Gesamtgewicht
     gesamtpreis?: number;                       // Berechneter Gesamtpreis
+    auftragId?: string;
   };
   
   export type ArtikelResource = {
