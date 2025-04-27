@@ -198,12 +198,22 @@ export async function getAllAuftraege(): Promise<AuftragResource[]> {
   return apiFetch<AuftragResource[]>("/api/auftrag");
 }
 
-export async function getAuftragByCutomerId(id: string): Promise<AuftragResource> {
-  return apiFetch<AuftragResource>(`/api/auftrag/kunden/${id}`);
+export async function getAuftragByCutomerId(id: string): Promise<AuftragResource[]> {
+  return apiFetch<AuftragResource[]>(`/api/auftrag/kunden/${id}`);
 }
 
 export async function getAuftragById(id: string): Promise<AuftragResource> {
   return apiFetch<AuftragResource>(`/api/auftrag/${id}`);
+}
+
+export async function getAuftragLetzte(): Promise<{
+  auftrag: AuftragResource;
+  artikelPositionen: ArtikelPositionResource[];
+}> {
+  return apiFetch(`/api/auftrag/letzte`);
+}
+export async function getAuftragLetzteArtikel(): Promise<string[]> {
+  return apiFetch<Promise<string[]>>(`/api/auftrag/letzteArtikel`);
 }
 
 export async function createAuftrag(data: Omit<AuftragResource, "id" | "createdAt" | "updatedAt">): Promise<AuftragResource> {
@@ -261,6 +271,23 @@ export async function deleteArtikelPosition(id: string): Promise<{ message: stri
   });
 }
 
+export async function getKundenFavoriten(kundenId: string): Promise<string[]> {
+  return apiFetch<string[]>(`/api/kunde/${kundenId}/favoriten`);
+}
+
+export async function addKundenFavorit(kundenId: string, artikelId: string): Promise<void> {
+  await apiFetch(`/api/kunde/${kundenId}/favoriten`, {
+    method: "POST",
+    body: JSON.stringify({ artikelId }),
+  });
+}
+
+export async function removeKundenFavorit(kundenId: string, artikelId: string): Promise<void> {
+  await apiFetch(`/api/kunde/${kundenId}/favoriten/${artikelId}`, {
+    method: "DELETE",
+  });
+}
+
 /* Exportiere ein Objekt, das alle Funktionen zusammenfasst */
 export const api = {
   apiFetch,
@@ -285,6 +312,9 @@ export const api = {
   // Auftrag
   getAllAuftraege,
   getAuftragById,
+  getAuftragByCutomerId,
+  getAuftragLetzte,
+  getAuftragLetzteArtikel,
   createAuftrag,
   updateAuftrag,
   deleteAuftrag,
@@ -299,5 +329,9 @@ export const api = {
   getVerkaeuferById,
   createVerkaeufer,
   updateVerkaeufer,
-  deleteVerkaeufer
+  deleteVerkaeufer,
+  //Favoriten
+  getKundenFavoriten,
+  addKundenFavorit,
+  removeKundenFavorit
 };

@@ -80,12 +80,24 @@ const AuftragDetail: React.FC = () => {
                 if (pos.id) {
                     await api.updateArtikelPosition(pos.id, pos);
                 } else {
-                    await api.createArtikelPosition(pos);
+                    if (!auftrag?.id) {
+                        throw new Error('Auftrag-ID fehlt beim Erstellen einer neuen Position.');
+                    }
+                    await api.createArtikelPosition({
+                        artikel: pos.artikel!,
+                        menge: pos.menge!,
+                        einheit: pos.einheit!,
+                        einzelpreis: pos.einzelpreis!,
+                        zerlegung: pos.zerlegung,
+                        vakuum: pos.vakuum,
+                        bemerkung: pos.bemerkung,
+                        auftragId: auftrag.id, // ✨ HIER wird Auftrag übergeben
+                    });
                 }
             }
             setStatusSuccess('Positionen erfolgreich gespeichert.');
         } catch (err: any) {
-            setError(err.message || 'Fehler beim Speichern');
+            setError(err.message + "Fehler beim Speichern" || 'Fehler beim Speichern');
         } finally {
             setSaving(false);
         }
@@ -220,7 +232,7 @@ const AuftragDetail: React.FC = () => {
                 onChange={setPositions}
                 onSave={handleSavePositions}
                 saving={saving}
-                kundeId={auftrag.kunde}
+                auftragId={auftrag.id!}
             />
 
             {statusError && <Alert variant="danger" className="mt-3">{statusError}</Alert>}
