@@ -72,6 +72,14 @@ const Auftraege: React.FC = () => {
     await updateOrderStatus(orderId, 'storniert');
   };
 
+  const handleBearbeitung = async (orderId: string) => {
+    await updateOrderStatus(orderId, 'in Bearbeitung');
+  };
+
+  const handleOeffnen = async (orderId: string) => {
+    await updateOrderStatus(orderId, 'offen');
+  };
+
   if (loading)
     return (
       <div className="container text-center my-4">
@@ -105,27 +113,25 @@ const Auftraege: React.FC = () => {
       <AuftragTabelle
         titel="Offene Aufträge"
         auftraege={gruppiertNachStatus.offen}
-        onComplete={handleComplete}
+        onBearbeitung={handleBearbeitung}
         onCancel={handleCancel}
       />
       <AuftragTabelle
         titel="In Bearbeitung"
         auftraege={gruppiertNachStatus.inBearbeitung}
         onComplete={handleComplete}
-        onCancel={handleCancel}
+        onOeffnen={handleOeffnen}
       />
       <AuftragTabelle
         titel="Abgeschlossene Aufträge"
         auftraege={gruppiertNachStatus.abgeschlossen}
-        onComplete={handleComplete}
+        onOeffnen={handleOeffnen}
         onCancel={handleCancel}
         defaultCollapsed={true}
       />
       <AuftragTabelle
         titel="Stornierte Aufträge"
         auftraege={gruppiertNachStatus.storniert}
-        onComplete={handleComplete}
-        onCancel={handleCancel}
         defaultCollapsed={true}
       />
     </div>
