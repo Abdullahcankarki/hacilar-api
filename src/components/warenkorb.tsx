@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Offcanvas, Button, Form, Row, Col, Modal } from 'react-bootstrap';
 import { ArtikelPositionResource, ArtikelResource } from '../Resources';
+import 'flatpickr/dist/flatpickr.min.css';
+import flatpickr from 'flatpickr';
+import { German } from 'flatpickr/dist/l10n/de.js';
 
 type Props = {
     show: boolean;
@@ -23,27 +26,22 @@ const WarenkorbPanel: React.FC<Props> = ({
     onRemove,
     onSubmit
 }) => {
-    const [editField, setEditField] = useState<number | null>(null);
     const [lieferdatum, setLieferdatum] = useState('');
     const [showDateModal, setShowDateModal] = useState(false);
+    const [showFehlerAlert, setShowFehlerAlert] = useState(false);
 
-    const formatEinheit = (einheit?: string, menge?: number) => {
-        if (!einheit || !menge) return '';
-        const pluralMap: Record<string, string> = {
-            stück: 'Stück',
-            kiste: 'Kisten',
-            karton: 'Kartons',
-            kg: 'kg',
-        };
-        const singularMap: Record<string, string> = {
-            stück: 'Stück',
-            kiste: 'Kiste',
-            karton: 'Karton',
-            kg: 'kg',
-        };
-        const isPlural = menge > 1;
-        return isPlural ? pluralMap[einheit] || einheit : singularMap[einheit] || einheit;
-    };
+    useEffect(() => {
+        if (showDateModal) {
+            flatpickr('.date-picker', {
+                altInput: true,
+                altFormat: 'd.m.Y',
+                dateFormat: 'Y-m-d',
+                locale: German,
+                defaultDate: lieferdatum || undefined,
+                onChange: (selectedDates, dateStr) => setLieferdatum(dateStr)
+            });
+        }
+    }, [showDateModal]);
 
     const berechneGesamtgewicht = (
         item: ArtikelPositionResource,
@@ -75,7 +73,7 @@ const WarenkorbPanel: React.FC<Props> = ({
     const gesamtpreis = cart.reduce((sum, item) => {
         const artikel = articles.find(a => a.id === item.artikel);
         return sum + berechneGesamtpreis(item, artikel);
-      }, 0);
+    }, 0);
 
     const handleBestellungStart = () => {
         setShowDateModal(true);
@@ -83,7 +81,8 @@ const WarenkorbPanel: React.FC<Props> = ({
 
     const handleBestellungAbsenden = () => {
         if (!lieferdatum) {
-            alert("Bitte ein Lieferdatum auswählen.");
+            setShowFehlerAlert(true);
+            setTimeout(() => setShowFehlerAlert(false), 3000);
             return;
         }
         setShowDateModal(false);
@@ -92,143 +91,135 @@ const WarenkorbPanel: React.FC<Props> = ({
 
     return (
         <>
-            <Offcanvas show={show} onHide={onHide} placement="end" style={{ width: '480px' }}>
-                <Offcanvas.Header closeButton>
-                    <Offcanvas.Title>Warenkorb</Offcanvas.Title>
-                </Offcanvas.Header>
-                <Offcanvas.Body className="d-flex flex-column">
-                    {cart.length === 0 ? (
-                        <p>Ihr Warenkorb ist leer.</p>
-                    ) : (
-                        <div className="flex-grow-1 overflow-auto">
-                            {cart.map((item, index) => {
-                                const artikel = articles.find(a => a.id === item.artikel);
-                                const gesamtgewicht = berechneGesamtgewicht(item, artikel);
+            {show && (
+                <div className="offcanvas offcanvas-end show pb-sm-2 px-sm-2" style={{ width: '500px', visibility: 'visible' }}>
+                    {/* Header */}
+                    <div className="offcanvas-header flex-column align-items-start py-3 pt-lg-4">
+                        <div className="d-flex align-items-center justify-content-between w-100 mb-3 mb-lg-4">
+                            <h4 className="offcanvas-title">Warenkorb</h4>
+                            <button type="button" className="btn-close" onClick={onHide} aria-label="Schließen" />
+                        </div>
+                    </div>
 
-                                return (
-                                    <div key={index} className="border-bottom py-3">
-                                        <Row>
-                                            <Col xs={9}>
-                                                <strong>{item.artikelName}</strong>
-                                                <div className="text-muted" style={{ fontSize: '0.85rem' }}>
-                                                    Einzelpreis: {item.einzelpreis?.toFixed(2)} €
-                                                </div>
-                                                <div className="text-muted" style={{ fontSize: '0.8rem' }}>
-                                                    Gewicht: {gesamtgewicht.toFixed(2)} kg
-                                                </div>
-
-                                                {editField === index ? (
-                                                    <div
-                                                        className="d-flex gap-2 mt-1 align-items-center"
-                                                        onBlur={(e) => {
-                                                            if (!e.currentTarget.contains(e.relatedTarget)) {
-                                                                setEditField(null);
-                                                            }
-                                                        }}
-                                                        tabIndex={-1}
-                                                    >
-                                                        <Form.Control
-                                                            autoFocus
-                                                            type="number"
-                                                            min={1}
-                                                            value={item.menge}
-                                                            style={{
-                                                                width: '80px',
-                                                                fontSize: '0.9rem',
-                                                                lineHeight: '1.4',
-                                                                padding: '0.25rem 0.5rem'
-                                                            }}
-                                                            onChange={(e) =>
-                                                                onQuantityChange(index, parseInt(e.target.value))
-                                                            }
-                                                        />
-                                                        <Form.Select
-                                                            style={{
-                                                                width: '100px',
-                                                                fontSize: '0.9rem',
-                                                                lineHeight: '1.4',
-                                                                padding: '0.25rem 0.5rem'
-                                                            }}
-                                                            value={item.einheit}
-                                                            onChange={(e) => {
-                                                                const neueEinheit = e.target.value as ArtikelPositionResource['einheit'];
-                                                                onEinheitChange(index, neueEinheit);
-                                                            }}
-                                                        >
-                                                            <option value="kg">kg</option>
-                                                            <option value="stück">Stück</option>
-                                                            <option value="kiste">Kiste</option>
-                                                            <option value="karton">Karton</option>
-                                                        </Form.Select>
-                                                    </div>
-                                                ) : (
-                                                    <div
-                                                        className="mt-1"
-                                                        style={{ fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer' }}
-                                                        onClick={() => setEditField(index)}
-                                                        title="Klicken zum Bearbeiten"
-                                                    >
-                                                        {item.menge} {formatEinheit(item.einheit, item.menge)}
-                                                    </div>
-                                                )}
-                                            </Col>
-
-                                            <Col xs={3} className="text-end d-flex flex-column align-items-end justify-content-between">
-                                                <div className="d-flex align-items-center justify-content-end w-100 gap-2">
-                                                    <div className="fw-bold text-nowrap" style={{ fontSize: '0.9rem' }}>
-                                                        {berechneGesamtpreis(item, artikel).toFixed(2)} €
-                                                    </div>
-                                                    <Button
-                                                        variant="outline-danger"
-                                                        size="sm"
-                                                        onClick={() => onRemove(index)}
-                                                        title="Entfernen"
-                                                        style={{ padding: '0.15rem 0.35rem', fontSize: '0.75rem', lineHeight: 1 }}
-                                                    >
-                                                        ✕
-                                                    </Button>
-                                                </div>
-                                            </Col>
-                                        </Row>
+                    {/* Body */}
+                    <div className="offcanvas-body d-flex flex-column gap-4 pt-2">
+                        {cart.map((item, index) => {
+                            const artikel = articles.find(a => a.id === item.artikel);
+                            const gesamtgewicht = berechneGesamtgewicht(item, artikel);
+                            return (
+                                <div className="d-flex align-items-center" key={index}>
+                                    <div className="w-100 min-w-0 ps-2 ps-sm-3">
+                                        <h5 className="d-flex animate-underline mb-2">
+                                            <span className="d-block fs-sm fw-medium text-truncate animate-target">
+                                                {item.artikelName}
+                                            </span>
+                                        </h5>
+                                        <div className="h6 pb-1 mb-2">
+                                            {item.einzelpreis?.toFixed(2)} € – {gesamtgewicht.toFixed(2)} kg
+                                        </div>
+                                        <div className="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                                            <div className="count-input rounded-2 d-flex align-items-center">
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-icon btn-sm"
+                                                    onClick={() => onQuantityChange(index, Math.max(1, item.menge! - 1))}
+                                                >
+                                                    <i className="ci-minus" />
+                                                </button>
+                                                <input
+                                                    type="number"
+                                                    className="form-control form-control-sm"
+                                                    value={item.menge}
+                                                    readOnly
+                                                />
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-icon btn-sm"
+                                                    onClick={() => onQuantityChange(index, item.menge! + 1)}
+                                                >
+                                                    <i className="ci-plus" />
+                                                </button>
+                                            </div>
+                                            <Form.Select
+                                                className="form-select form-select-sm w-auto"
+                                                value={item.einheit}
+                                                onChange={(e) =>
+                                                    onEinheitChange(index, e.target.value as ArtikelPositionResource['einheit'])
+                                                }
+                                            >
+                                                <option value="kg">kg</option>
+                                                <option value="stück">Stück</option>
+                                                <option value="kiste">Kiste</option>
+                                                <option value="karton">Karton</option>
+                                            </Form.Select>
+                                            <button
+                                                type="button"
+                                                className="btn-close fs-sm"
+                                                onClick={() => onRemove(index)}
+                                                aria-label="Entfernen"
+                                            />
+                                        </div>
                                     </div>
-                                );
-                            })}
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Footer */}
+                    <div className="offcanvas-header flex-column align-items-start">
+                        <div className="d-flex align-items-center justify-content-between w-100 mb-3 mb-md-4">
+                            <span className="text-light-emphasis">Gesamtsumme:</span>
+                            <span className="h6 mb-0">{gesamtpreis.toFixed(2)} €</span>
                         </div>
-                    )}
-
-                    {cart.length > 0 && (
-                        <div className="mt-4 border-top pt-3">
-                            <h5 className="d-flex justify-content-between">
-                                <span>Summe aller Artikel</span>
-                                <span>{gesamtpreis.toFixed(2)} €</span>
-                            </h5>
-
-                            <div className="d-grid gap-2 mt-3">
-                                <Button variant="primary" onClick={handleBestellungStart}>
-                                    Bestellung aufgeben
-                                </Button>
-                                <Button variant="secondary" onClick={onHide}>
-                                    Schließen
-                                </Button>
-                            </div>
+                        <div className="d-flex w-100 gap-3">
+                            <button className="btn btn-lg btn-secondary w-100" onClick={onHide}>
+                                Schließen
+                            </button>
+                            <button className="btn btn-lg btn-primary w-100" onClick={() => setShowDateModal(true)}>
+                                Bestellen
+                            </button>
                         </div>
-                    )}
-                </Offcanvas.Body>
-            </Offcanvas>
+                    </div>
+                </div>
+            )}
+            {showFehlerAlert && (
+                <div className="position-fixed top-0 start-50 translate-middle-x mt-3 z-index-9999" style={{ zIndex: 1056 }}>
+                    <div className="alert alert-warning alert-dismissible fade show shadow" role="alert">
+                        Bitte wähle ein Lieferdatum!
+                    </div>
+                </div>
+            )}
 
+            {/* Lieferdatum Modal */}
             <Modal show={showDateModal} onHide={() => setShowDateModal(false)}>
                 <Modal.Header closeButton>
-                    <Modal.Title>Lieferdatum wählen</Modal.Title>
+                    <Modal.Title>Lieferdatum</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
-                    <Form.Group controlId="lieferdatum">
-                        <Form.Label>Lieferdatum wählen</Form.Label>
-                        <Form.Control
-                            type="date"
-                            value={lieferdatum}
-                            onChange={(e) => setLieferdatum(e.target.value)}
+                    <Form.Label className="form-label">Lieferdatum</Form.Label>
+                    <div className="position-relative">
+                        <input
+                            ref={(el) => {
+                                if (el && showDateModal) {
+                                    flatpickr(el, {
+                                        altInput: true,
+                                        altFormat: 'd.m.Y',
+                                        dateFormat: 'Y-m-d',
+                                        locale: German,
+                                        defaultDate: lieferdatum || undefined,
+                                        onChange: (selectedDates, dateStr) => setLieferdatum(dateStr)
+                                    });
+                                }
+                            }}
+                            className="form-control date-picker pe-5"
+                            type="text"
+                            placeholder="Datum wählen"
                         />
-                    </Form.Group>
+                        <i
+                            className="ci-calendar position-absolute top-50 end-0 translate-middle-y me-3"
+                            style={{ pointerEvents: 'none' }}
+                        />
+                    </div>
                 </Modal.Body>
                 <Modal.Footer>
                     <Button variant="secondary" onClick={() => setShowDateModal(false)}>
@@ -241,6 +232,7 @@ const WarenkorbPanel: React.FC<Props> = ({
             </Modal>
         </>
     );
-};
+
+}
 
 export default WarenkorbPanel;

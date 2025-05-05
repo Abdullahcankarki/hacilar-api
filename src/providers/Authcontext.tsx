@@ -9,7 +9,9 @@ interface AuthContextType {
   token: string | null;
   login: (credentials: { email?: string; name?: string; password: string }) => Promise<void>;
   logout: () => void;
-  loading: boolean; // 👈 hier hinzufügen
+  loading: boolean;
+  ausgewaehlterKunde: string | null;
+  setAusgewaehlterKunde: (id: string | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -19,6 +21,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<LoginResource | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [showExpiryModal, setShowExpiryModal] = useState(false);
+  const [ausgewaehlterKunde, setAusgewaehlterKunde] = useState<string | null>(null);
   const API_URL = process.env.REACT_APP_API_SERVER_URL || "";
 
   useEffect(() => {
@@ -90,7 +93,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, loading }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        login,
+        logout,
+        loading,
+        ausgewaehlterKunde,
+        setAusgewaehlterKunde
+      }}
+    >
       {children}
       {showExpiryModal && (
         <div className="modal fade show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>

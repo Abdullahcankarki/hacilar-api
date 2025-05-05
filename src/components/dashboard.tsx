@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import ArtikelSlider from './artikelSlider';
+import HeroSlider from './HeroSlider';
 import ArtikelListe from './artikelListe';
 import {
   ArtikelResource,
@@ -9,6 +9,7 @@ import {
 import { getAllArtikel } from '../backend/api';
 import { useAuth } from '../providers/Authcontext';
 import { useOutletContext } from 'react-router-dom';
+import AngebotsSlider from './AngebotsSlider';
 
 type DashboardContextType = {
   cart: ArtikelPositionResource[];
@@ -75,28 +76,31 @@ const Dashboard: React.FC = () => {
     });
 
   return (
-    <div className="container-fluid px-4 py-3">
-      {ladeFehler && (
-        <div className="alert alert-danger text-center mb-4" role="alert">
-          {ladeFehler}
-        </div>
-      )}
+    <>
+      <HeroSlider />
 
-      <ArtikelSlider />
+        {ladeFehler && (
+          <div className="alert alert-danger text-center mb-4" role="alert">
+            {ladeFehler}
+          </div>
+        )}
 
-      <ArtikelListe
-        articles={filteredAndSorted}
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
-        sortOption={sortOption}
-        setSortOption={setSortOption}
-        onAddToCart={handleAddToCart}
-        cartLength={cart.length}
-        onCartClick={() => setShowCart(true)}
-        cart={cart}
-        setCart={setCart}
-      />
-    </div>
+        <AngebotsSlider />
+
+        <ArtikelListe
+          articles={filteredAndSorted}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          sortOption={sortOption}
+          setSortOption={setSortOption}
+          onAddToCart={handleAddToCart}
+          cartLength={cart.length}
+          onCartClick={() => setShowCart(true)}
+          cart={cart}
+          setCart={setCart}
+        />
+
+    </>
   );
 };
 

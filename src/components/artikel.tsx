@@ -292,6 +292,7 @@ const Artikel: React.FC = () => {
                         <option value="Lamm">Lamm</option>
                         <option value="Schaf">Schaf</option>
                         <option value="Huhn">Huhn</option>
+                        <option value="Pute">Pute</option>
                       </select>
                     </div>
                     <div className="mb-3">

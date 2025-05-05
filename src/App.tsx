@@ -19,6 +19,9 @@ import VerkaeuferDetails from './components/verkaeuferDetails';
 import VerkaeuferEdit from './components/verkaeuferEdit';
 import Statistiken from './components/stats';
 import { Layout } from './components/layout';
+import './Cartzilla/assets/css/theme.min.css';
+import './Cartzilla/assets/icons/cartzilla-icons.min.css';
+
 
 // 🛡️ Route-Schutz-Komponente
 const ProtectedRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
