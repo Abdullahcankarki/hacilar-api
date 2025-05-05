@@ -1,8 +1,9 @@
 // LoginForm.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../providers/Authcontext';
 import { useNavigate } from 'react-router-dom';
-import SuccessOverlay from './sucessoverlay';
+import coverImg from '../Cartzilla/assets/img/account/cover.png';
+
 
 const LoginForm: React.FC = () => {
   const { login } = useAuth();
@@ -21,11 +22,11 @@ const LoginForm: React.FC = () => {
 
     let hasError = false;
     if (!identifier.trim()) {
-      setIdentifierError('Email falsch');
+      setIdentifierError('Email oder Benutzername ist erforderlich.');
       hasError = true;
     }
     if (!password.trim()) {
-      setPasswordError('Passwort falsch');
+      setPasswordError('Passwort ist erforderlich.');
       hasError = true;
     }
     if (hasError) return;
@@ -55,73 +56,87 @@ const LoginForm: React.FC = () => {
   };
 
   return (
-    <div
-      className="container d-flex align-items-center justify-content-center"
-      style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #0d47a1, #1565c0, #1e88e5, #42a5f5)',
-      }}
-    >
-      {showSuccess && <SuccessOverlay />}
-      {!showSuccess && (
-        <div className="card shadow" style={{ width: '100%', maxWidth: '400px', zIndex: 1 }}>
-          <div className="card-body">
-            <h2 className="card-title text-center mb-4" style={{ color: '#0d47a1' }}>
-              Anmelden
-            </h2>
-            <form onSubmit={handleSubmit}>
-              <div className="form-floating mb-3">
-                <input
-                  type="text"
-                  className={`form-control ${identifierError ? 'is-invalid' : ''}`}
-                  id="floatingIdentifier"
-                  placeholder="Email"
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                />
-                <label htmlFor="floatingIdentifier">Email</label>
-                {identifierError && <div className="invalid-feedback">{identifierError}</div>}
+    <main className="content-wrapper w-100 px-3 ps-lg-5 pe-lg-4 mx-auto" style={{ maxWidth: '1920px' }}>
+      <div className="d-lg-flex">
+        <div className="d-flex flex-column min-vh-100 w-100 py-4 mx-auto me-lg-5" style={{ maxWidth: '416px' }}>
+          <header className="navbar px-0 pb-4 mt-n2 mt-sm-0 mb-2 mb-md-3 mb-lg-4">
+            <a href="/" className="navbar-brand pt-0">
+              <span className="d-flex flex-shrink-0 text-primary me-2">
+                <i className="ci-user" style={{ fontSize: '2rem' }}></i>
+              </span>
+              Hacilar
+            </a>
+          </header>
+
+          {!showSuccess && (
+            <>
+              <h1 className="h2 mt-auto">Willkommen zurück</h1>
+              <div className="nav fs-sm mb-4">
+                Du möchtest einen Zugang?<br />
+                Dann kontaktiere uns einfach per{' '}
+                <span>
+                  <i className="ci-mail me-2"></i>
+                  <a href="mailto:info@hacilar.eu" className="fw-semibold text-primary text-decoration-underline">
+                    info@hacilar.eu
+                  </a>
+                </span>
               </div>
-              <div className="form-floating mb-3">
-                <input
-                  type="password"
-                  className={`form-control ${passwordError ? 'is-invalid' : ''}`}
-                  id="floatingPassword"
-                  placeholder="Passwort"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                <label htmlFor="floatingPassword">Passwort</label>
-                {passwordError && <div className="invalid-feedback">{passwordError}</div>}
-              </div>
-              <button
-                type="submit"
-                className="btn w-100"
-                style={{
-                  background: 'linear-gradient(90deg, #1565c0, #1e88e5)',
-                  border: 'none',
-                  borderRadius: '0.5rem',
-                  fontSize: '1rem',
-                  fontWeight: 'bold',
-                  padding: '0.75rem',
-                  color: '#fff',
-                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                  transition: 'transform 0.2s',
-                }}
-                onMouseDown={(e) =>
-                  (e.currentTarget.style.transform = 'scale(0.98)')
-                }
-                onMouseUp={(e) =>
-                  (e.currentTarget.style.transform = 'scale(1)')
-                }
-              >
-                Anmelden
-              </button>
-            </form>
+
+              <form onSubmit={handleSubmit} className="needs-validation" noValidate>
+                <div className="position-relative mb-4">
+                  <input
+                    type="text"
+                    className={`form-control form-control-lg ${identifierError ? 'is-invalid' : ''}`}
+                    placeholder="Email oder Benutzername"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    required
+                  />
+                  {identifierError && (
+                    <div className="invalid-tooltip bg-transparent py-0">{identifierError}</div>
+                  )}
+                </div>
+                <div className="mb-4">
+                  <div className="password-toggle">
+                    <input
+                      type="password"
+                      className={`form-control form-control-lg ${passwordError ? 'is-invalid' : ''}`}
+                      placeholder="Passwort"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
+                    <label className="password-toggle-button fs-lg" aria-label="Show/hide password">
+                      <input type="checkbox" className="btn-check" />
+                    </label>
+                    {passwordError && (
+                      <div className="invalid-tooltip bg-transparent py-0">{passwordError}</div>
+                    )}
+                  </div>
+                </div>
+                <button type="submit" className="btn btn-lg btn-primary w-100">Anmelden</button>
+              </form>
+
+              <footer className="mt-auto">
+                <p className="fs-xs mb-0">
+                  &copy; Alle Rechte vorbehalten. Erstellt von Hacilar.
+                </p>
+              </footer>
+            </>
+          )}
+        </div>
+
+        {/* Rechte Bildhälfte (optional) */}
+        <div className="d-none d-lg-block w-100 py-4 ms-auto" style={{ maxWidth: '1034px' }}>
+          <div className="d-flex flex-column justify-content-end h-100 rounded-5 overflow-hidden">
+            <span className="position-absolute top-0 start-0 w-100 h-100" style={{ background: 'linear-gradient(-90deg, #accbee 0%, #e7f0fd 100%)' }}></span>
+            <div className="ratio position-relative z-2" style={{ aspectRatio: '1030 / 1032' }}>
+              <img src={coverImg} alt="Login" />
+            </div>
           </div>
         </div>
-      )}
-    </div>
+      </div>
+    </main>
   );
 };
 

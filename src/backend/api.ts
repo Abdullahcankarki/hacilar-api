@@ -9,6 +9,17 @@ import {
   ArtikelPositionResource,
 } from "../Resources";
 import { ErrorFromValidation, ErrorWithHTML, fetchWithErrorHandling } from "./fetchWithErrorHandling";
+import { useAuth } from '../providers/Authcontext'; // falls im selben Kontext
+
+let ausgewaehlterKundeGlobal: string | null = null;
+
+export const setGlobalAusgewaehlterKunde = (id: string | null) => {
+  ausgewaehlterKundeGlobal = id;
+};
+
+export const getGlobalAusgewaehlterKunde = (): string | null => {
+  return ausgewaehlterKundeGlobal;
+};
 
 const API_URL = process.env.REACT_APP_API_SERVER_URL || "";
 
@@ -142,11 +153,15 @@ export async function deleteVerkaeufer(id: string): Promise<{ message: string }>
 }
 /* Artikel-Funktionen */
 export async function getAllArtikel(): Promise<ArtikelResource[]> {
-  return apiFetch<ArtikelResource[]>("/api/artikel");
+  const kundeId = getGlobalAusgewaehlterKunde();
+  const url = kundeId ? `/api/artikel?kunde=${kundeId}` : "/api/artikel";
+  return apiFetch<ArtikelResource[]>(url);
 }
 
 export async function getArtikelById(id: string): Promise<ArtikelResource> {
-  return apiFetch<ArtikelResource>(`/api/artikel/${id}`);
+  const kundeId = getGlobalAusgewaehlterKunde();
+  const url = kundeId ? `/api/artikel/${id}?kunde=${kundeId}` : `/api/artikel/${id}`;
+  return apiFetch<ArtikelResource>(url);
 }
 
 export async function createArtikel(data: Omit<ArtikelResource, "id">): Promise<ArtikelResource> {
@@ -171,7 +186,7 @@ export async function deleteArtikel(id: string): Promise<{ message: string }> {
 
 /* Kundenpreis-Funktionen */
 export async function getKundenpreiseByArtikel(artikelId: string): Promise<KundenPreisResource[]> {
-  return apiFetch<KundenPreisResource[]>(`/api/kundenpreis?artikel=${artikelId}`);
+  return apiFetch<KundenPreisResource[]>(`/api/kundenpreis/artikel/${artikelId}`);
 }
 
 export async function updateKundenpreis(id: string, data: Partial<KundenPreisResource>): Promise<KundenPreisResource> {

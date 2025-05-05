@@ -2,23 +2,29 @@ import { Outlet } from 'react-router-dom';
 import NavBar from './navbar';
 import { useState, useEffect } from 'react';
 import WarenkorbModal from './warenkorb';
-import { ArtikelPositionResource, AuftragResource, KundeResource } from '../Resources';
-import { createArtikelPosition, createAuftrag, getAllKunden } from '../backend/api';
+import { ArtikelPositionResource, AuftragResource, KundeResource, ArtikelResource } from '../Resources';
+import { createArtikelPosition, createAuftrag, getAllKunden, getAllArtikel, setGlobalAusgewaehlterKunde } from '../backend/api';
 import { useAuth } from '../providers/Authcontext';
-import { getAllArtikel } from '../backend/api';
-import { ArtikelResource } from '../Resources';
 
 export const Layout: React.FC = () => {
-  const { user } = useAuth();
-
   const [showCart, setShowCart] = useState(false);
   const [cart, setCart] = useState<ArtikelPositionResource[]>([]);
   const [kunden, setKunden] = useState<KundeResource[]>([]);
-  const [ausgewaehlterKunde, setAusgewaehlterKunde] = useState<string | null>(null);
   const [cartGeladen, setCartGeladen] = useState(false);
   const [articles, setArticles] = useState<ArtikelResource[]>([]);
+  const { user, ausgewaehlterKunde, setAusgewaehlterKunde } = useAuth();
+  const [lokalAusgewaehlterKunde, setLokalAusgewaehlterKunde] = useState<string | null>(null);
+  
+  useEffect(() => {
+    if (!user) return;
+  
+    const kundenId =
+      user.role === 'a' || user.role === 'v' ? lokalAusgewaehlterKunde : user.id;
+  
+    setAusgewaehlterKunde(kundenId ?? null);
+  }, [user, lokalAusgewaehlterKunde]);
 
-  // Wähle Kunden nur wenn Admin oder Verkäufer
+  // Kundenliste laden für Admin oder Verkäufer
   useEffect(() => {
     const fetchKunden = async () => {
       try {
@@ -34,6 +40,7 @@ export const Layout: React.FC = () => {
     }
   }, [user]);
 
+  // Artikel laden
   useEffect(() => {
     const fetchArticles = async () => {
       try {
@@ -47,6 +54,7 @@ export const Layout: React.FC = () => {
     fetchArticles();
   }, []);
 
+  // Warenkorb aus LocalStorage laden
   useEffect(() => {
     try {
       const gespeicherterWarenkorb = localStorage.getItem('warenkorb');
@@ -59,7 +67,7 @@ export const Layout: React.FC = () => {
           console.warn('Warenkorb-Daten ungültig:', parsed);
         }
       } else {
-        setCartGeladen(true); // selbst wenn leer, damit nicht blockiert
+        setCartGeladen(true);
       }
     } catch (err) {
       console.error('Fehler beim Parsen des Warenkorbs:', err);
@@ -67,6 +75,7 @@ export const Layout: React.FC = () => {
     }
   }, []);
 
+  // Warenkorb in LocalStorage speichern
   useEffect(() => {
     if (cartGeladen) {
       localStorage.setItem('warenkorb', JSON.stringify(cart));
@@ -98,7 +107,7 @@ export const Layout: React.FC = () => {
   };
 
   const handleSubmit = async (lieferdatum: string) => {
-    const kundeId = user?.role === 'u' ? user.id : ausgewaehlterKunde;
+    const kundeId = user?.role === 'u' ? user.id : lokalAusgewaehlterKunde;
 
     if (!kundeId) {
       alert('Bitte einen Kunden auswählen.');
@@ -147,8 +156,8 @@ export const Layout: React.FC = () => {
         onCartClick={() => setShowCart(true)}
         cartLength={cart.length}
         kunden={kunden}
-        ausgewaehlterKunde={ausgewaehlterKunde}
-        setAusgewaehlterKunde={setAusgewaehlterKunde}
+        ausgewaehlterKunde={lokalAusgewaehlterKunde}
+        setAusgewaehlterKunde={setLokalAusgewaehlterKunde}
       />
 
       <Outlet context={{
@@ -157,8 +166,8 @@ export const Layout: React.FC = () => {
         showCart,
         setShowCart,
         kunden,
-        ausgewaehlterKunde,
-        setAusgewaehlterKunde
+        ausgewaehlterKunde: lokalAusgewaehlterKunde,
+        setAusgewaehlterKunde: setLokalAusgewaehlterKunde
       }} />
 
       <WarenkorbModal
@@ -169,7 +178,7 @@ export const Layout: React.FC = () => {
         onRemove={handleRemoveFromCart}
         onSubmit={handleSubmit}
         onEinheitChange={handleEinheitChange}
-        articles={articles} // 🆕 hier hinzugefügt
+        articles={articles}
       />
     </>
   );
