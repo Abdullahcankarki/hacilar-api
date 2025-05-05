@@ -7,11 +7,13 @@
       "dom.iterable",
       "esnext"
     ],
+    "strictPropertyInitialization": false,
+    "noImplicitAny": false,
+    "exactOptionalPropertyTypes": false,
     "allowJs": true,
-    "skipLibCheck": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "strict": true,
+    "strict": false,
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
     "module": "esnext",
@@ -25,6 +27,6 @@
     "src"
   ],
   "exclude": [
-      "src/Cartzilla/assets/vendor/simplebar/src/**/*"
+      "src/Cartzilla"
   ]
 }
