@@ -11,6 +11,7 @@ const parseNumberInput = (value: string): number =>
 const formatDate = (dateStr?: string) => {
     if (!dateStr) return '—';
     return new Date(dateStr).toLocaleDateString('de-DE', {
+        weekday: 'long',
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
@@ -54,6 +55,20 @@ const AuftragDetail: React.FC = () => {
 
         fetchData();
     }, [id]);
+
+    useEffect(() => {
+      if (statusSuccess) {
+        const timeout = setTimeout(() => setStatusSuccess(''), 5000);
+        return () => clearTimeout(timeout);
+      }
+    }, [statusSuccess]);
+
+    useEffect(() => {
+      if (statusError) {
+        const timeout = setTimeout(() => setStatusError(''), 5000);
+        return () => clearTimeout(timeout);
+      }
+    }, [statusError]);
 
     const handlePositionChange = (
         index: number,
@@ -158,10 +173,17 @@ const AuftragDetail: React.FC = () => {
 
     return (
         <div className="container my-4">
-            <h2>Auftrag von {auftrag.kundeName}</h2>
-            <p><strong>Lieferdatum:</strong> {formatDate(auftrag.lieferdatum)}</p>
-            <p><strong>Bemerkung:</strong> {auftrag.bemerkungen || '—'}</p>
-            <Button variant="outline-primary" onClick={() => setShowModal(true)}>
+            <div className="d-flex justify-content-between align-items-start flex-wrap">
+              <div>
+                <p className="mb-1"><strong>Kunde:</strong></p>
+                <h4>{auftrag.kundeName}</h4>
+              </div>
+              <div>
+                <p className="mb-1"><strong>Lieferdatum:</strong></p>
+                <span className="badge bg-secondary fs-6">{formatDate(auftrag.lieferdatum)}</span>
+              </div>
+            </div>
+            <Button className= "print-hidden" variant="outline-primary" onClick={() => setShowModal(true)}>
                 Auftrag bearbeiten
             </Button>
 
@@ -196,6 +218,7 @@ const AuftragDetail: React.FC = () => {
                             }
                         />
                     </Form.Group>
+
                 </Modal.Body>
                 <Modal.Footer>
                     <Button variant="secondary" onClick={() => setShowModal(false)}>
@@ -207,25 +230,6 @@ const AuftragDetail: React.FC = () => {
                 </Modal.Footer>
             </Modal>
 
-            <div className="my-3">
-                <Button
-                    variant="info"
-                    className="me-2"
-                    onClick={() => handleStatusChange('in Bearbeitung')}
-                >
-                    In Bearbeitung
-                </Button>
-                <Button
-                    variant="success"
-                    className="me-2"
-                    onClick={() => handleStatusChange('abgeschlossen')}
-                >
-                    Abschließen
-                </Button>
-                <Button variant="danger" onClick={() => handleStatusChange('storniert')}>
-                    Stornieren
-                </Button>
-            </div>
             <AuftragPositionenTabelle
                 positions={positions}
                 alleArtikel={alleArtikel}
@@ -235,8 +239,12 @@ const AuftragDetail: React.FC = () => {
                 auftragId={auftrag.id!}
             />
 
-            {statusError && <Alert variant="danger" className="mt-3">{statusError}</Alert>}
-            {statusSuccess && <Alert variant="success" className="mt-3">{statusSuccess}</Alert>}
+            <div className="mt-4">
+              <p><strong>Bemerkung:</strong> {auftrag.bemerkungen || '—'}</p>
+            </div>
+
+            {statusError && <Alert variant="danger" className="mt-3 print-hidden">{statusError}</Alert>}
+            {statusSuccess && <Alert variant="success" className="mt-3 print-hidden">{statusSuccess}</Alert>}
         </div>
     );
 };

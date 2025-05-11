@@ -48,6 +48,7 @@ export type VerkaeuferResource = {
   };
   
   export type ArtikelResource = {
+    bildUrl?: string;
     id?: string;             // Eindeutige ID des Artikels
     name: string;
     preis: number;           // Standardpreis des Artikels

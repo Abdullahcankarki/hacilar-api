@@ -3,8 +3,9 @@ import NavBar from './navbar';
 import { useState, useEffect } from 'react';
 import WarenkorbModal from './warenkorb';
 import { ArtikelPositionResource, AuftragResource, KundeResource, ArtikelResource } from '../Resources';
-import { createArtikelPosition, createAuftrag, getAllKunden, getAllArtikel, setGlobalAusgewaehlterKunde } from '../backend/api';
+import { createArtikelPosition, createAuftrag, getAllKunden, getAllArtikel, setGlobalAusgewaehlterKunde, updateAuftrag } from '../backend/api';
 import { useAuth } from '../providers/Authcontext';
+import { Alert } from 'react-bootstrap';
 
 export const Layout: React.FC = () => {
   const [showCart, setShowCart] = useState(false);
@@ -14,13 +15,14 @@ export const Layout: React.FC = () => {
   const [articles, setArticles] = useState<ArtikelResource[]>([]);
   const { user, ausgewaehlterKunde, setAusgewaehlterKunde } = useAuth();
   const [lokalAusgewaehlterKunde, setLokalAusgewaehlterKunde] = useState<string | null>(null);
-  
+  const [meldung, setMeldung] = useState<{ text: string; variant: 'success' | 'danger' } | null>(null);
+
   useEffect(() => {
     if (!user) return;
-  
+
     const kundenId =
       user.role === 'a' || user.role === 'v' ? lokalAusgewaehlterKunde : user.id;
-  
+
     setAusgewaehlterKunde(kundenId ?? null);
   }, [user, lokalAusgewaehlterKunde]);
 
@@ -110,42 +112,50 @@ export const Layout: React.FC = () => {
     const kundeId = user?.role === 'u' ? user.id : lokalAusgewaehlterKunde;
 
     if (!kundeId) {
-      alert('Bitte einen Kunden auswählen.');
+      setMeldung({ text: 'Bitte einen Kunden auswählen.', variant: 'danger' });
       return;
     }
 
     try {
+      // Auftrag zuerst erstellen mit leerer Positionsliste
+      const auftragDraft: Omit<AuftragResource, 'id' | 'createdAt' | 'updatedAt'> = {
+        artikelPosition: [],
+        lieferdatum,
+        kunde: kundeId,
+        status: 'offen',
+      };
+
+      const gespeicherterAuftrag = await createAuftrag(auftragDraft);
+      const auftragId = gespeicherterAuftrag.id;
+
+      // Positionen einzeln mit auftragId erstellen
       const gespeichertePositionen = await Promise.all(
         cart.map(async (pos) => {
           const neuePosition = {
             artikel: pos.artikel!,
             menge: pos.menge!,
             einheit: pos.einheit!,
-            einzelpreis: pos.einzelpreis!,
             zerlegung: pos.zerlegung || false,
             vakuum: pos.vakuum || false,
             bemerkung: pos.bemerkung || '',
+            auftragId,
           };
           return await createArtikelPosition(neuePosition);
         })
       );
 
+      // Positionen IDs einsammeln
       const artikelPositionIds = gespeichertePositionen.map((p) => p.id!);
 
-      const auftrag: Omit<AuftragResource, 'id' | 'createdAt' | 'updatedAt'> = {
-        artikelPosition: artikelPositionIds,
-        lieferdatum,
-        kunde: kundeId,
-        status: 'offen',
-      };
+      // Auftrag mit Artikelpositionen aktualisieren
+      await updateAuftrag(auftragId, { artikelPosition: artikelPositionIds });
 
-      await createAuftrag(auftrag);
-      alert('Bestellung wurde übermittelt!');
+      setMeldung({ text: 'Bestellung wurde übermittelt!', variant: 'success' });
       setCart([]);
       setShowCart(false);
       localStorage.removeItem('warenkorb');
     } catch (error) {
-      alert('Fehler beim Übermitteln der Bestellung');
+      setMeldung({ text: 'Fehler beim Übermitteln der Bestellung', variant: 'danger' });
       console.error(error);
     }
   };
@@ -159,6 +169,17 @@ export const Layout: React.FC = () => {
         ausgewaehlterKunde={lokalAusgewaehlterKunde}
         setAusgewaehlterKunde={setLokalAusgewaehlterKunde}
       />
+      {meldung && (
+        <div className="container mt-3">
+          <Alert
+            variant={meldung.variant}
+            onClose={() => setMeldung(null)}
+            dismissible
+          >
+            {meldung.text}
+          </Alert>
+        </div>
+      )}
 
       <Outlet context={{
         cart,

@@ -69,13 +69,16 @@ const NavBar: React.FC<NavBarProps> = ({
               <li className="nav-item">
                 <NavLink className="nav-link" to="/home">Shop</NavLink>
               </li>
-              <li className="nav-item">
-                <NavLink className="nav-link" to="/auftraege">Aufträge</NavLink>
-              </li>
+
               {user && (user.role === 'v' || user.role === 'a') && (
-                <li className="nav-item">
-                  <NavLink className="nav-link" to="/artikel">Artikel</NavLink>
-                </li>
+                <>
+                  <li className="nav-item">
+                    <NavLink className="nav-link" to="/auftraege">Aufträge</NavLink>
+                  </li>
+                  <li className="nav-item">
+                    <NavLink className="nav-link" to="/artikel">Artikel</NavLink>
+                  </li>
+                </>
               )}
               {user && user.role === 'a' && (
                 <>

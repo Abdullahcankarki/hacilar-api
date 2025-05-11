@@ -13,7 +13,7 @@ type Props = {
     onQuantityChange: (index: number, qty: number) => void;
     onEinheitChange: (index: number, einheit: ArtikelPositionResource['einheit']) => void;
     onRemove: (index: number) => void;
-    onSubmit: (lieferdatum: string) => void;
+    onSubmit: (lieferdatum: string, bemerkung: string) => void;
 };
 
 const WarenkorbPanel: React.FC<Props> = ({
@@ -29,6 +29,7 @@ const WarenkorbPanel: React.FC<Props> = ({
     const [lieferdatum, setLieferdatum] = useState('');
     const [showDateModal, setShowDateModal] = useState(false);
     const [showFehlerAlert, setShowFehlerAlert] = useState(false);
+    const [bemerkung, setBemerkung] = useState('');
 
     useEffect(() => {
         if (showDateModal) {
@@ -86,7 +87,7 @@ const WarenkorbPanel: React.FC<Props> = ({
             return;
         }
         setShowDateModal(false);
-        onSubmit(lieferdatum);
+        onSubmit(lieferdatum, bemerkung);
     };
 
     return (
@@ -167,10 +168,10 @@ const WarenkorbPanel: React.FC<Props> = ({
 
                     {/* Footer */}
                     <div className="offcanvas-header flex-column align-items-start">
-                        <div className="d-flex align-items-center justify-content-between w-100 mb-3 mb-md-4">
+                        {/* <div className="d-flex align-items-center justify-content-between w-100 mb-3 mb-md-4">
                             <span className="text-light-emphasis">Gesamtsumme:</span>
                             <span className="h6 mb-0">{gesamtpreis.toFixed(2)} €</span>
-                        </div>
+                        </div> */}
                         <div className="d-flex w-100 gap-3">
                             <button className="btn btn-lg btn-secondary w-100" onClick={onHide}>
                                 Schließen
@@ -220,6 +221,14 @@ const WarenkorbPanel: React.FC<Props> = ({
                             style={{ pointerEvents: 'none' }}
                         />
                     </div>
+                    <Form.Label className="form-label mt-4">Bemerkung</Form.Label>
+                    <Form.Control
+                        as="textarea"
+                        rows={3}
+                        value={bemerkung}
+                        onChange={(e) => setBemerkung(e.target.value)}
+                        placeholder="Optional: z. B. Artikel-, Anlieferhinweise, etc."
+                    />
                 </Modal.Body>
                 <Modal.Footer>
                     <Button variant="secondary" onClick={() => setShowDateModal(false)}>

@@ -122,8 +122,15 @@ const KundenaufpreisEditor: React.FC = () => {
 
       <div className="card shadow">
         <div className="card-header bg-primary text-white">
-          <h2 className="h5 mb-0">
-            Kundenaufpreise für Artikel: {article ? article.name : artikelId}
+          <h2 className="h5 mb-0 d-flex justify-content-between align-items-center">
+            <span>
+              Kundenaufpreise für Artikel: {article ? article.name : artikelId}
+            </span>
+            {article && (
+              <span className="badge bg-light text-dark">
+                Normalpreis: {article.preis.toFixed(2)} €
+              </span>
+            )}
           </h2>
         </div>
         <div className="card-body">
@@ -138,6 +145,7 @@ const KundenaufpreisEditor: React.FC = () => {
                 <tr>
                   <th>Kunde</th>
                   <th>Aufpreis (€)</th>
+                  <th>Endpreis (€)</th>
                   <th>Aktionen</th>
                 </tr>
               </thead>
@@ -167,6 +175,9 @@ const KundenaufpreisEditor: React.FC = () => {
                         value={kp.aufpreis}
                         onChange={(e) => handleSurchargeChange(index, parseNumberInput(e.target.value))}
                       />
+                    </td>
+                    <td>
+                      {article ? (article.preis + kp.aufpreis).toFixed(2) : '-'}
                     </td>
                     <td>
                       <button

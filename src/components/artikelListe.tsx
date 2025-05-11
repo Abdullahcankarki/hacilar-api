@@ -125,75 +125,77 @@ const ArtikelListe: React.FC<Props> = ({
                 <div className="row">
                     {/* Sidebar */}
                     <aside className="col-lg-3">
-                        <div className="offcanvas-lg offcanvas-start pe-lg-4" id="filterSidebar">
-                            <div className="offcanvas-header py-3">
-                                <h5 className="offcanvas-title">Produkte filtern</h5>
-                                <button
-                                    type="button"
-                                    className="btn-close"
-                                    data-bs-dismiss="offcanvas"
-                                    data-bs-target="#filterSidebar"
-                                    aria-label="Close"
-                                ></button>
-                            </div>
-                            <div className="offcanvas-body flex-column pt-2 py-lg-0">
-                                <div className="d-flex flex-column gap-3">
-                                    {/* Kategorien */}
-                                    {kategorien.map((kategorie, i) => (
-                                        <a
-                                            key={i}
-                                            href={`#${kategorie.replace(/\s+/g, '-')}`}
-                                            className="d-flex align-items-center text-decoration-none text-body"
-                                        >
-                                            <span
-                                                className="d-flex align-items-center justify-content-center bg-body-secondary rounded-circle me-3"
-                                                style={{ width: '56px', height: '56px' }}
-                                            >
-                                                <img
-                                                    src={`assets/img/shop/grocery/categories/0${(i % 7) + 1}.png`}
-                                                    width="40"
-                                                    alt={kategorie}
-                                                />
-                                            </span>
-                                            <span className="fs-sm">{kategorie}</span>
-                                        </a>
-                                    ))}
-
-                                    {/* Favoriten-Link */}
-                                    {favoriten.length > 0 && (
-                                        <a
-                                            href="#favoriten"
-                                            className="d-flex align-items-center text-decoration-none text-body"
-                                        >
-                                            <span
-                                                className="d-flex align-items-center justify-content-center bg-warning rounded-circle me-3"
-                                                style={{ width: '56px', height: '56px' }}
-                                            >
-                                                <i className="ci-star-filled"></i>
-                                            </span>
-                                            <span className="fs-sm">Favoriten</span>
-                                        </a>
-                                    )}
-
-                                    <a
-                                        href="#letzter-auftrag"
-                                        className="d-flex align-items-center text-decoration-none text-body"
-                                    >
-                                        <span
-                                            className="d-flex align-items-center justify-content-center bg-primary rounded-circle me-3 text-white fw-bold"
-                                            style={{ width: '56px', height: '56px' }}
-                                        >
-                                            <i className="ci-package"></i>
-                                        </span>
-                                        <span className="fs-sm">Letzter Auftrag</span>
-                                    </a>
-                                </div>
-                            </div>
+                      <div className="offcanvas-lg offcanvas-start pe-lg-4" id="filterSidebar">
+                        <div className="offcanvas-header py-3">
+                          <h5 className="offcanvas-title">Filter products</h5>
+                          <button
+                            type="button"
+                            className="btn-close"
+                            data-bs-dismiss="offcanvas"
+                            data-bs-target="#filterSidebar"
+                            aria-label="Close"
+                          ></button>
                         </div>
+                        <div className="offcanvas-body flex-column pt-2 py-lg-0">
+                          <div className="d-flex flex-column gap-3">
+                            {kategorien.map((kategorie, i) => (
+                              <a
+                                key={i}
+                                href={`#${kategorie.replace(/\s+/g, '-')}`}
+                                className="d-flex align-items-center text-decoration-none text-body"
+                              >
+                                <span
+                                  className="d-flex align-items-center justify-content-center bg-body-secondary rounded-circle me-3"
+                                  style={{ width: '56px', height: '56px' }}
+                                >
+                                  <span className="fs-4">
+                                    {kategorie === 'Huhn' && '🐔'}
+                                    {kategorie === 'Kalb' && '🐄'}
+                                    {kategorie === 'Lamm' && '🐑'}
+                                    {kategorie === 'Pute' && '🦃'}
+                                    {kategorie === 'Rind' && '🐄'}
+                                    {kategorie === 'Schaf' && '🐏'}
+                                    {!['Huhn','Kalb','Lamm','Pute','Rind','Schaf'].includes(kategorie) && '📦'}
+                                  </span>
+                                </span>
+                                <span className="fs-sm">{kategorie}</span>
+                              </a>
+                            ))}
+
+                            {favoriten.length > 0 && (
+                              <a
+                                href="#favoriten"
+                                className="d-flex align-items-center text-decoration-none text-body"
+                              >
+                                <span
+                                  className="d-flex align-items-center justify-content-center bg-warning rounded-circle me-3"
+                                  style={{ width: '56px', height: '56px' }}
+                                >
+                                  <i className="ci-star-filled"></i>
+                                </span>
+                                <span className="fs-sm">Favoriten</span>
+                              </a>
+                            )}
+
+                            <a
+                              href="#letzter-auftrag"
+                              className="d-flex align-items-center text-decoration-none text-body"
+                            >
+                              <span
+                                className="d-flex align-items-center justify-content-center bg-primary rounded-circle me-3 text-white fw-bold"
+                                style={{ width: '56px', height: '56px' }}
+                              >
+                                <i className="ci-package"></i>
+                              </span>
+                              <span className="fs-sm">Letzter Auftrag</span>
+                            </a>
+                          </div>
+                        </div>
+                      </div>
                     </aside>
 
                     {/* Hauptbereich */}
-                    <div className="flex-grow-1 px-4">
+                    <div className="col-lg-9">
                         {/* Suche + Sortierung */}
                         {/* Sucheingabe */}
                         <div className="position-relative w-100 d-none d-md-block me-3 me-xl-4 mb-4">
@@ -350,7 +352,8 @@ const ArtikelListe: React.FC<Props> = ({
                         {kategorien.map(kat => (
                             <div key={kat} className="mb-5" id={kat.replace(/\s+/g, '-')}>
                                 <h5 className="mb-3">{kat}</h5>
-                                <Row>
+                                {/* <!-- Grid --> */}
+                                <div className="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-3 row-cols-xl-4 g-4">
                                     {groupedArticles[kat].map(article => (
                                         <RenderCard
                                             key={article.id}
@@ -372,7 +375,7 @@ const ArtikelListe: React.FC<Props> = ({
                                             setBemerkungen={setBemerkungen}
                                         />
                                     ))}
-                                </Row>
+                                </div>
                             </div>
                         ))}
                     </div>

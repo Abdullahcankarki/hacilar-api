@@ -152,16 +152,16 @@ const AuftragPositionenTabelle: React.FC<Props> = ({
 
     return (
         <div>
-            <h4>Artikelpositionen</h4>
+            <h4 className= "print-hidden">Artikelpositionen</h4>
 
             {/* Fehleranzeige */}
             {error && (
-                <Alert variant="danger" onClose={() => setError(null)} dismissible>
+                <Alert className= "print-hidden" variant="danger" onClose={() => setError(null)} dismissible>
                     {error}
                 </Alert>
             )}
 
-            <Button variant="outline-success" className="mb-3" onClick={handleAdd}>
+            <Button  variant="outline-success" className="mb-3 print-hidden" onClick={handleAdd}>
                 + Neue Position hinzufügen
             </Button>
 
@@ -174,8 +174,8 @@ const AuftragPositionenTabelle: React.FC<Props> = ({
                         <th>Artikel + Nummer</th>
                         <th>Einzelpreis (€)</th>
                         <th>Gewicht (kg)</th>
-                        <th>Gesamtpreis (€)</th>
-                        <th>Aktionen</th>
+                        <th className= "print-hidden">Gesamtpreis (€)</th>
+                        <th className= "print-hidden">Aktionen</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -214,12 +214,10 @@ const AuftragPositionenTabelle: React.FC<Props> = ({
                                         onChange={(e) => handleChange(index, 'menge', parseNumberInput(e.target.value))}
                                     />
                                 ) : (
-                                    <>
-                                        <div className="editable-cell">
-                                            {pos.menge || '-'}
-                                            <FaPen className="edit-icon" />
-                                        </div>
-                                    </>
+                                    <div className="editable-cell">
+                                        {pos.menge || '-'}
+                                        <FaPen className="edit-icon" />
+                                    </div>
                                 )}
                             </td>
 
@@ -295,13 +293,13 @@ const AuftragPositionenTabelle: React.FC<Props> = ({
                             <td>{(pos.einzelpreis ?? 0).toFixed(2)} €</td>
 
                             {/* Gewicht */}
-                            <td>{(pos.gesamtgewicht ?? 0).toFixed(2)} kg</td>
+                            <td className= "print-hidden">{(pos.gesamtgewicht ?? 0).toFixed(2)} kg</td>
 
                             {/* Gesamtpreis */}
-                            <td>{(pos.gesamtpreis ?? 0).toFixed(2)} €</td>
+                            <td className= "print-hidden">{(pos.gesamtpreis ?? 0).toFixed(2)} €</td>
 
                             {/* Aktionen */}
-                            <td>
+                            <td className= "print-hidden">
                                 <Button variant="danger" size="sm" onClick={() => handleDelete(index)}>
                                     Löschen
                                 </Button>
@@ -312,7 +310,7 @@ const AuftragPositionenTabelle: React.FC<Props> = ({
             </Table>
 
             {positions.length > 0 && (
-                <Button variant="primary" onClick={onSave} disabled={saving}>
+                <Button className= "print-hidden" variant="primary" onClick={onSave} disabled={saving}>
                     {saving ? (
                         <>
                             <Spinner animation="border" size="sm" className="me-2" />
