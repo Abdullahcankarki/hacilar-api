@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArtikelResource, KundenPreisResource, KundeResource } from '../Resources';
 import { api } from '../backend/api';
+import fallbackImage from '../Cartzilla/assets/img/shop/grocery/10.png';
 
 // Hilfsfunktion für Number-Inputs, die Kommas in Punkte umwandelt
 const parseNumberInput = (value: string): number =>
@@ -22,6 +23,7 @@ const Artikel: React.FC = () => {
     gewichtProStueck: 0,
     gewichtProKarton: 0,
     gewichtProKiste: 0,
+    bildUrl: '',
   });
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
   const [customers, setCustomers] = useState<KundeResource[]>([]);
@@ -80,6 +82,7 @@ const Artikel: React.FC = () => {
         gewichtProStueck: 0,
         gewichtProKarton: 0,
         gewichtProKiste: 0,
+        bildUrl: '',
       });
     } catch (err: any) {
       alert(err.message || 'Fehler beim Speichern des Artikels');
@@ -186,6 +189,7 @@ const Artikel: React.FC = () => {
       <table className="table table-striped table-hover">
         <thead className="table-light">
           <tr>
+            <th>Bild</th>
             <th>Name</th>
             <th>Artikelnummer</th>
             <th>Preis</th>
@@ -199,6 +203,16 @@ const Artikel: React.FC = () => {
         <tbody>
           {filteredArticles.map(a => (
             <tr key={a.id}>
+              <td>
+                <img
+                  src={a.bildUrl || fallbackImage}
+                  alt={a.name}
+                  style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = fallbackImage;
+                  }}
+                />
+              </td>
               <td>{a.name}</td>
               <td>{a.artikelNummer}</td>
               <td>{a.preis.toFixed(2)}€</td>
@@ -217,6 +231,7 @@ const Artikel: React.FC = () => {
                     gewichtProStueck: a.gewichtProStueck || 0,
                     gewichtProKarton: a.gewichtProKarton || 0,
                     gewichtProKiste: a.gewichtProKiste || 0,
+                    bildUrl: a.bildUrl || '',
                   });
                   setShowArticleModal(true);
                 }}>
@@ -338,6 +353,15 @@ const Artikel: React.FC = () => {
                             gewichtProKiste: parseNumberInput(e.target.value),
                           })
                         }
+                      />
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label">Bild-URL</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={newArticle.bildUrl || ''}
+                        onChange={(e) => setNewArticle({ ...newArticle, bildUrl: e.target.value })}
                       />
                     </div>
                   </div>
