@@ -32,10 +32,7 @@ const ArtikelListe: React.FC<Props> = ({
     const [letzteArtikel, setLetzteArtikel] = useState<string[]>([]);
     const [auftragLadeStatus, setAuftragLadeStatus] = useState<'loading' | 'ready' | 'error'>('loading');
     const [letzterAuftrag, setLetzterAuftrag] = useState<ArtikelPositionResource[]>([]);
-    const [favoriten, setFavoriten] = useState<string[]>(() => {
-        const stored = localStorage.getItem('favoriten');
-        return stored ? JSON.parse(stored) : [];
-    });
+    const [favoriten, setFavoriten] = useState<string[]>([]);
 
     useEffect(() => {
         const fetchLetzterAuftrag = async () => {
@@ -55,8 +52,12 @@ const ArtikelListe: React.FC<Props> = ({
     useEffect(() => {
         const fetchFavoriten = async () => {
             try {
-                if (user?.role === 'u' && favoriten.length === 0) {
-                    const favs = await getKundenFavoriten(user.id);
+                if (user?.role === 'u') {
+                    const favs = await getKundenFavoriten(user.id); // explizit user.id
+                    setFavoriten(favs);
+                    localStorage.setItem('favoriten', JSON.stringify(favs));
+                } else if (user?.role === 'a') {
+                    const favs = await getKundenFavoriten(); // nutzt localStorage ausgewaehlterKunde
                     setFavoriten(favs);
                 }
             } catch (e) {
@@ -67,9 +68,6 @@ const ArtikelListe: React.FC<Props> = ({
         fetchFavoriten();
     }, [user]);
 
-    useEffect(() => {
-        localStorage.setItem('favoriten', JSON.stringify(favoriten));
-    }, [favoriten]);
 
     useEffect(() => {
         if (!user) {
@@ -266,6 +264,7 @@ const ArtikelListe: React.FC<Props> = ({
                                         />
                                     ))}
                                 </div>
+                                <br />
                             </>
                         )}
 

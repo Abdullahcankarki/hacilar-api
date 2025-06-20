@@ -293,7 +293,7 @@ const AuftragPositionenTabelle: React.FC<Props> = ({
                             <td>{(pos.einzelpreis ?? 0).toFixed(2)} €</td>
 
                             {/* Gewicht */}
-                            <td className= "print-hidden">{(pos.gesamtgewicht ?? 0).toFixed(2)} kg</td>
+                            <td>{(pos.gesamtgewicht ?? 0).toFixed(2)} kg</td>
 
                             {/* Gesamtpreis */}
                             <td className= "print-hidden">{(pos.gesamtpreis ?? 0).toFixed(2)} €</td>
