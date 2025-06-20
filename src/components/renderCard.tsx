@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ArtikelResource, ArtikelPositionResource } from '../Resources';
 import { Card, Col, Form, Button, Badge, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
@@ -41,6 +41,8 @@ const RenderCard: React.FC<Props> = ({
     const cartItem = cart.find(item => item.artikel === article.id);
 
     const { user } = useAuth();
+    const [lokaleMenge, setLokaleMenge] = useState<{ [artikelId: string]: number }>({});
+    const [lokaleEinheit, setLokaleEinheit] = useState<{ [artikelId: string]: string }>({});
 
     const toggleFavorit = async () => {
         if (!article.id || !user) return;
@@ -97,17 +99,29 @@ const RenderCard: React.FC<Props> = ({
 
                             <input
                                 type="text"
-                                value={cartItem?.menge === 0 ? '' : cartItem?.menge?.toString() ?? ''}
+                                value={
+                                    isInCart
+                                        ? cartItem?.menge?.toString() ?? ''
+                                        : lokaleMenge[article.id!]?.toString() ?? ''
+                                }
                                 className="form-control form-control-sm text-center bg-primary text-white border-0 no-spinner"
                                 onChange={(e) => {
                                     const val = e.target.value;
                                     const num = parseInt(val);
                                     const neueMenge = val === '' ? 0 : (isNaN(num) ? 1 : num);
-                                    const updated = cart.map(item =>
-                                        item.artikel === article.id ? { ...item, menge: neueMenge } : item
-                                    );
-                                    localStorage.setItem('warenkorb', JSON.stringify(updated));
-                                    setCart(updated);
+
+                                    if (isInCart) {
+                                        const updatedCart = cart.map(item =>
+                                            item.artikel === article.id ? { ...item, menge: neueMenge } : item
+                                        );
+                                        setCart(updatedCart);
+                                        localStorage.setItem('warenkorb', JSON.stringify(updatedCart));
+                                    } else {
+                                        setLokaleMenge(prev => ({
+                                            ...prev,
+                                            [article.id!]: neueMenge
+                                        }));
+                                    }
                                 }}
                             />
 
@@ -124,9 +138,26 @@ const RenderCard: React.FC<Props> = ({
                         <Form.Select
                             size="sm"
                             className="form-control form-control-sm text-center bg-primary text-white border-0 no-spinner"
-                            value={einheiten[article.id!] || 'kg'}
+                            value={
+                                isInCart
+                                    ? cartItem?.einheit?.toString() ?? ''
+                                    : lokaleEinheit[article.id!]?.toString() ?? ''
+                            }
                             onChange={(e) => {
-                                setEinheiten({ ...einheiten, [article.id!]: e.target.value });
+                                const neueEinheit = e.target.value as "kg" | "stück" | "kiste" | "karton";
+
+                                if (isInCart) {
+                                    const updatedCart = cart.map(item =>
+                                        item.artikel === article.id ? { ...item, einheit: neueEinheit } : item
+                                    );
+                                    setCart(updatedCart);
+                                    localStorage.setItem('warenkorb', JSON.stringify(updatedCart));
+                                } else {
+                                    setLokaleEinheit(prev => ({
+                                        ...prev,
+                                        [article.id!]: neueEinheit
+                                    }));
+                                }
                             }}
                         >
                             <option value="kg">Kg</option>
@@ -134,30 +165,39 @@ const RenderCard: React.FC<Props> = ({
                             <option value="kiste">Kiste</option>
                             <option value="karton">Ktn</option>
                         </Form.Select>
-                        <Button variant="primary" className="w-100 rounded-pill px-3" onClick={() => {
-                            const menge = mengen[article.id!] || 0;
-                            if (menge < 1) return;
-                            const einheit = einheiten[article.id!] || 'kg';
-                            onAddToCart({
-                                artikel: article.id!,
-                                artikelName: article.name,
-                                menge,
-                                einheit: einheit as 'kg' | 'stück' | 'kiste' | 'karton',
-                                einzelpreis: article.preis,
-                                zerlegung: zerlegung[article.id!] || false,
-                                vakuum: vakuum[article.id!] || false,
-                                bemerkung: bemerkungen[article.id!] || '',
-                            });
-                        }}>
-                            In den Warenkorb
-                        </Button>
-                        <button type="button" className="btn btn-icon btn-secondary rounded-circle animate-pulse align-self-center" onClick={toggleFavorit} aria-label="Favorit">
-                            {favoriten.includes(article.id!) ? (
-                                <AiIcons.AiFillHeart className="fs-base animate-target" color="#dc3545" />
+                        <div className="d-flex justify-content-between align-items-center">
+                            {isInCart ? (
+                                <div className="text-success d-flex align-items-center gap-2">
+                                    <FaShoppingCart />
+                                    <span>Im Warenkorb</span>
+                                </div>
                             ) : (
-                                <AiIcons.AiOutlineHeart className="fs-base animate-target" color="#ccc" />
+                                <Button variant="primary" className="rounded-pill px-3" onClick={() => {
+                                    const menge = lokaleMenge[article.id!] || 0;
+                                    if (menge < 1) return;
+                                    const einheit = lokaleEinheit[article.id!] || 'kg';
+                                    onAddToCart({
+                                        artikel: article.id!,
+                                        artikelName: article.name,
+                                        menge,
+                                        einheit: einheit as 'kg' | 'stück' | 'kiste' | 'karton',
+                                        einzelpreis: article.preis,
+                                        zerlegung: zerlegung[article.id!] || false,
+                                        vakuum: vakuum[article.id!] || false,
+                                        bemerkung: bemerkungen[article.id!] || '',
+                                    });
+                                }}>
+                                    In den Warenkorb
+                                </Button>
                             )}
-                        </button>
+                            <button type="button" className="btn btn-icon btn-secondary rounded-circle animate-pulse" onClick={toggleFavorit} aria-label="Favorit">
+                                {favoriten.includes(article.id!) ? (
+                                    <AiIcons.AiFillHeart className="fs-base animate-target" color="#dc3545" />
+                                ) : (
+                                    <AiIcons.AiOutlineHeart className="fs-base animate-target" color="#ccc" />
+                                )}
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
