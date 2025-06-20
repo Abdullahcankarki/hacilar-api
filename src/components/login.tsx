@@ -1,7 +1,7 @@
 // LoginForm.tsx
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../providers/Authcontext';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import coverImg from '../assets/hijab.png';
 import { ErrorFromValidation } from '../backend/fetchWithErrorHandling';
 
@@ -17,45 +17,45 @@ const LoginForm: React.FC = () => {
 
 
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  try {
-    await login({
-      email: identifier.includes('@') ? identifier : undefined,
-      name: !identifier.includes('@') ? identifier : undefined,
-      password,
-    });
-
-    setShowSuccess(true);
-    setTimeout(() => {
-      setShowSuccess(false);
-      navigate('/home');
-    }, 1000);
-  } catch (err: any) {
-    if (err instanceof ErrorFromValidation) {
-      // express-validator Fehler auswerten
-      err.validationErrors.forEach(e => {
-        if (e.path === 'email' || e.path === 'name') {
-          setIdentifierError(e.msg);
-        } else if (e.path === 'password') {
-          setPasswordError(e.msg);
-        }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await login({
+        email: identifier.includes('@') ? identifier : undefined,
+        name: !identifier.includes('@') ? identifier : undefined,
+        password,
       });
-    } else {
-      const errorMsg = err.message?.toLowerCase() || '';
 
-      if (errorMsg.includes('Anmeldedaten') || errorMsg.includes('benutzer')) {
-        setIdentifierError('Benutzername oder E-Mail ist nicht korrekt.');
-      } else if (errorMsg.includes('passwort')) {
-        setPasswordError('Das Passwort scheint nicht korrekt zu sein.');
-      } else if (errorMsg.includes('network') || errorMsg.includes('timeout')) {
-        setIdentifierError('Verbindungsfehler. Bitte überprüfe deine Internetverbindung.');
+      setShowSuccess(true);
+      setTimeout(() => {
+        setShowSuccess(false);
+        navigate('/home');
+      }, 1000);
+    } catch (err: any) {
+      if (err instanceof ErrorFromValidation) {
+        // express-validator Fehler auswerten
+        err.validationErrors.forEach(e => {
+          if (e.path === 'email' || e.path === 'name') {
+            setIdentifierError(e.msg);
+          } else if (e.path === 'password') {
+            setPasswordError(e.msg);
+          }
+        });
       } else {
-        setIdentifierError('Ein unerwarteter Fehler ist aufgetreten. Bitte versuche es erneut.');
+        const errorMsg = err.message?.toLowerCase() || '';
+
+        if (errorMsg.includes('Anmeldedaten') || errorMsg.includes('benutzer')) {
+          setIdentifierError('Benutzername oder E-Mail ist nicht korrekt.');
+        } else if (errorMsg.includes('passwort')) {
+          setPasswordError('Das Passwort scheint nicht korrekt zu sein.');
+        } else if (errorMsg.includes('network') || errorMsg.includes('timeout')) {
+          setIdentifierError('Verbindungsfehler. Bitte überprüfe deine Internetverbindung.');
+        } else {
+          setIdentifierError('Ein unerwarteter Fehler ist aufgetreten. Bitte versuche es erneut.');
+        }
       }
     }
-  }
-};
+  };
 
   return (
     <main className="content-wrapper w-100 px-3 ps-lg-5 pe-lg-4 mx-auto" style={{ maxWidth: '1920px' }}>
@@ -74,8 +74,12 @@ const handleSubmit = async (e: React.FormEvent) => {
             <>
               <h1 className="h2 mt-auto">Willkommen zurück</h1>
               <div className="nav fs-sm mb-4">
-              Du möchtest einen Zugang?
-              <p><a href="/register" className="text-primary"> Registrieren</a></p>
+                Du möchtest einen Zugang?
+                <p>
+                  <Link to="/register" className="text-primary">
+                    Registrieren
+                  </Link>
+                </p>
               </div>
 
               <form onSubmit={handleSubmit} className="needs-validation" noValidate>

@@ -4,13 +4,15 @@ import { Link, useNavigate } from 'react-router-dom';
 import { KundeResource } from '../Resources';
 import { api } from '../backend/api';
 
+
 const Kunden: React.FC = () => {
   const [kunden, setKunden] = useState<KundeResource[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
   const [showModal, setShowModal] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [sortOption, setSortOption] = useState<string>('nameAsc');
+  const [sortField, setSortField] = useState<keyof KundeResource>('name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const navigate = useNavigate();
 
   const [newKunde, setNewKunde] = useState<Omit<KundeResource, 'id' | 'updatedAt'>>({
@@ -29,6 +31,16 @@ const Kunden: React.FC = () => {
     gewerbeDateiUrl: '',
     zusatzDateiUrl: '',
   });
+
+
+const handleSort = (field: keyof KundeResource) => {
+  if (sortField === field) {
+    setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+  } else {
+    setSortField(field);
+    setSortDirection('asc');
+  }
+};
 
   // Alle Kunden laden
   const fetchKunden = async () => {
@@ -82,9 +94,11 @@ const Kunden: React.FC = () => {
       );
     })
     .sort((a, b) => {
-      if (sortOption === 'nameAsc') return (a.name ?? '').localeCompare(b.name ?? '');
-      if (sortOption === 'nameDesc') return (b.name ?? '').localeCompare(a.name ?? '');
-      return 0;
+      const aVal = a[sortField] ?? '';
+      const bVal = b[sortField] ?? '';
+      return sortDirection === 'asc'
+        ? String(aVal).localeCompare(String(bVal))
+        : String(bVal).localeCompare(String(aVal));
     });
 
   if (loading) return <div className="container text-center my-4"><p>Lädt...</p></div>;
@@ -106,17 +120,7 @@ const Kunden: React.FC = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="col-md-3">
-          <label className="form-label">Sortieren nach:</label>
-          <select
-            className="form-select"
-            value={sortOption}
-            onChange={(e) => setSortOption(e.target.value)}
-          >
-            <option value="nameAsc">Name: Aufsteigend</option>
-            <option value="nameDesc">Name: Absteigend</option>
-          </select>
-        </div>
+        <div className="col-md-3" />
         <div className="col-md-3 text-end">
           <button className="btn btn-success" onClick={() => setShowModal(true)}>
             Neuen Kunden erstellen
@@ -129,13 +133,72 @@ const Kunden: React.FC = () => {
         <table className="table table-bordered table-hover">
           <thead className="table-light">
             <tr>
-              <th>Name, Kundennumer</th>
-              <th>Kategorie</th>
-              <th>Region</th>
-              <th>Adresse</th>
-              <th>Telefon</th>
-              <th>Lieferzeit</th>
-              <th>Genehmigt</th>
+              <th onClick={() => handleSort('name')} style={{ cursor: 'pointer' }}>
+                Name {sortField === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
+              </th>
+              <th onClick={() => handleSort('kundenNummer')} style={{ cursor: 'pointer' }}>
+                Kundennummer {sortField === 'kundenNummer' && (sortDirection === 'asc' ? '↑' : '↓')}
+              </th>
+              <th onClick={() => {
+                if (sortField === 'kategorie') {
+                  setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                } else {
+                  setSortField('kategorie');
+                  setSortDirection('asc');
+                }
+              }} style={{ cursor: 'pointer' }}>
+                Kategorie {sortField === 'kategorie' && (sortDirection === 'asc' ? '↑' : '↓')}
+              </th>
+              <th onClick={() => {
+                if (sortField === 'region') {
+                  setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                } else {
+                  setSortField('region');
+                  setSortDirection('asc');
+                }
+              }} style={{ cursor: 'pointer' }}>
+                Region {sortField === 'region' && (sortDirection === 'asc' ? '↑' : '↓')}
+              </th>
+              <th onClick={() => {
+                if (sortField === 'adresse') {
+                  setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                } else {
+                  setSortField('adresse');
+                  setSortDirection('asc');
+                }
+              }} style={{ cursor: 'pointer' }}>
+                Adresse {sortField === 'adresse' && (sortDirection === 'asc' ? '↑' : '↓')}
+              </th>
+              <th onClick={() => {
+                if (sortField === 'telefon') {
+                  setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                } else {
+                  setSortField('telefon');
+                  setSortDirection('asc');
+                }
+              }} style={{ cursor: 'pointer' }}>
+                Telefon {sortField === 'telefon' && (sortDirection === 'asc' ? '↑' : '↓')}
+              </th>
+              <th onClick={() => {
+                if (sortField === 'lieferzeit') {
+                  setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                } else {
+                  setSortField('lieferzeit');
+                  setSortDirection('asc');
+                }
+              }} style={{ cursor: 'pointer' }}>
+                Lieferzeit {sortField === 'lieferzeit' && (sortDirection === 'asc' ? '↑' : '↓')}
+              </th>
+              <th onClick={() => {
+                if (sortField === 'isApproved') {
+                  setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                } else {
+                  setSortField('isApproved');
+                  setSortDirection('asc');
+                }
+              }} style={{ cursor: 'pointer' }}>
+                Genehmigt {sortField === 'isApproved' && (sortDirection === 'asc' ? '↑' : '↓')}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -145,7 +208,8 @@ const Kunden: React.FC = () => {
                 style={{ cursor: 'pointer' }}
                 onClick={() => navigate(`/kunden/${kunde.id}`)}
               >
-                <td>{kunde.name}, {kunde.kundenNummer}</td>
+                <td>{kunde.name}</td>
+                <td>{kunde.kundenNummer}</td>
                 <td>{kunde.kategorie}</td>
                 <td>{kunde.region}</td>
                 <td>{kunde.adresse}</td>

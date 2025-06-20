@@ -250,10 +250,16 @@ export async function getAuftragLetzte(): Promise<{
   auftrag: AuftragResource;
   artikelPositionen: ArtikelPositionResource[];
 }> {
-  return apiFetch(`/api/auftrag/letzte`);
+  const kundeId = localStorage.getItem('ausgewaehlterKunde');
+  const url = kundeId ? `/api/auftrag/letzte?kunde=${kundeId}` : `/api/auftrag/letzte`;
+  return apiFetch(url);
 }
 export async function getAuftragLetzteArtikel(): Promise<string[]> {
-  return apiFetch<Promise<string[]>>(`/api/auftrag/letzteArtikel`);
+  const kundeId = localStorage.getItem('ausgewaehlterKunde');
+  const url = kundeId
+    ? `/api/auftrag/letzteArtikel?kunde=${kundeId}`
+    : `/api/auftrag/letzteArtikel`;
+  return apiFetch<string[]>(url);
 }
 
 export async function createAuftrag(data: Omit<AuftragResource, "id" | "createdAt" | "updatedAt">): Promise<AuftragResource> {
@@ -311,8 +317,10 @@ export async function deleteArtikelPosition(id: string): Promise<{ message: stri
   });
 }
 
-export async function getKundenFavoriten(kundenId: string): Promise<string[]> {
-  return apiFetch<string[]>(`/api/kunde/${kundenId}/favoriten`);
+export async function getKundenFavoriten(kundenId?: string): Promise<string[]> {
+  const id = kundenId ?? localStorage.getItem('ausgewaehlterKunde');
+  if (!id) throw new Error("Kein Kunden-ID verfügbar");
+  return apiFetch<string[]>(`/api/kunde/${id}/favoriten`);
 }
 
 export async function addKundenFavorit(kundenId: string, artikelId: string): Promise<void> {
