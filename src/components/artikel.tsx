@@ -24,6 +24,7 @@ const Artikel: React.FC = () => {
     gewichtProKarton: 0,
     gewichtProKiste: 0,
     bildUrl: '',
+    ausverkauft: false, // NEU
   });
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
   const [customers, setCustomers] = useState<KundeResource[]>([]);
@@ -83,6 +84,7 @@ const Artikel: React.FC = () => {
         gewichtProKarton: 0,
         gewichtProKiste: 0,
         bildUrl: '',
+        ausverkauft: false
       });
     } catch (err: any) {
       alert(err.message || 'Fehler beim Speichern des Artikels');
@@ -232,6 +234,7 @@ const Artikel: React.FC = () => {
                     gewichtProKarton: a.gewichtProKarton || 0,
                     gewichtProKiste: a.gewichtProKiste || 0,
                     bildUrl: a.bildUrl || '',
+                    ausverkauft: a.ausverkauft || false,
                   });
                   setShowArticleModal(true);
                 }}>
@@ -363,6 +366,20 @@ const Artikel: React.FC = () => {
                         value={newArticle.bildUrl || ''}
                         onChange={(e) => setNewArticle({ ...newArticle, bildUrl: e.target.value })}
                       />
+                    </div>
+                    <div className="form-check mb-3">
+                      <input
+                        className="form-check-input"
+                        type="checkbox"
+                        id="ausverkauftCheck"
+                        checked={newArticle.ausverkauft}
+                        onChange={(e) =>
+                          setNewArticle({ ...newArticle, ausverkauft: e.target.checked })
+                        }
+                      />
+                      <label className="form-check-label" htmlFor="ausverkauftCheck">
+                        Ausverkauft
+                      </label>
                     </div>
                   </div>
                   <div className="modal-footer">

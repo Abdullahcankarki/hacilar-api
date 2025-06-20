@@ -20,6 +20,14 @@ const Kunden: React.FC = () => {
     email: '',
     adresse: '',
     telefon: '',
+    lieferzeit:'',
+    ustId: '',
+    handelsregisterNr: '',
+    ansprechpartner: '',
+    website: '',
+    isApproved: false,
+    gewerbeDateiUrl: '',
+    zusatzDateiUrl: '',
   });
 
   // Alle Kunden laden
@@ -44,7 +52,7 @@ const Kunden: React.FC = () => {
     try {
       const created = await api.createKunde(newKunde);
       setKunden([...kunden, created]);
-      setNewKunde({ name: '', kundenNummer: '', password: '', email: '', adresse: '', telefon: '' });
+      setNewKunde({ name: '', kundenNummer: '', password: '', email: '', adresse: '', telefon: '', lieferzeit: '', ustId: '', kategorie: '', region: '', handelsregisterNr: '', ansprechpartner: '', website: '', isApproved: false, gewerbeDateiUrl: '', zusatzDateiUrl: '' });
       setShowModal(false);
     } catch (err: any) {
       setError(err.message || 'Fehler beim Erstellen des Kunden');
@@ -121,12 +129,13 @@ const Kunden: React.FC = () => {
         <table className="table table-bordered table-hover">
           <thead className="table-light">
             <tr>
-              <th>Name</th>
-              <th>Kundennummer</th>
-              <th>Email</th>
+              <th>Name, Kundennumer</th>
+              <th>Kategorie</th>
+              <th>Region</th>
               <th>Adresse</th>
               <th>Telefon</th>
-              <th>Aktionen</th>
+              <th>Lieferzeit</th>
+              <th>Genehmigt</th>
             </tr>
           </thead>
           <tbody>
@@ -136,19 +145,13 @@ const Kunden: React.FC = () => {
                 style={{ cursor: 'pointer' }}
                 onClick={() => navigate(`/kunden/${kunde.id}`)}
               >
-                <td>{kunde.name}</td>
-                <td>{kunde.kundenNummer}</td>
-                <td>{kunde.email}</td>
+                <td>{kunde.name}, {kunde.kundenNummer}</td>
+                <td>{kunde.kategorie}</td>
+                <td>{kunde.region}</td>
                 <td>{kunde.adresse}</td>
                 <td>{kunde.telefon}</td>
-                <td onClick={(e) => e.stopPropagation()}>
-                  <Link to={`/kunden/edit/${kunde.id}`} className="btn btn-primary btn-sm me-2">
-                    Bearbeiten
-                  </Link>
-                  <button className="btn btn-danger btn-sm" onClick={() => handleDelete(kunde.id)}>
-                    Löschen
-                  </button>
-                </td>
+                <td>{kunde.lieferzeit}</td>
+                <td>{kunde.isApproved ? "ja" : "nein"}</td>
               </tr>
             ))}
           </tbody>
@@ -210,6 +213,15 @@ const Kunden: React.FC = () => {
                         />
                       </div>
                       <div className="col-md-4">
+                        <label className="form-label">Lieferzeit</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={newKunde.lieferzeit}
+                          onChange={(e) => setNewKunde({ ...newKunde, lieferzeit: e.target.value })}
+                        />
+                      </div>
+                      <div className="col-md-4">
                         <label className="form-label">Passwort</label>
                         <input
                           type="password"
@@ -229,6 +241,98 @@ const Kunden: React.FC = () => {
                         onChange={(e) => setNewKunde({ ...newKunde, adresse: e.target.value })}
                         required
                       />
+                    </div>
+                    <div className="row mb-3">
+                      <div className="col-md-6">
+                        <label className="form-label">USt-ID</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={newKunde.ustId}
+                          onChange={(e) => setNewKunde({ ...newKunde, ustId: e.target.value })}
+                        />
+                      </div>
+                      <div className="col-md-6">
+                        <label className="form-label">Handelsregister-Nr.</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={newKunde.handelsregisterNr}
+                          onChange={(e) => setNewKunde({ ...newKunde, handelsregisterNr: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div className="row mb-3">
+                      <div className="col-md-6">
+                        <label className="form-label">Ansprechpartner</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={newKunde.ansprechpartner}
+                          onChange={(e) => setNewKunde({ ...newKunde, ansprechpartner: e.target.value })}
+                        />
+                      </div>
+                      <div className="col-md-6">
+                        <label className="form-label">Website</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={newKunde.website}
+                          onChange={(e) => setNewKunde({ ...newKunde, website: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div className="row mb-3">
+                      <div className="col-md-6">
+                        <label className="form-label">Kategorie</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={newKunde.gewerbeDateiUrl}
+                          onChange={(e) => setNewKunde({ ...newKunde, gewerbeDateiUrl: e.target.value })}
+                        />
+                      </div>
+                      <div className="col-md-6">
+                        <label className="form-label">Region</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={newKunde.zusatzDateiUrl}
+                          onChange={(e) => setNewKunde({ ...newKunde, zusatzDateiUrl: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div className="row mb-3">
+                      <div className="col-md-6">
+                        <label className="form-label">Gewerbeanmeldung (URL)</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={newKunde.gewerbeDateiUrl}
+                          onChange={(e) => setNewKunde({ ...newKunde, gewerbeDateiUrl: e.target.value })}
+                        />
+                      </div>
+                      <div className="col-md-6">
+                        <label className="form-label">Zusatzdokument (URL)</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={newKunde.zusatzDateiUrl}
+                          onChange={(e) => setNewKunde({ ...newKunde, zusatzDateiUrl: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div className="form-check mb-3">
+                      <input
+                        type="checkbox"
+                        className="form-check-input"
+                        id="isApprovedCheck"
+                        checked={newKunde.isApproved}
+                        onChange={(e) => setNewKunde({ ...newKunde, isApproved: e.target.checked })}
+                      />
+                      <label className="form-check-label" htmlFor="isApprovedCheck">
+                        Genehmigt
+                      </label>
                     </div>
                     <div className="modal-footer">
                       <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>

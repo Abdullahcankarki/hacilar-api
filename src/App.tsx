@@ -22,6 +22,9 @@ import { Layout } from './components/layout';
 import "./App.css"
 import './Cartzilla/assets/css/theme.min.css';
 import './Cartzilla/assets/icons/cartzilla-icons.min.css';
+import ArtikelDetails from './components/artikelDetails';
+import AllArtikel from './components/allArtikel';
+import RegisterForm from './components/register';
 
 
 // 🛡️ Route-Schutz-Komponente
@@ -51,6 +54,7 @@ const AppRoutes: React.FC = () => {
     <Routes>
       {/* Login immer erreichbar */}
       <Route path="/login" element={<LoginForm />} />
+      <Route path="/register" element={<RegisterForm />} />
 
       {/* Nicht eingeloggt → alles auf Login umleiten */}
       {!user && <Route path="*" element={<Navigate to="/login" replace />} />}
@@ -62,6 +66,8 @@ const AppRoutes: React.FC = () => {
           <Route path="auftraege" element={<Auftraege />} />
           <Route path="auftraege/:id" element={<AuftragDetail />} />
           <Route path="artikel" element={<Artikel />} />
+          <Route path="allArtikel" element={<AllArtikel />} />
+          <Route path="artikel/:id" element={<ArtikelDetails />} />
           <Route path="kunden" element={<Kunden />} />
           <Route path="kunden/:id" element={<KundeDetail />} />
           <Route path="kunden/edit/:id" element={<KundeEdit />} />

@@ -6,9 +6,9 @@ import 'swiper/css/pagination';
 import 'swiper/css/effect-fade';
 
 // Cartzilla-Bilder korrekt importieren
-import slide1 from '../Cartzilla/assets/img/home/grocery/hero-slider/01.jpg';
-import slide2 from '../Cartzilla/assets/img/home/grocery/hero-slider/02.jpg';
-import slide3 from '../Cartzilla/assets/img/home/grocery/hero-slider/03.jpg';
+import slide1 from '../assets/Banner1.png';
+import slide2 from '../assets/Banner2.png';
+import slide3 from '../assets/Banner3.png';
 
 const HeroSlider: React.FC = () => {
   return (

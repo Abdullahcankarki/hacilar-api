@@ -98,7 +98,15 @@ const Profil: React.FC = () => {
                 {!isEditing && (
                   <ul className="list-unstyled fs-sm m-0">
                     <li><strong>Name:</strong> {userData.name}</li>
-                    {isKunde && <li><strong>Adresse:</strong> {(userData as KundeResource).adresse}</li>}
+                    {isKunde && <>
+                      <li><strong>Adresse:</strong> {(userData as KundeResource).adresse}</li>
+                      <li><strong>USt-Id:</strong> {(userData as KundeResource).ustId}</li>
+                      <li><strong>Handelsregister-Nr:</strong> {(userData as KundeResource).handelsregisterNr}</li>
+                      <li><strong>Ansprechpartner:</strong> {(userData as KundeResource).ansprechpartner}</li>
+                      <li><strong>Website:</strong> {(userData as KundeResource).website}</li>
+                      <li><strong>Gewerbe-Datei:</strong> <a href={(userData as KundeResource).gewerbeDateiUrl} target="_blank" rel="noopener noreferrer">Download</a></li>
+                      <li><strong>Zusatz-Datei:</strong> <a href={(userData as KundeResource).zusatzDateiUrl} target="_blank" rel="noopener noreferrer">Download</a></li>
+                    </>}
                   </ul>
                 )}
                 {isEditing && (
@@ -107,12 +115,36 @@ const Profil: React.FC = () => {
                       <label className="form-label">Name</label>
                       <input name="name" className="form-control" value={formData.name || ''} onChange={handleChange} />
                     </div>
-                    {isKunde && (
+                    {isKunde && <>
                       <div className="col-sm-12">
                         <label className="form-label">Adresse</label>
                         <textarea name="adresse" className="form-control" value={formData.adresse || ''} onChange={handleChange} />
                       </div>
-                    )}
+                      <div className="col-sm-12">
+                        <label className="form-label">USt-Id</label>
+                        <input name="ustId" className="form-control" value={formData.ustId || ''} onChange={handleChange} />
+                      </div>
+                      <div className="col-sm-12">
+                        <label className="form-label">Handelsregister-Nr</label>
+                        <input name="handelsregisterNr" className="form-control" value={formData.handelsregisterNr || ''} onChange={handleChange} />
+                      </div>
+                      <div className="col-sm-12">
+                        <label className="form-label">Ansprechpartner</label>
+                        <input name="ansprechpartner" className="form-control" value={formData.ansprechpartner || ''} onChange={handleChange} />
+                      </div>
+                      <div className="col-sm-12">
+                        <label className="form-label">Website</label>
+                        <input name="website" className="form-control" value={formData.website || ''} onChange={handleChange} />
+                      </div>
+                      <div className="col-sm-12">
+                        <label className="form-label">Gewerbe-Datei URL</label>
+                        <input name="gewerbeDateiUrl" className="form-control" value={formData.gewerbeDateiUrl || ''} onChange={handleChange} />
+                      </div>
+                      <div className="col-sm-12">
+                        <label className="form-label">Zusatz-Datei URL</label>
+                        <input name="zusatzDateiUrl" className="form-control" value={formData.zusatzDateiUrl || ''} onChange={handleChange} />
+                      </div>
+                    </>}
                     <div className="col-12 d-flex gap-3 pt-2">
                       <button type="button" className="btn btn-primary" onClick={handleSave}>Änderungen speichern</button>
                       <button type="button" className="btn btn-secondary" onClick={() => setIsEditing(false)}>Abbrechen</button>

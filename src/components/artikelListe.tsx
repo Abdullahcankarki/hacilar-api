@@ -149,13 +149,13 @@ const ArtikelListe: React.FC<Props> = ({
                                   style={{ width: '56px', height: '56px' }}
                                 >
                                   <span className="fs-4">
-                                    {kategorie === 'Huhn' && '🐔'}
+                                    {kategorie === 'Geflügel' && '🐔'}
                                     {kategorie === 'Kalb' && '🐄'}
                                     {kategorie === 'Lamm' && '🐑'}
                                     {kategorie === 'Pute' && '🦃'}
                                     {kategorie === 'Rind' && '🐄'}
                                     {kategorie === 'Schaf' && '🐏'}
-                                    {!['Huhn','Kalb','Lamm','Pute','Rind','Schaf'].includes(kategorie) && '📦'}
+                                    {!['Geflügel','Kalb','Lamm','Pute','Rind','Schaf'].includes(kategorie) && '📦'}
                                   </span>
                                 </span>
                                 <span className="fs-sm">{kategorie}</span>
@@ -242,7 +242,7 @@ const ArtikelListe: React.FC<Props> = ({
                         {favoriten.length > 0 && (
                             <>
                                 <h5 id="favoriten" className="mb-3">⭐ Favoriten</h5>
-                                <Row className="mb-5">
+                                <div className="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-3 row-cols-xl-4 g-4">
                                     {articles.filter(a => favoriten.includes(a.id!)).map(article => (
                                         <RenderCard
                                             key={article.id}
@@ -264,7 +264,7 @@ const ArtikelListe: React.FC<Props> = ({
                                             setBemerkungen={setBemerkungen}
                                         />
                                     ))}
-                                </Row>
+                                </div>
                             </>
                         )}
 
@@ -317,7 +317,7 @@ const ArtikelListe: React.FC<Props> = ({
                                         </button>
                                     </div>
 
-                                    <Row>
+                                    <div className="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-3 row-cols-xl-4 g-4">
                                         {letzteArtikel.map((artikelId, index) => {
                                             const article = articles.find(a => a.id === artikelId);
                                             if (!article) return null;
@@ -343,7 +343,7 @@ const ArtikelListe: React.FC<Props> = ({
                                                 />
                                             );
                                         })}
-                                    </Row>
+                                    </div>
                                 </>
                             )}
                         </div>
