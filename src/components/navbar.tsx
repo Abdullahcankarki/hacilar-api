@@ -129,7 +129,12 @@ const NavBar: React.FC<NavBarProps> = ({
                   <img
                     src="https://img.icons8.com/?size=100&id=10603&format=png&color=000000"
                     alt="Shopping Cart"
-                    style={{ width: '24px', height: '24px' }}
+                    style={{
+                      width: '24px',
+                      height: '24px',
+                      flexShrink: 0,
+                      flexGrow: 0,
+                    }}
                   />
                   {cartLength > 0 && (
                     <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '0.7rem' }}>
