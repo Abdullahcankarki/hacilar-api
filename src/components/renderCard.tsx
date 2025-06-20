@@ -33,6 +33,10 @@ const RenderCard: React.FC<Props> = ({
     zerlegung, setZerlegung, vakuum, setVakuum,
     bemerkungen, setBemerkungen
 }) => {
+    if (article.ausverkauft) {
+        // z.B. Ein Badge anzeigen oder Stil anpassen, falls gewünscht
+    }
+
     const isInCart = cart.some(item => item.artikel === article.id);
     const cartItem = cart.find(item => item.artikel === article.id);
 
@@ -58,7 +62,7 @@ const RenderCard: React.FC<Props> = ({
 
 
     return (
-        <Col key={article.id} xxl={2} xl={3} lg={4} md={6} sm={12} className="swiper-slide">
+        <div className="col">
             <div className="animate-underline">
                 <Link className="hover-effect-opacity ratio ratio-1x1 d-block mb-3" to={`/artikel/${article.id}`}>
                     <img src={article.bildUrl || fallbackImage} className="hover-effect-target opacity-100" alt={article.name} />
@@ -69,9 +73,11 @@ const RenderCard: React.FC<Props> = ({
                         <span className="animate-target">{article.name}</span>
                     </Link>
                 </h3>
-                <div className="h6">{article.preis.toFixed(2)} €</div>
-                <div className="d-flex gap-2">
-                    {isInCart ? (
+                <div className='h6'>{article.preis.toFixed(2)} €</div>
+                {article.ausverkauft ? (
+                    <Badge bg="danger" className="mb-2">Ausverkauft</Badge>
+                ) : (
+                    <div className="d-flex flex-column gap-2">
                         <div className="d-flex gap-2 w-100">
                             <Button variant="primary" className="rounded-pill px-3" onClick={() => {
                                 if ((cartItem?.menge || 1) > 1) {
@@ -91,11 +97,12 @@ const RenderCard: React.FC<Props> = ({
 
                             <input
                                 type="text"
-                                value={cartItem?.menge || 1}
+                                value={cartItem?.menge === 0 ? '' : cartItem?.menge?.toString() ?? ''}
                                 className="form-control form-control-sm text-center bg-primary text-white border-0 no-spinner"
                                 onChange={(e) => {
-                                    const neueMenge = parseInt(e.target.value);
-                                    if (!neueMenge || neueMenge < 1) return;
+                                    const val = e.target.value;
+                                    const num = parseInt(val);
+                                    const neueMenge = val === '' ? 0 : (isNaN(num) ? 1 : num);
                                     const updated = cart.map(item =>
                                         item.artikel === article.id ? { ...item, menge: neueMenge } : item
                                     );
@@ -114,36 +121,6 @@ const RenderCard: React.FC<Props> = ({
                                 <i className="ci-plus" />
                             </Button>
                         </div>
-                    ) : (
-                        <>
-                            <Button variant="primary" className="w-100 rounded-pill px-3" onClick={() => {
-                                const menge = mengen[article.id!] || 1;
-                                const einheit = einheiten[article.id!] || 'kg';
-                                onAddToCart({
-                                    artikel: article.id!,
-                                    artikelName: article.name,
-                                    menge,
-                                    einheit: einheit as 'kg' | 'stück' | 'kiste' | 'karton',
-                                    einzelpreis: article.preis,
-                                    zerlegung: zerlegung[article.id!] || false,
-                                    vakuum: vakuum[article.id!] || false,
-                                    bemerkung: bemerkungen[article.id!] || '',
-                                });
-                            }}>
-                                In den Warenkorb
-                            </Button>
-                            <button type="button" className="btn btn-icon btn-secondary rounded-circle animate-pulse" onClick={toggleFavorit} aria-label="Favorit">
-                                {favoriten.includes(article.id!) ? (
-                                    <AiIcons.AiFillHeart className="fs-base animate-target" color="#dc3545" />
-                                ) : (
-                                    <AiIcons.AiOutlineHeart className="fs-base animate-target" color="#ccc" />
-                                )}
-                            </button>
-                        </>
-                    )}
-                </div>
-                {isInCart && (
-                    <div className="d-flex gap-2 align-items-center mt-2">
                         <Form.Select
                             size="sm"
                             className="form-control form-control-sm text-center bg-primary text-white border-0 no-spinner"
@@ -152,12 +129,29 @@ const RenderCard: React.FC<Props> = ({
                                 setEinheiten({ ...einheiten, [article.id!]: e.target.value });
                             }}
                         >
-                            <option value="kg">Kilogramm</option>
-                            <option value="stück">Stück</option>
+                            <option value="kg">Kg</option>
+                            <option value="stück">St</option>
                             <option value="kiste">Kiste</option>
-                            <option value="karton">Karton</option>
+                            <option value="karton">Ktn</option>
                         </Form.Select>
-                        <button type="button" className="btn btn-icon btn-secondary rounded-circle animate-pulse" onClick={toggleFavorit} aria-label="Favorit">
+                        <Button variant="primary" className="w-100 rounded-pill px-3" onClick={() => {
+                            const menge = mengen[article.id!] || 0;
+                            if (menge < 1) return;
+                            const einheit = einheiten[article.id!] || 'kg';
+                            onAddToCart({
+                                artikel: article.id!,
+                                artikelName: article.name,
+                                menge,
+                                einheit: einheit as 'kg' | 'stück' | 'kiste' | 'karton',
+                                einzelpreis: article.preis,
+                                zerlegung: zerlegung[article.id!] || false,
+                                vakuum: vakuum[article.id!] || false,
+                                bemerkung: bemerkungen[article.id!] || '',
+                            });
+                        }}>
+                            In den Warenkorb
+                        </Button>
+                        <button type="button" className="btn btn-icon btn-secondary rounded-circle animate-pulse align-self-center" onClick={toggleFavorit} aria-label="Favorit">
                             {favoriten.includes(article.id!) ? (
                                 <AiIcons.AiFillHeart className="fs-base animate-target" color="#dc3545" />
                             ) : (
@@ -167,7 +161,7 @@ const RenderCard: React.FC<Props> = ({
                     </div>
                 )}
             </div>
-        </Col>
+        </div>
     );
 };
 

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../providers/Authcontext';
 import { useNavigate } from 'react-router-dom';
-import coverImg from '../Cartzilla/assets/img/account/cover.png';
+import coverImg from '../assets/hijab.png';
 
 
 const LoginForm: React.FC = () => {
@@ -72,14 +72,8 @@ const LoginForm: React.FC = () => {
             <>
               <h1 className="h2 mt-auto">Willkommen zurück</h1>
               <div className="nav fs-sm mb-4">
-                Du möchtest einen Zugang?<br />
-                Dann kontaktiere uns einfach per{' '}
-                <span>
-                  <i className="ci-mail me-2"></i>
-                  <a href="mailto:info@hacilar.eu" className="fw-semibold text-primary text-decoration-underline">
-                    info@hacilar.eu
-                  </a>
-                </span>
+              Du möchtest einen Zugang?
+              <p><a href="/register" className="text-primary"> Registrieren</a></p>
               </div>
 
               <form onSubmit={handleSubmit} className="needs-validation" noValidate>

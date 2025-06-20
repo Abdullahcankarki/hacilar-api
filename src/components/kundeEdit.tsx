@@ -11,7 +11,7 @@ const KundeEdit: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
   const [saving, setSaving] = useState<boolean>(false);
-  
+
   // Formulardaten: Passwort ist leer, wenn nicht geändert
   const [formData, setFormData] = useState<Omit<KundeResource, 'id' | 'updatedAt'>>({
     name: '',
@@ -20,6 +20,16 @@ const KundeEdit: React.FC = () => {
     email: '',
     adresse: '',
     telefon: '',
+    lieferzeit: '',
+    ustId: '',
+    handelsregisterNr: '',
+    ansprechpartner: '',
+    website: '',
+    isApproved: false,
+    gewerbeDateiUrl: '',
+    zusatzDateiUrl: '',
+    kategorie: '',
+    region: '',
   });
 
   useEffect(() => {
@@ -35,6 +45,16 @@ const KundeEdit: React.FC = () => {
           email: data.email || '',
           adresse: data.adresse || '',
           telefon: data.telefon || '',
+          lieferzeit: data.lieferzeit || '',
+          ustId: data.ustId || '',
+          handelsregisterNr: data.handelsregisterNr || '',
+          ansprechpartner: data.ansprechpartner || '',
+          website: data.website || '',
+          isApproved: data.isApproved ?? false,
+          gewerbeDateiUrl: data.gewerbeDateiUrl || '',
+          zusatzDateiUrl: data.zusatzDateiUrl || '',
+          kategorie: data.kategorie || '',
+          region: data.region || '',
         });
       } catch (err: any) {
         setError(err.message || 'Fehler beim Laden des Kunden');
@@ -46,10 +66,18 @@ const KundeEdit: React.FC = () => {
   }, [id]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value, type, checked } = e.target;
+    if (name === 'isApproved') {
+      setFormData({
+        ...formData,
+        isApproved: checked,
+      });
+    } else {
+      setFormData({
+        ...formData,
+        [name]: value,
+      });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -100,6 +128,46 @@ const KundeEdit: React.FC = () => {
           />
         </div>
         <div className="mb-3">
+          <label className="form-label">USt-IdNr.</label>
+          <input
+            name="ustId"
+            type="text"
+            className="form-control"
+            value={formData.ustId}
+            onChange={handleChange}
+          />
+        </div>
+        <div className="mb-3">
+          <label className="form-label">Handelsregister-Nr.</label>
+          <input
+            name="handelsregisterNr"
+            type="text"
+            className="form-control"
+            value={formData.handelsregisterNr}
+            onChange={handleChange}
+          />
+        </div>
+        <div className="mb-3">
+          <label className="form-label">Ansprechpartner</label>
+          <input
+            name="ansprechpartner"
+            type="text"
+            className="form-control"
+            value={formData.ansprechpartner}
+            onChange={handleChange}
+          />
+        </div>
+        <div className="mb-3">
+          <label className="form-label">Website</label>
+          <input
+            name="website"
+            type="text"
+            className="form-control"
+            value={formData.website}
+            onChange={handleChange}
+          />
+        </div>
+        <div className="mb-3">
           <label className="form-label">Kundennummer</label>
           <input
             name="kundenNummer"
@@ -139,6 +207,69 @@ const KundeEdit: React.FC = () => {
             type="text"
             className="form-control"
             value={formData.telefon}
+            onChange={handleChange}
+          />
+        </div>
+        <div className="mb-3">
+          <label className="form-label">Lieferzeit</label>
+          <input
+            name="lieferzeit"
+            type="text"
+            className="form-control"
+            value={formData.lieferzeit}
+            onChange={handleChange}
+          />
+        </div>
+        <div className="mb-3">
+          <label className="form-label">Kategorie</label>
+          <input
+            name="kategorie"
+            type="text"
+            className="form-control"
+            value={formData.kategorie}
+            onChange={handleChange}
+          />
+        </div>
+        <div className="mb-3">
+          <label className="form-label">Region</label>
+          <input
+            name="region"
+            type="text"
+            className="form-control"
+            value={formData.region}
+            onChange={handleChange}
+          />
+        </div>
+        <div className="mb-3 form-check">
+          <input
+            name="isApproved"
+            type="checkbox"
+            className="form-check-input"
+            id="isApproved"
+            checked={formData.isApproved}
+            onChange={handleChange}
+          />
+          <label className="form-check-label" htmlFor="isApproved">
+            Genehmigt
+          </label>
+        </div>
+        <div className="mb-3">
+          <label className="form-label">Gewerbe Datei URL</label>
+          <input
+            name="gewerbeDateiUrl"
+            type="text"
+            className="form-control"
+            value={formData.gewerbeDateiUrl}
+            onChange={handleChange}
+          />
+        </div>
+        <div className="mb-3">
+          <label className="form-label">Zusatz Datei URL</label>
+          <input
+            name="zusatzDateiUrl"
+            type="text"
+            className="form-control"
+            value={formData.zusatzDateiUrl}
             onChange={handleChange}
           />
         </div>

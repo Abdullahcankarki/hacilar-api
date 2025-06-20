@@ -99,11 +99,17 @@ export async function getAllKunden(): Promise<KundeResource[]> {
   return apiFetch<KundeResource[]>("/api/kunde");
 }
 
+export async function getAllNotApprovedKunden(): Promise<KundeResource[]> {
+  return apiFetch<KundeResource[]>("/api/kunde/unapproved");
+}
+
 export async function getKundeById(id: string): Promise<KundeResource> {
   return apiFetch<KundeResource>(`/api/kunde/${id}`);
 }
 
-export async function createKunde(data: Omit<KundeResource, "id" | "updatedAt">): Promise<KundeResource> {
+export async function createKunde(
+  data: Omit<KundeResource, "id" | "updatedAt">
+): Promise<KundeResource> {
   return apiFetch<KundeResource>("/api/kunde/register", {
     method: "POST",
     body: JSON.stringify(data),
@@ -158,6 +164,12 @@ export async function getAllArtikel(): Promise<ArtikelResource[]> {
   return apiFetch<ArtikelResource[]>(url);
 }
 
+export async function getAuswahlArtikel(): Promise<ArtikelResource[]> {
+  const kundeId = getGlobalAusgewaehlterKunde();
+  const url = kundeId ? `/api/artikel/auswahl?kunde=${kundeId}` : "/api/artikel/auswahl";
+  return apiFetch<ArtikelResource[]>(url);
+}
+
 export async function getArtikelById(id: string): Promise<ArtikelResource> {
   const kundeId = getGlobalAusgewaehlterKunde();
   const url = kundeId ? `/api/artikel/${id}?kunde=${kundeId}` : `/api/artikel/${id}`;
@@ -196,14 +208,22 @@ export async function updateKundenpreis(id: string, data: Partial<KundenPreisRes
   });
 }
 
+export async function createMassKundenpreis(data: { artikel: string; aufpreis: number; kategorie?: string; region?: string }): Promise<KundenPreisResource> {
+  return apiFetch<KundenPreisResource>("/api/kundenpreis/set-aufpreis", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
 export async function createKundenpreis(data: Omit<KundenPreisResource, "id">): Promise<KundenPreisResource> {
   return apiFetch<KundenPreisResource>("/api/kundenpreis", {
     method: "POST",
     body: JSON.stringify(data),
   });
 }
+
 export async function deleteKundenpreis(id: string): Promise<{ message: string }> {
-  return apiFetch<{ message: string }>(`/api/kundepreis/${id}`, {
+  return apiFetch<{ message: string }>(`/api/kundenpreis/${id}`, {
     method: "DELETE",
   });
 }
@@ -309,12 +329,14 @@ export const api = {
   login,
   // Kunde
   getAllKunden,
+  getAllNotApprovedKunden,
   getKundeById,
   createKunde,
   updateKunde,
   deleteKunde,
   // Artikel
   getAllArtikel,
+  getAuswahlArtikel,
   getArtikelById,
   createArtikel,
   updateArtikel,
@@ -324,6 +346,7 @@ export const api = {
   updateKundenpreis,
   createKundenpreis,
   deleteKundenpreis,
+  createMassKundenpreis,
   // Auftrag
   getAllAuftraege,
   getAuftragById,

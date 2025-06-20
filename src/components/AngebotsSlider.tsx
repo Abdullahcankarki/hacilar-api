@@ -5,9 +5,9 @@ import 'swiper/css';
 import 'swiper/css/pagination';
 
 // Original Cartzilla-Bilder importieren
-import img1 from '../Cartzilla/assets/img/home/grocery/featured/01.png';
-import img2 from '../Cartzilla/assets/img/home/grocery/featured/02.png';
-import img3 from '../Cartzilla/assets/img/home/grocery/featured/03.png';
+import img1 from '../assets/auto1.png';
+import img2 from '../assets/schnell1.png';
+import img3 from '../assets/shop.png';
 
 const AngebotsSlider: React.FC = () => {
   return (

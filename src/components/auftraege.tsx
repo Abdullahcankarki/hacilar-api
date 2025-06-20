@@ -17,8 +17,8 @@ const Auftraege: React.FC = () => {
   const fetchAuftraege = async () => {
     try {
       const data = user?.role === 'a'
-      ? await getAllAuftraege()
-      : await getAuftragByCutomerId(user?.id!);
+        ? await getAllAuftraege()
+        : await getAuftragByCutomerId(user?.id!);
       setAuftraege(data);
       console.log('Geladene Aufträge:', data);
     } catch (err: any) {
@@ -36,13 +36,13 @@ const Auftraege: React.FC = () => {
   const filteredAuftraege = auftraege.filter((auftrag) => {
     const term = searchTerm.trim().toLowerCase();
     if (!term) return true;
-  
+
     const id = auftrag.id ?? '';
     const kunde = (auftrag as any).kundeName ?? auftrag.kunde ?? '';
-  
+
     const idMatch = id.toString().toLowerCase().includes(term);
-    const kundeMatch = kunde ? kunde.toString().toLowerCase().includes(term) : false;
-  
+    const kundeMatch = kunde ? String(kunde).toLowerCase().includes(term) : false;
+
     return idMatch || kundeMatch;
   });
   // Fügt innerhalb der Komponente (z.B. direkt nach useState) diese Funktionen ein:
@@ -108,7 +108,7 @@ const Auftraege: React.FC = () => {
           />
         </div>
       </div>
-      
+
 
       <AuftragTabelle
         titel="Offene Aufträge"

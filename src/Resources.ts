@@ -7,16 +7,26 @@ export type VerkaeuferResource = {
     password?: string;
   };
   
-  export type KundeResource = {
-    id?: string;
-    name?: string;
-    kundenNummer?: string;
-    password?: string;
-    email?: string;
-    adresse?: string;
-    telefon?: string;
-    updatedAt?: string;
-  };
+export type KundeResource = {
+  id?: string;
+  name?: string;
+  kundenNummer?: string;
+  password?: string;
+  email?: string;
+  adresse?: string;
+  telefon?: string;
+  updatedAt?: string;
+  ustId?: string;
+  handelsregisterNr?: string;
+  ansprechpartner?: string;
+  lieferzeit: string;
+  region?: string;
+  kategorie?: string;
+  website?: string;
+  isApproved?: boolean;
+  gewerbeDateiUrl?: string;
+  zusatzDateiUrl?: string;
+};
   
   export type AuftragResource = {
     id?: string;
@@ -57,6 +67,8 @@ export type VerkaeuferResource = {
     gewichtProStueck?: number;  // Gewicht pro Stück (optional, falls nicht immer angegeben)
     gewichtProKarton?: number;  // Gewicht pro Karton (optional)
     gewichtProKiste?: number;   // Gewicht pro Kiste (optional)
+    beschreibung?: string;
+    ausverkauft?: boolean
   };
   
   export type LoginResource = {

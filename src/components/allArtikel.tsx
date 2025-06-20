@@ -6,12 +6,12 @@ import {
   ArtikelPositionResource,
   KundeResource
 } from '../Resources';
-import { getAllArtikel, getAuswahlArtikel } from '../backend/api';
+import { getAllArtikel } from '../backend/api';
 import { useAuth } from '../providers/Authcontext';
 import { useOutletContext } from 'react-router-dom';
 import AngebotsSlider from './AngebotsSlider';
 
-type DashboardContextType = {
+type AllArtikelContextType = {
   cart: ArtikelPositionResource[];
   setCart: React.Dispatch<React.SetStateAction<ArtikelPositionResource[]>>;
   showCart: boolean;
@@ -21,12 +21,12 @@ type DashboardContextType = {
   setAusgewaehlterKunde: React.Dispatch<React.SetStateAction<string | null>>;
 };
 
-const Dashboard: React.FC = () => {
+const AllArtikel: React.FC = () => {
   const {
     cart,
     setCart,
     setShowCart
-  } = useOutletContext<DashboardContextType>();
+  } = useOutletContext<AllArtikelContextType>();
 
   const [articles, setArticles] = useState<ArtikelResource[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -36,7 +36,7 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const data = await getAuswahlArtikel();
+        const data = await getAllArtikel();
         setArticles(data);
       } catch (error) {
         setLadeFehler('Fehler beim Laden der Artikel. Bitte versuche es später erneut.');
@@ -77,16 +77,6 @@ const Dashboard: React.FC = () => {
 
   return (
     <>
-      <HeroSlider />
-
-        {ladeFehler && (
-          <div className="alert alert-danger text-center mb-4" role="alert">
-            {ladeFehler}
-          </div>
-        )}
-
-        <AngebotsSlider />
-
         <ArtikelListe
           articles={filteredAndSorted}
           searchTerm={searchTerm}
@@ -104,4 +94,4 @@ const Dashboard: React.FC = () => {
   );
 };
 
-export default Dashboard;
+export default AllArtikel;

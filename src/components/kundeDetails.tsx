@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { KundeResource, AuftragResource } from '../Resources';
-import { getKundeById, apiFetch } from '../backend/api';
+import { getKundeById, apiFetch, api } from '../backend/api';
 
 const KundeDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -30,6 +30,16 @@ const KundeDetail: React.FC = () => {
     };
     fetchData();
   }, [id]);
+
+  const handleDelete = async (id: string | undefined) => {
+    if (!id) return;
+    if (!window.confirm('Möchten Sie diesen Kunden wirklich löschen?')) return;
+    try {
+      await api.deleteKunde(id);
+    } catch (err: any) {
+      setError(err.message || 'Fehler beim Löschen des Kunden');
+    }
+  };
 
   if (loading) {
     return (
@@ -109,7 +119,6 @@ const KundeDetail: React.FC = () => {
         <div className="d-flex align-items-center">
           <div>
             <h1 className="h3 mb-0">{kunde.name}</h1>
-            <small className="text-muted">Kundennummer: {kunde.kundenNummer}</small>
           </div>
         </div>
         <hr />
@@ -126,14 +135,92 @@ const KundeDetail: React.FC = () => {
             <p className="mb-1"><strong>Telefon</strong></p>
             <p>{kunde.telefon}</p>
           </div>
+          <div className="col-md-4">
+            <p className="mb-1"><strong>Lieferzeit</strong></p>
+            <p>{kunde.lieferzeit}</p>
+          </div>
+          <div className="col-md-4">
+            <p className="mb-1"><strong>Kundennummer</strong></p>
+            <p>{kunde.kundenNummer || '-'}</p>
+          </div>
+          <div className="col-md-4">
+            <p className="mb-1"><strong>USt-ID</strong></p>
+            <p>{kunde.ustId || '-'}</p>
+          </div>
+          <div className="col-md-4">
+            <p className="mb-1"><strong>Handelsregister-Nr.</strong></p>
+            <p>{kunde.handelsregisterNr || '-'}</p>
+          </div>
+          <div className="col-md-4">
+            <p className="mb-1"><strong>Ansprechpartner</strong></p>
+            <p>{kunde.ansprechpartner || '-'}</p>
+          </div>
+          <div className="col-md-4">
+            <p className="mb-1"><strong>Website</strong></p>
+            <p>{kunde.website || '-'}</p>
+          </div>
+          <div className="col-md-4">
+            <p className="mb-1"><strong>Gewerbedatei</strong></p>
+            <p>
+              {kunde.gewerbeDateiUrl ? (
+                <a href={kunde.gewerbeDateiUrl} target="_blank" rel="noopener noreferrer">Anzeigen</a>
+              ) : '-'}
+            </p>
+          </div>
+          <div className="col-md-4">
+            <p className="mb-1"><strong>Zusatzdatei</strong></p>
+            <p>
+              {kunde.zusatzDateiUrl ? (
+                <a href={kunde.zusatzDateiUrl} target="_blank" rel="noopener noreferrer">Anzeigen</a>
+              ) : '-'}
+            </p>
+          </div>
+          <div className="col-md-4">
+            <p className="mb-1"><strong>Genehmigt</strong></p>
+            <p>{kunde.isApproved ? 'Ja' : 'Nein'}</p>
+          </div>
+          <div className="col-md-4">
+            <p className="mb-1"><strong>Letzte Änderung</strong></p>
+            <p>{kunde.updatedAt ? new Date(kunde.updatedAt).toLocaleString('de-DE') : '-'}</p>
+          </div>
+          <div className="col-md-4">
+            <p className="mb-1"><strong>Kategorie</strong></p>
+            <p>{kunde.kategorie || '-'}</p>
+          </div>
+          <div className="col-md-4">
+            <p className="mb-1"><strong>Region</strong></p>
+            <p>{kunde.region || '-'}</p>
+          </div>
         </div>
         <div className="text-end">
           <button className="btn btn-outline-secondary me-2" onClick={() => navigate('/kunden')}>
             Zurück zur Liste
           </button>
+          <button
+            className="btn btn-success me-2"
+            onClick={async () => {
+              try {
+                await api.updateKunde(kunde.id!, { isApproved: true });
+                const updatedKunde = await getKundeById(kunde.id!);
+                setKunde(updatedKunde);
+                console.log("erfolg")
+              } catch (err: any) {
+                setError(err.message || 'Fehler beim Genehmigen des Kunden');
+              }
+            }}
+            disabled={kunde.isApproved}
+          >
+            Genehmigen
+          </button>
           <Link to={`/kunden/edit/${kunde.id}`} className="btn btn-primary">
             Bearbeiten
           </Link>
+          <button
+            className="btn btn-danger"
+            onClick={() => handleDelete(kunde.id)}
+          >
+            Löschen
+          </button>
         </div>
       </div>
 

@@ -126,7 +126,11 @@ const NavBar: React.FC<NavBarProps> = ({
                   onClick={onCartClick}
                   title="Warenkorb"
                 >
-                  <i className="ci-shopping-cart fs-4"></i>
+                  <img
+                    src="https://img.icons8.com/?size=100&id=10603&format=png&color=000000"
+                    alt="Shopping Cart"
+                    style={{ width: '24px', height: '24px' }}
+                  />
                   {cartLength > 0 && (
                     <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '0.7rem' }}>
                       {cartLength}
