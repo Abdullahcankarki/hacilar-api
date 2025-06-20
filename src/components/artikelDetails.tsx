@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { ArtikelResource, ArtikelPositionResource } from '../Resources';
-import { getArtikelById } from '../backend/api';
+import { getArtikelById, getArtikelByIdClean } from '../backend/api';
 import fallbackImage from '../Cartzilla/assets/img/shop/grocery/10.png';
 import { useAuth } from '../providers/Authcontext';
 import { useOutletContext } from 'react-router-dom';

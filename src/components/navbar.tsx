@@ -22,6 +22,13 @@ const NavBar: React.FC<NavBarProps> = ({
   ausgewaehlterKunde,
   setAusgewaehlterKunde,
 }) => {
+  React.useEffect(() => {
+    const gespeicherterKunde = localStorage.getItem('ausgewaehlterKunde');
+    if (gespeicherterKunde) {
+      setAusgewaehlterKunde(gespeicherterKunde);
+    }
+  }, []);
+
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -107,7 +114,11 @@ const NavBar: React.FC<NavBarProps> = ({
                     className="form-select border border-secondary"
                     style={{ maxWidth: 250 }}
                     value={ausgewaehlterKunde ?? ''}
-                    onChange={(e) => setAusgewaehlterKunde(e.target.value)}
+                    onChange={(e) => {
+                      localStorage.setItem('ausgewaehlterKunde', e.target.value);
+                      setAusgewaehlterKunde(e.target.value);
+                      window.location.reload();
+                    }}
                   >
                     <option value="">Kunde wählen</option>
                     {kunden.map((kunde) => (

@@ -31,27 +31,32 @@ import { JSX } from "react";
  * *Hinweis für Tests*: Ob die Antwort in Ordnung ist oder nicht, wird an dem Property `ok` der Response erkannt.
  */
 export async function fetchWithErrorHandling(url: string, init?: RequestInit): Promise<Response> {
+  const response: Response = await fetch(url, init);
+  const contentType = response.headers.get("Content-Type") ?? "";
 
-    const response: Response = await fetch(url, init);
+  if (!response.ok) {
+    if (contentType.startsWith("application/json")) {
+      const data = await response.json();
 
-    const contentType = response.headers.get("Content-Type") ?? "";
-    if (!response.ok) {
-        if (contentType.startsWith("application/json")) {
-            const data = await response.json()
-            if (data.errors instanceof Array) {
-                const validationErrors = data.errors as ValidationError[];
-                throw new ErrorFromValidation(response.status, validationErrors);
-            }
-        } else if (contentType.startsWith("text/html")) {
-            const html = await response.text();
-            throw new ErrorWithHTML(response.status, html);
-        } else if (contentType.startsWith("text/plain")) {
-            const text = await response.text();
-            throw new Error(`Status ${response.status}: ${text}`);
-        }
+      if (Array.isArray(data.errors)) {
+        const validationErrors = data.errors as ValidationError[];
+        throw new ErrorFromValidation(response.status, validationErrors);
+      }
+
+      throw new Error(data.message || `Fehler: ${response.status}`);
+    } else if (contentType.startsWith("text/html")) {
+      const html = await response.text();
+      throw new ErrorWithHTML(response.status, html);
+    } else if (contentType.startsWith("text/plain")) {
+      const text = await response.text();
+      throw new Error(`Status ${response.status}: ${text}`);
     }
 
-    return response;
+    // Wenn unbekannter Content-Type:
+    throw new Error(`Unbekannter Fehler (Status ${response.status})`);
+  }
+
+  return response;
 }
 
 /**

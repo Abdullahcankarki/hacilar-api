@@ -82,15 +82,10 @@ export async function login(
 ): Promise<LoginResponse> {
   const response = await fetchWithErrorHandling(`${API_URL}/api/login/`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Login-Fehler");
-  }
+
   return response.json();
 }
 
@@ -159,20 +154,30 @@ export async function deleteVerkaeufer(id: string): Promise<{ message: string }>
 }
 /* Artikel-Funktionen */
 export async function getAllArtikel(): Promise<ArtikelResource[]> {
-  const kundeId = getGlobalAusgewaehlterKunde();
+  const kundeId = localStorage.getItem('ausgewaehlterKunde');
   const url = kundeId ? `/api/artikel?kunde=${kundeId}` : "/api/artikel";
   return apiFetch<ArtikelResource[]>(url);
 }
 
 export async function getAuswahlArtikel(): Promise<ArtikelResource[]> {
-  const kundeId = getGlobalAusgewaehlterKunde();
+  const kundeId = localStorage.getItem('ausgewaehlterKunde');
   const url = kundeId ? `/api/artikel/auswahl?kunde=${kundeId}` : "/api/artikel/auswahl";
   return apiFetch<ArtikelResource[]>(url);
 }
 
 export async function getArtikelById(id: string): Promise<ArtikelResource> {
-  const kundeId = getGlobalAusgewaehlterKunde();
+  const kundeId = localStorage.getItem('ausgewaehlterKunde');
   const url = kundeId ? `/api/artikel/${id}?kunde=${kundeId}` : `/api/artikel/${id}`;
+  return apiFetch<ArtikelResource>(url);
+}
+
+export async function getAllArtikelClean(): Promise<ArtikelResource[]> {
+  const url = "/api/artikel/clean";
+  return apiFetch<ArtikelResource[]>(url);
+}
+
+export async function getArtikelByIdClean(id: string): Promise<ArtikelResource> {
+  const url = `/api/artikel/clean/${id}`;
   return apiFetch<ArtikelResource>(url);
 }
 
@@ -338,6 +343,8 @@ export const api = {
   getAllArtikel,
   getAuswahlArtikel,
   getArtikelById,
+  getAllArtikelClean,
+  getArtikelByIdClean,
   createArtikel,
   updateArtikel,
   deleteArtikel,

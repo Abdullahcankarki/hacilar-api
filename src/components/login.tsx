@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../providers/Authcontext';
 import { useNavigate } from 'react-router-dom';
 import coverImg from '../assets/hijab.png';
+import { ErrorFromValidation } from '../backend/fetchWithErrorHandling';
 
 
 const LoginForm: React.FC = () => {
@@ -14,46 +15,47 @@ const LoginForm: React.FC = () => {
   const [passwordError, setPasswordError] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setIdentifierError('');
-    setPasswordError('');
-    setShowSuccess(false);
 
-    let hasError = false;
-    if (!identifier.trim()) {
-      setIdentifierError('Email oder Benutzername ist erforderlich.');
-      hasError = true;
-    }
-    if (!password.trim()) {
-      setPasswordError('Passwort ist erforderlich.');
-      hasError = true;
-    }
-    if (hasError) return;
 
-    try {
-      await login({
-        email: identifier.includes('@') ? identifier : undefined,
-        name: !identifier.includes('@') ? identifier : undefined,
-        password,
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  try {
+    await login({
+      email: identifier.includes('@') ? identifier : undefined,
+      name: !identifier.includes('@') ? identifier : undefined,
+      password,
+    });
+
+    setShowSuccess(true);
+    setTimeout(() => {
+      setShowSuccess(false);
+      navigate('/home');
+    }, 1000);
+  } catch (err: any) {
+    if (err instanceof ErrorFromValidation) {
+      // express-validator Fehler auswerten
+      err.validationErrors.forEach(e => {
+        if (e.path === 'email' || e.path === 'name') {
+          setIdentifierError(e.msg);
+        } else if (e.path === 'password') {
+          setPasswordError(e.msg);
+        }
       });
-      setShowSuccess(true);
-      setTimeout(() => {
-        setShowSuccess(false);
-        navigate('/home');
-      }, 1000);
-    } catch (err: any) {
-      const errorMsg = err.message || 'Login fehlgeschlagen';
-      if (errorMsg.toLowerCase().includes('email')) {
-        setIdentifierError(errorMsg);
-      } else if (errorMsg.toLowerCase().includes('passwort')) {
-        setPasswordError(errorMsg);
+    } else {
+      const errorMsg = err.message?.toLowerCase() || '';
+
+      if (errorMsg.includes('Anmeldedaten') || errorMsg.includes('benutzer')) {
+        setIdentifierError('Benutzername oder E-Mail ist nicht korrekt.');
+      } else if (errorMsg.includes('passwort')) {
+        setPasswordError('Das Passwort scheint nicht korrekt zu sein.');
+      } else if (errorMsg.includes('network') || errorMsg.includes('timeout')) {
+        setIdentifierError('Verbindungsfehler. Bitte überprüfe deine Internetverbindung.');
       } else {
-        setIdentifierError(errorMsg);
-        setPasswordError(errorMsg);
+        setIdentifierError('Ein unerwarteter Fehler ist aufgetreten. Bitte versuche es erneut.');
       }
     }
-  };
+  }
+};
 
   return (
     <main className="content-wrapper w-100 px-3 ps-lg-5 pe-lg-4 mx-auto" style={{ maxWidth: '1920px' }}>
@@ -87,7 +89,7 @@ const LoginForm: React.FC = () => {
                     required
                   />
                   {identifierError && (
-                    <div className="invalid-tooltip bg-transparent py-0">{identifierError}</div>
+                    <div className="invalid-feedback d-block">{identifierError}</div>
                   )}
                 </div>
                 <div className="mb-4">
@@ -104,7 +106,7 @@ const LoginForm: React.FC = () => {
                       <input type="checkbox" className="btn-check" />
                     </label>
                     {passwordError && (
-                      <div className="invalid-tooltip bg-transparent py-0">{passwordError}</div>
+                      <div className="invalid-feedback d-block">{passwordError}</div>
                     )}
                   </div>
                 </div>
