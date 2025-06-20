@@ -38,7 +38,7 @@ const Artikel: React.FC = () => {
   // Artikel laden
   const fetchArticles = async () => {
     try {
-      const data = await api.getAllArtikel();
+      const data = await api.getAllArtikelClean();
       setArtikel(data);
     } catch (err: any) {
       setError(err.message || 'Fehler beim Laden der Artikel');

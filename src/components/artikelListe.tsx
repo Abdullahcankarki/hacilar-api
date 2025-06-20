@@ -5,6 +5,7 @@ import RenderCard from './renderCard';
 import { getAuftragLetzte, getAuftragLetzteArtikel } from '../backend/api';
 import { useAuth } from '../providers/Authcontext';
 import { getKundenFavoriten } from '../backend/api';
+import { Link } from 'react-router-dom';
 
 type Props = {
     articles: ArtikelResource[];
@@ -125,73 +126,73 @@ const ArtikelListe: React.FC<Props> = ({
                 <div className="row">
                     {/* Sidebar */}
                     <aside className="col-lg-3">
-                      <div className="offcanvas-lg offcanvas-start pe-lg-4" id="filterSidebar">
-                        <div className="offcanvas-header py-3">
-                          <h5 className="offcanvas-title">Filter products</h5>
-                          <button
-                            type="button"
-                            className="btn-close"
-                            data-bs-dismiss="offcanvas"
-                            data-bs-target="#filterSidebar"
-                            aria-label="Close"
-                          ></button>
-                        </div>
-                        <div className="offcanvas-body flex-column pt-2 py-lg-0">
-                          <div className="d-flex flex-column gap-3">
-                            {kategorien.map((kategorie, i) => (
-                              <a
-                                key={i}
-                                href={`#${kategorie.replace(/\s+/g, '-')}`}
-                                className="d-flex align-items-center text-decoration-none text-body"
-                              >
-                                <span
-                                  className="d-flex align-items-center justify-content-center bg-body-secondary rounded-circle me-3"
-                                  style={{ width: '56px', height: '56px' }}
-                                >
-                                  <span className="fs-4">
-                                    {kategorie === 'Geflügel' && '🐔'}
-                                    {kategorie === 'Kalb' && '🐄'}
-                                    {kategorie === 'Lamm' && '🐑'}
-                                    {kategorie === 'Pute' && '🦃'}
-                                    {kategorie === 'Rind' && '🐄'}
-                                    {kategorie === 'Schaf' && '🐏'}
-                                    {!['Geflügel','Kalb','Lamm','Pute','Rind','Schaf'].includes(kategorie) && '📦'}
-                                  </span>
-                                </span>
-                                <span className="fs-sm">{kategorie}</span>
-                              </a>
-                            ))}
+                        <div className="offcanvas-lg offcanvas-start pe-lg-4" id="filterSidebar">
+                            <div className="offcanvas-header py-3">
+                                <h5 className="offcanvas-title">Filter products</h5>
+                                <button
+                                    type="button"
+                                    className="btn-close"
+                                    data-bs-dismiss="offcanvas"
+                                    data-bs-target="#filterSidebar"
+                                    aria-label="Close"
+                                ></button>
+                            </div>
+                            <div className="offcanvas-body flex-column pt-2 py-lg-0">
+                                <div className="d-flex flex-column gap-3">
+                                    {kategorien.map((kategorie, i) => (
+                                        <a
+                                            key={i}
+                                            href={`#${kategorie.replace(/\s+/g, '-')}`}
+                                            className="d-flex align-items-center text-decoration-none text-body"
+                                        >
+                                            <span
+                                                className="d-flex align-items-center justify-content-center bg-body-secondary rounded-circle me-3"
+                                                style={{ width: '56px', height: '56px' }}
+                                            >
+                                                <span className="fs-4">
+                                                    {kategorie === 'Geflügel' && '🐔'}
+                                                    {kategorie === 'Kalb' && '🐄'}
+                                                    {kategorie === 'Lamm' && '🐑'}
+                                                    {kategorie === 'Pute' && '🦃'}
+                                                    {kategorie === 'Rind' && '🐄'}
+                                                    {kategorie === 'Schaf' && '🐏'}
+                                                    {!['Geflügel', 'Kalb', 'Lamm', 'Pute', 'Rind', 'Schaf'].includes(kategorie) && '📦'}
+                                                </span>
+                                            </span>
+                                            <span className="fs-sm">{kategorie}</span>
+                                        </a>
+                                    ))}
 
-                            {favoriten.length > 0 && (
-                              <a
-                                href="#favoriten"
-                                className="d-flex align-items-center text-decoration-none text-body"
-                              >
-                                <span
-                                  className="d-flex align-items-center justify-content-center bg-warning rounded-circle me-3"
-                                  style={{ width: '56px', height: '56px' }}
-                                >
-                                  <i className="ci-star-filled"></i>
-                                </span>
-                                <span className="fs-sm">Favoriten</span>
-                              </a>
-                            )}
+                                    {favoriten.length > 0 && (
+                                        <a
+                                            href="#favoriten"
+                                            className="d-flex align-items-center text-decoration-none text-body"
+                                        >
+                                            <span
+                                                className="d-flex align-items-center justify-content-center bg-warning rounded-circle me-3"
+                                                style={{ width: '56px', height: '56px' }}
+                                            >
+                                                <i className="ci-star-filled"></i>
+                                            </span>
+                                            <span className="fs-sm">Favoriten</span>
+                                        </a>
+                                    )}
 
-                            <a
-                              href="#letzter-auftrag"
-                              className="d-flex align-items-center text-decoration-none text-body"
-                            >
-                              <span
-                                className="d-flex align-items-center justify-content-center bg-primary rounded-circle me-3 text-white fw-bold"
-                                style={{ width: '56px', height: '56px' }}
-                              >
-                                <i className="ci-package"></i>
-                              </span>
-                              <span className="fs-sm">Letzter Auftrag</span>
-                            </a>
-                          </div>
+                                    <a
+                                        href="#letzter-auftrag"
+                                        className="d-flex align-items-center text-decoration-none text-body"
+                                    >
+                                        <span
+                                            className="d-flex align-items-center justify-content-center bg-primary rounded-circle me-3 text-white fw-bold"
+                                            style={{ width: '56px', height: '56px' }}
+                                        >
+                                            <i className="ci-package"></i>
+                                        </span>
+                                        <span className="fs-sm">Letzter Auftrag</span>
+                                    </a>
+                                </div>
+                            </div>
                         </div>
-                      </div>
                     </aside>
 
                     {/* Hauptbereich */}
@@ -375,6 +376,12 @@ const ArtikelListe: React.FC<Props> = ({
                                             setBemerkungen={setBemerkungen}
                                         />
                                     ))}
+                                </div>
+                                <div className="mt-3">
+                                    <Link to="/allArtikel" className="btn nav-link animate-underline text-decoration-none px-0">
+                                        <span className="animate-target">Zeige alle Artikel</span>
+                                        <i className="ci-chevron-right fs-base ms-1"></i>
+                                    </Link>
                                 </div>
                             </div>
                         ))}

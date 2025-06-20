@@ -30,7 +30,7 @@ const KundenaufpreisEditor: React.FC = () => {
       try {
         if (!artikelId) throw new Error('Keine Artikel-ID angegeben.');
         // Artikel laden
-        const artData = await api.getArtikelById(artikelId);
+        const artData = await api.getArtikelByIdClean(artikelId);
         setArticle(artData);
         // Kundenaufpreise laden
         const kpData = await api.getKundenpreiseByArtikel(artikelId);
