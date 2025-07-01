@@ -81,7 +81,7 @@ const RenderCard: React.FC<Props> = ({
                 ) : (
                     <div className="d-flex flex-column gap-2">
                         <div className="d-flex gap-2 w-100">
-                            <Button variant="primary" className="rounded-pill px-3" onClick={() => {
+                            <Button variant="secondary" className="rounded-pill px-3" onClick={() => {
                                 if ((cartItem?.menge || 1) > 1) {
                                     const updated = cart.map(item =>
                                         item.artikel === article.id ? { ...item, menge: item.menge - 1 } : item
@@ -104,7 +104,7 @@ const RenderCard: React.FC<Props> = ({
                                         ? cartItem?.menge?.toString() ?? ''
                                         : lokaleMenge[article.id!]?.toString() ?? ''
                                 }
-                                className="form-control form-control-sm text-center bg-primary text-white border-0 no-spinner"
+                                className="form-control form-control-sm text-center border-1 no-spinner"
                                 onChange={(e) => {
                                     const val = e.target.value;
                                     const num = parseInt(val);
@@ -125,7 +125,7 @@ const RenderCard: React.FC<Props> = ({
                                 }}
                             />
 
-                            <Button variant="primary" className="rounded-pill px-3" onClick={() => {
+                            <Button variant="secondary" className="rounded-pill px-3" onClick={() => {
                                 const updated = cart.map(item =>
                                     item.artikel === article.id ? { ...item, menge: item.menge + 1 } : item
                                 );
@@ -137,7 +137,8 @@ const RenderCard: React.FC<Props> = ({
                         </div>
                         <Form.Select
                             size="sm"
-                            className="form-control form-control-sm text-center bg-primary text-white border-0 no-spinner"
+                            className="form-control form-control-sm text-center border-0 no-spinner"
+                            style={{ backgroundColor: '#f0f2f5' }}
                             value={
                                 isInCart
                                     ? cartItem?.einheit?.toString() ?? ''

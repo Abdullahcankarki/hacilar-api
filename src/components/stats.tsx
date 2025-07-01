@@ -97,7 +97,7 @@ const Statistiken: React.FC = () => {
                         </select>
                     </div>
                     <div className="col-md-3">
-                        <label className="form-label">Verkäufer</label>
+                        <label className="form-label">Mitarbeiter</label>
                         <input className="form-control" placeholder="z. B. Max" />
                     </div>
                     <div className="col-md-3">

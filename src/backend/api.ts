@@ -2,7 +2,7 @@
 import {
   KundeResource,
   LoginResponse,
-  VerkaeuferResource,
+  MitarbeiterResource,
   ArtikelResource,
   KundenPreisResource,
   AuftragResource,
@@ -78,7 +78,7 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
  * Beim Login wird kein Token gesendet.
  */
 export async function login(
-  data: Partial<KundeResource> | Partial<VerkaeuferResource>
+  data: Partial<KundeResource> | Partial<MitarbeiterResource>
 ): Promise<LoginResponse> {
   const response = await fetchWithErrorHandling(`${API_URL}/api/login/`, {
     method: "POST",
@@ -124,31 +124,31 @@ export async function deleteKunde(id: string): Promise<{ message: string }> {
   });
 }
 
-//* Verkaeufer-Funktionen */
-export async function getAllVerkaeufer(): Promise<VerkaeuferResource[]> {
-  return apiFetch<VerkaeuferResource[]>("/api/verkaeufer");
+//* Mitarbeiter-Funktionen */
+export async function getAllMitarbeiter(): Promise<MitarbeiterResource[]> {
+  return apiFetch<MitarbeiterResource[]>("/api/mitarbeiter");
 }
 
-export async function getVerkaeuferById(id: string): Promise<VerkaeuferResource> {
-  return apiFetch<VerkaeuferResource>(`/api/verkaeufer/${id}`);
+export async function getMitarbeiterById(id: string): Promise<MitarbeiterResource> {
+  return apiFetch<MitarbeiterResource>(`/api/mitarbeiter/${id}`);
 }
 
-export async function createVerkaeufer(data: Omit<VerkaeuferResource, "id" | "updatedAt">): Promise<VerkaeuferResource> {
-  return apiFetch<VerkaeuferResource>("/api/verkaeufer", {
+export async function createMitarbeiter(data: Omit<MitarbeiterResource, "id" | "updatedAt">): Promise<MitarbeiterResource> {
+  return apiFetch<MitarbeiterResource>("/api/mitarbeiter", {
     method: "POST",
     body: JSON.stringify(data),
   });
 }
 
-export async function updateVerkaeufer(id: string, data: Partial<VerkaeuferResource>): Promise<VerkaeuferResource> {
-  return apiFetch<VerkaeuferResource>(`/api/verkaeufer/${id}`, {
+export async function updateMitarbeiter(id: string, data: Partial<MitarbeiterResource>): Promise<MitarbeiterResource> {
+  return apiFetch<MitarbeiterResource>(`/api/mitarbeiter/${id}`, {
     method: "PUT",
     body: JSON.stringify(data),
   });
 }
 
-export async function deleteVerkaeufer(id: string): Promise<{ message: string }> {
-  return apiFetch<{ message: string }>(`/api/verkaeufer/${id}`, {
+export async function deleteMitarbeiter(id: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(`/api/mitarbeiter/${id}`, {
     method: "DELETE",
   });
 }
@@ -377,12 +377,12 @@ export const api = {
   createArtikelPosition,
   updateArtikelPosition,
   deleteArtikelPosition,
-  // Verkaeufer
-  getAllVerkaeufer,
-  getVerkaeuferById,
-  createVerkaeufer,
-  updateVerkaeufer,
-  deleteVerkaeufer,
+  // Mitarbeiter
+  getAllMitarbeiter,
+  getMitarbeiterById,
+  createMitarbeiter,
+  updateMitarbeiter,
+  deleteMitarbeiter,
   //Favoriten
   getKundenFavoriten,
   addKundenFavorit,

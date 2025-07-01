@@ -1,7 +1,7 @@
 // Auftraege.tsx
 import React, { useEffect, useState } from 'react';
 import { AuftragResource } from '../Resources';
-import { api, getAllAuftraege, getAuftragByCutomerId } from '../backend/api';
+import { api, deleteAuftrag, getAllAuftraege, getAuftragByCutomerId } from '../backend/api';
 import { useAuth } from '../providers/Authcontext';
 import AuftragTabelle from './auftragTabelle';
 
@@ -16,7 +16,7 @@ const Auftraege: React.FC = () => {
   // Alle Aufträge laden
   const fetchAuftraege = async () => {
     try {
-      const data = user?.role === 'a'
+      const data = user?.role.includes('admin')
         ? await getAllAuftraege()
         : await getAuftragByCutomerId(user?.id!);
       setAuftraege(data);
@@ -80,6 +80,29 @@ const Auftraege: React.FC = () => {
     await updateOrderStatus(orderId, 'offen');
   };
 
+  // React Modal für Löschbestätigung
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [showModal, setShowModal] = useState<boolean>(false);
+
+  const confirmDelete = (orderId: string) => {
+    setSelectedOrderId(orderId);
+    setShowModal(true);
+  };
+
+  const handleDeleteConfirmed = async () => {
+    if (!selectedOrderId) return;
+    try {
+      await deleteAuftrag(selectedOrderId);
+      setAuftraege(prev => prev.filter(a => a.id !== selectedOrderId));
+      console.log(`Auftrag ${selectedOrderId} erfolgreich gelöscht`);
+    } catch (err: any) {
+      console.error('Fehler beim Löschen des Auftrags:', err.message || err);
+    } finally {
+      setSelectedOrderId(null);
+      setShowModal(false);
+    }
+  };
+
   if (loading)
     return (
       <div className="container text-center my-4">
@@ -99,13 +122,18 @@ const Auftraege: React.FC = () => {
       {/* Such-, Filter- und Sortierleiste */}
       <div className="row mb-4">
         <div className="col-md-4">
-          <input
-            type="text"
-            className="form-control"
-            placeholder="Suche (Auftrag, Kunde)"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+          <div className="input-group">
+            <span className="input-group-text bg-white">
+              <i className="bi bi-search"></i>
+            </span>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Suche (Auftrag, Kunde)"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
         </div>
       </div>
 
@@ -133,7 +161,27 @@ const Auftraege: React.FC = () => {
         titel="Stornierte Aufträge"
         auftraege={gruppiertNachStatus.storniert}
         defaultCollapsed={true}
+        onDelete={confirmDelete}
       />
+      {showModal && (
+        <div className="modal fade show d-block" tabIndex={-1} role="dialog" aria-labelledby="deleteConfirmModalLabel" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title" id="deleteConfirmModalLabel">Löschbestätigung</h5>
+                <button type="button" className="btn-close" onClick={() => setShowModal(false)} aria-label="Schließen"></button>
+              </div>
+              <div className="modal-body">
+                Möchten Sie diesen Auftrag wirklich löschen?
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Abbrechen</button>
+                <button type="button" className="btn btn-danger" onClick={handleDeleteConfirmed}>Löschen</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

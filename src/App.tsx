@@ -73,9 +73,9 @@ const AppRoutes: React.FC = () => {
           <Route path="kunden/edit/:id" element={<KundeEdit />} />
           <Route path="kundenaufpreise/:artikelId" element={<KundenaufpreisEditor />} />
           <Route path="profil" element={<Profil />} />
-          <Route path="verkaeufer" element={<Verkaeufer />} />
-          <Route path="verkaeufer/:id" element={<VerkaeuferDetails />} />
-          <Route path="verkaeufer/edit/:id" element={<VerkaeuferEdit />} />
+          <Route path="mitarbeiter" element={<Verkaeufer />} />
+          <Route path="mitarbeiter/:id" element={<VerkaeuferDetails />} />
+          <Route path="mitarbeiter/edit/:id" element={<VerkaeuferEdit />} />
           <Route path="stats" element={<Statistiken />} />
           <Route path="*" element={<Navigate to="/home" replace />} />
         </Route>

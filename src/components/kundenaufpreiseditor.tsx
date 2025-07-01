@@ -16,10 +16,20 @@ const KundenaufpreisEditor: React.FC = () => {
   const [saveMessage, setSaveMessage] = useState<string>('');
   // Modal-States für Massen-Aufpreis
   const [showMassModal, setShowMassModal] = useState(false);
-  const [massKategorie, setMassKategorie] = useState('');
-  const [massRegion, setMassRegion] = useState('');
-  const [massAufpreis, setMassAufpreis] = useState<number>(0);
-  const [massAufpreisRaw, setMassAufpreisRaw] = useState<string>('0');
+  const [massEdit, setMassEdit] = useState({
+    kategorie: '',
+    region: '',
+    rawAufpreis: '0',
+  });
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const entriesPerPage = 25;
+  const totalPages = Math.ceil(kundenpreise.length / entriesPerPage);
+  const visiblePrices = kundenpreise.slice(
+    (currentPage - 1) * entriesPerPage,
+    currentPage * entriesPerPage
+  );
 
   // Hilfsfunktion: Wandelt Kommas in Punkte um und parsed die Zahl
   const parseNumberInput = (value: string): number =>
@@ -29,14 +39,14 @@ const KundenaufpreisEditor: React.FC = () => {
     const fetchData = async () => {
       try {
         if (!artikelId) throw new Error('Keine Artikel-ID angegeben.');
-        // Artikel laden
-        const artData = await api.getArtikelByIdClean(artikelId);
+        // Artikel, Kundenaufpreise und Kundenliste parallel laden
+        const [artData, kpData, custData] = await Promise.all([
+          api.getArtikelByIdClean(artikelId),
+          api.getKundenpreiseByArtikel(artikelId),
+          api.getAllKunden(),
+        ]);
         setArticle(artData);
-        // Kundenaufpreise laden
-        const kpData = await api.getKundenpreiseByArtikel(artikelId);
         setKundenpreise(kpData);
-        // Kundenliste laden
-        const custData = await api.getAllKunden();
         setCustomers(custData);
       } catch (err: any) {
         setError(err.message || 'Fehler beim Laden der Daten.');
@@ -86,13 +96,13 @@ const saveMassSurcharges = async () => {
   setSaveMessage('');
   try {
     if (!artikelId) throw new Error('Keine Artikel-ID vorhanden.');
-    const parsed = parseFloat(massAufpreisRaw.replace(',', '.'));
+    const parsed = parseFloat(massEdit.rawAufpreis.replace(',', '.'));
     if (isNaN(parsed)) throw new Error('Ungültiger Aufpreis-Wert.');
     await api.createMassKundenpreis({
       artikel: artikelId,
       aufpreis: parsed,
-      kategorie: massKategorie || undefined,
-      region: massRegion || undefined,
+      kategorie: massEdit.kategorie || undefined,
+      region: massEdit.region || undefined,
     });
     setSaveMessage('Massenaufpreise wurden erfolgreich gesetzt.');
     setShowMassModal(false);
@@ -166,16 +176,17 @@ const saveMassSurcharges = async () => {
           <div className="card-body">
             <div className="mb-3 d-flex justify-content-between">
               <button className="btn btn-outline-dark" onClick={addNewSurcharge}>
-                <i className="bi bi-plus-lg"></i> Neuen Aufpreis hinzufügen
+                <i className="ci-user-plus me-2"></i> Neuen Aufpreis hinzufügen
               </button>
               <button className="btn btn-outline-primary" onClick={() => setShowMassModal(true)}>
-                <i className="bi bi-people-fill"></i> Aufpreis für Kategorie/Region setzen
+                <i className="ci-group me-2"></i> Aufpreis für Kategorie/Region setzen
               </button>
             </div>
             <div className="table-responsive">
               <table className="table table-striped table-bordered">
                 <thead className="table-light">
                   <tr>
+                    <th>#</th>
                     <th>Kunde</th>
                     <th>Aufpreis (€)</th>
                     <th>Endpreis (€)</th>
@@ -183,13 +194,14 @@ const saveMassSurcharges = async () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {kundenpreise.map((kp, index) => (
-                    <tr key={index}>
+                  {visiblePrices.map((kp, index) => (
+                    <tr key={kp.id ?? index}>
+                      <td>{(currentPage - 1) * entriesPerPage + index + 1}</td>
                       <td>
                         <select
                           className="form-select"
                           value={kp.customer || ''}
-                          onChange={(e) => handleCustomerSelect(index, e.target.value)}
+                          onChange={(e) => handleCustomerSelect(kundenpreise.indexOf(kp), e.target.value)}
                           required
                         >
                           <option value="">Bitte wählen</option>
@@ -205,8 +217,8 @@ const saveMassSurcharges = async () => {
                           type="number"
                           step="0.01"
                           className="form-control"
-                          value={kp.aufpreis}
-                          onChange={(e) => handleSurchargeChange(index, parseNumberInput(e.target.value))}
+                          value={kp.aufpreis.toFixed(2)}
+                          onChange={(e) => handleSurchargeChange(kundenpreise.indexOf(kp), parseNumberInput(e.target.value))}
                         />
                       </td>
                       <td>
@@ -215,9 +227,9 @@ const saveMassSurcharges = async () => {
                       <td>
                         <button
                           className="btn btn-sm btn-danger"
-                          onClick={() => deleteSurcharge(index)}
+                          onClick={() => deleteSurcharge(kundenpreise.indexOf(kp))}
                         >
-                          <i className="bi bi-trash"></i> Löschen
+                          <i className="ci-trash me-1"></i> Löschen
                         </button>
                       </td>
                     </tr>
@@ -226,12 +238,24 @@ const saveMassSurcharges = async () => {
               </table>
             </div>
           </div>
+          {/* Pagination */}
+          <nav>
+            <ul className="pagination justify-content-center mt-3">
+              {Array.from({ length: totalPages }, (_, i) => (
+                <li key={i} className={`page-item ${i + 1 === currentPage ? 'active' : ''}`}>
+                  <button className="page-link" onClick={() => setCurrentPage(i + 1)}>
+                    {i + 1}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </nav>
           <div className="card-footer d-flex justify-content-end gap-2">
             <button className="btn btn-secondary" onClick={() => navigate(-1)}>
-              Abbrechen
+              <i className="ci-arrow-left me-2"></i> Abbrechen
             </button>
             <button className="btn btn-success" onClick={saveSurcharges}>
-              Speichern
+              <i className="ci-save me-2"></i> Speichern
             </button>
           </div>
         </div>
@@ -248,11 +272,39 @@ const saveMassSurcharges = async () => {
               <div className="modal-body">
                 <div className="mb-3">
                   <label className="form-label">Kategorie</label>
-                  <input className="form-control" value={massKategorie} onChange={(e) => setMassKategorie(e.target.value)} />
+                  <select
+                    className="form-select mb-2"
+                    value={massEdit.kategorie}
+                    onChange={(e) =>
+                      setMassEdit((prev) => ({ ...prev, kategorie: e.target.value }))
+                    }
+                  >
+                    <option value="">Kategorie wählen</option>
+                    <option value="Discounter">Discounter</option>
+                    <option value="Gastronomie">Gastronomie</option>
+                    <option value="Supermarkt">Supermarkt</option>
+                    <option value="Großhandel">Großhandel</option>
+                    <option value="custom">Andere (manuell eingeben)</option>
+                  </select>
+                  {massEdit.kategorie === 'custom' && (
+                    <input
+                      className="form-control mt-1"
+                      placeholder="Eigene Kategorie eingeben"
+                      onChange={(e) =>
+                        setMassEdit((prev) => ({ ...prev, kategorie: e.target.value }))
+                      }
+                    />
+                  )}
                 </div>
                 <div className="mb-3">
                   <label className="form-label">Region</label>
-                  <input className="form-control" value={massRegion} onChange={(e) => setMassRegion(e.target.value)} />
+                  <input
+                    className="form-control"
+                    value={massEdit.region}
+                    onChange={(e) =>
+                      setMassEdit((prev) => ({ ...prev, region: e.target.value }))
+                    }
+                  />
                 </div>
                 <div className="mb-3">
                   <label className="form-label">Aufpreis (€)</label>
@@ -260,14 +312,20 @@ const saveMassSurcharges = async () => {
                     type="text"
                     inputMode="decimal"
                     className="form-control"
-                    value={massAufpreisRaw}
-                    onChange={(e) => setMassAufpreisRaw(e.target.value)}
+                    value={massEdit.rawAufpreis}
+                    onChange={(e) =>
+                      setMassEdit((prev) => ({ ...prev, rawAufpreis: e.target.value }))
+                    }
                   />
                 </div>
               </div>
               <div className="modal-footer">
-                <button className="btn btn-secondary" onClick={() => setShowMassModal(false)}>Abbrechen</button>
-                <button className="btn btn-primary" onClick={saveMassSurcharges}>Speichern</button>
+                <button className="btn btn-secondary" onClick={() => setShowMassModal(false)}>
+                  <i className="ci-close me-2"></i> Abbrechen
+                </button>
+                <button className="btn btn-primary" onClick={saveMassSurcharges}>
+                  <i className="ci-save me-2"></i> Speichern
+                </button>
               </div>
             </div>
           </div>

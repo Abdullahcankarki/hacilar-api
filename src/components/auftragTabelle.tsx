@@ -11,16 +11,17 @@ type Props = {
     onOeffnen?: (id: string) => void;
     onComplete?: (id: string) => void;
     onCancel?: (id: string) => void;
+    onDelete?: (id: string) => void;
     defaultCollapsed?: boolean;
 };
 
-const AuftragTabelle: React.FC<Props> = ({ titel, auftraege, onBearbeitung, onOeffnen, onComplete, onCancel, defaultCollapsed }) => {
+const AuftragTabelle: React.FC<Props> = ({ titel, auftraege, onBearbeitung, onOeffnen, onComplete, onCancel, onDelete, defaultCollapsed }) => {
     const navigate = useNavigate();
     const [collapsed, setCollapsed] = useState<boolean>(defaultCollapsed ?? false);
     const [sortField, setSortField] = useState<'kunde' | 'lieferdatum' | 'preis' | 'gewicht' | null>(null);
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
     const { user } = useAuth();
-    const isUser = user?.role === 'u';
+    const isUser = user?.role?.includes('kunde');
 
     const toggleCollapse = () => setCollapsed(prev => !prev);
 
@@ -88,7 +89,7 @@ const AuftragTabelle: React.FC<Props> = ({ titel, auftraege, onBearbeitung, onOe
                                     <th onClick={() => handleSort('gewicht')} style={{ cursor: 'pointer' }}>
                                         Gewicht {sortField === 'gewicht' ? (sortOrder === 'asc' ? <FaChevronUp /> : <FaChevronDown />) : ''}
                                     </th>
-                                    {!isUser && (onBearbeitung || onOeffnen || onComplete || onCancel) && (
+                                    {!isUser && (onBearbeitung || onOeffnen || onComplete || onCancel || onDelete) && (
                                         <th>Aktionen</th>
                                     )}
                                 </tr>
@@ -107,7 +108,7 @@ const AuftragTabelle: React.FC<Props> = ({ titel, auftraege, onBearbeitung, onOe
                                         </td>
                                         <td>{auftrag.gewicht != null ? `${auftrag.gewicht.toFixed(2)} kg` : '-'}</td>
                                         <td onClick={(e) => e.stopPropagation()}>
-                                            {!isUser && (onBearbeitung || onOeffnen || onComplete || onCancel) && (
+                                            {!isUser && (onBearbeitung || onOeffnen || onComplete || onCancel || onDelete) && (
                                                 <td onClick={(e) => e.stopPropagation()}>
                                                     <>
                                                         {onBearbeitung && (
@@ -128,6 +129,11 @@ const AuftragTabelle: React.FC<Props> = ({ titel, auftraege, onBearbeitung, onOe
                                                         {onCancel && (
                                                             <button className="btn btn-sm btn-danger" onClick={() => onCancel(auftrag.id!)}>
                                                                 Stornieren
+                                                            </button>
+                                                        )}
+                                                        {onDelete && (
+                                                            <button className="btn btn-sm btn-danger" onClick={() => onDelete(auftrag.id!)}>
+                                                                Endgültig Löschen
                                                             </button>
                                                         )}
                                                     </>

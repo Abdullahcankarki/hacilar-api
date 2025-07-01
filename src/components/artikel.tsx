@@ -238,13 +238,13 @@ const Artikel: React.FC = () => {
                   });
                   setShowArticleModal(true);
                 }}>
-                  Bearbeiten
+                  <i className="ci-edit me-1"></i>
                 </button>
                 <button className="btn btn-warning btn-sm me-1" onClick={() => navigate(`/kundenaufpreise/${a.id}`)}>
-                  Kundenaufpreise
+                  <i className="ci-dollar-sign"></i>
                 </button>
                 <button className="btn btn-danger btn-sm" onClick={() => confirmDeleteArticle(a.id)}>
-                  Löschen
+                  <i className="ci-trash me-1"></i>
                 </button>
               </td>
             </tr>

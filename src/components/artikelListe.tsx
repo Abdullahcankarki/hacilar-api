@@ -52,11 +52,11 @@ const ArtikelListe: React.FC<Props> = ({
     useEffect(() => {
         const fetchFavoriten = async () => {
             try {
-                if (user?.role === 'u') {
+                if (user?.role && user.role.includes('kunde')) {
                     const favs = await getKundenFavoriten(user.id); // explizit user.id
                     setFavoriten(favs);
                     localStorage.setItem('favoriten', JSON.stringify(favs));
-                } else if (user?.role === 'a') {
+                } else if (user?.role && user.role.includes('admin')) {
                     const favs = await getKundenFavoriten(); // nutzt localStorage ausgewaehlterKunde
                     setFavoriten(favs);
                 }
