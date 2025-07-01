@@ -5,6 +5,7 @@ import { useAuth } from '../providers/Authcontext';
 import logo from '../assets/logo.png';
 import 'bootstrap/dist/js/bootstrap.bundle.min';
 import { KundeResource } from '../Resources';
+import Select from 'react-select';
 import { Form } from 'react-bootstrap';
 
 type NavBarProps = {
@@ -77,7 +78,7 @@ const NavBar: React.FC<NavBarProps> = ({
                 <NavLink className="nav-link" to="/home">Shop</NavLink>
               </li>
 
-              {user && (user.role === 'v' || user.role === 'a') && (
+              {user && (user.role.includes('verkauf') || user.role.includes('admin')) && (
                 <>
                   <li className="nav-item">
                     <NavLink className="nav-link" to="/auftraege">Aufträge</NavLink>
@@ -87,13 +88,13 @@ const NavBar: React.FC<NavBarProps> = ({
                   </li>
                 </>
               )}
-              {user && user.role === 'a' && (
+              {user && user.role.includes('admin') && (
                 <>
                   <li className="nav-item">
                     <NavLink className="nav-link" to="/kunden">Kunden</NavLink>
                   </li>
                   <li className="nav-item">
-                    <NavLink className="nav-link" to="/verkaeufer">Verkäufer</NavLink>
+                    <NavLink className="nav-link" to="/mitarbeiter">Mitarbeiter</NavLink>
                   </li>
                   <li className="nav-item">
                     <NavLink className="nav-link" to="/stats">Statistiken</NavLink>
@@ -106,64 +107,93 @@ const NavBar: React.FC<NavBarProps> = ({
                 </li>
               )}
 
-              {/* Kunde wählen - kein Punkt */}
-              {(user?.role === 'a' || user?.role === 'v') && (
-                <div className="mt-3">
-                  <Form.Select
-                    size="sm"
-                    className="form-select border border-secondary"
-                    style={{ maxWidth: 250 }}
-                    value={ausgewaehlterKunde ?? ''}
-                    onChange={(e) => {
-                      localStorage.setItem('ausgewaehlterKunde', e.target.value);
-                      setAusgewaehlterKunde(e.target.value);
-                      window.location.reload();
-                    }}
-                  >
-                    <option value="">Kunde wählen</option>
-                    {kunden.map((kunde) => (
-                      <option key={kunde.id} value={kunde.id}>
-                        {kunde.name}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </div>
-              )}
-
-              {/* Icon-Buttons - kein Punkt */}
-              <div className="d-flex align-items-center gap-3 mt-3">
-                <button
-                  className="btn p-0 border-0 bg-transparent position-relative icon-btn text-secondary"
-                  onClick={onCartClick}
-                  title="Warenkorb"
-                >
-                  <img
-                    src="https://img.icons8.com/?size=100&id=10603&format=png&color=000000"
-                    alt="Shopping Cart"
-                    style={{
-                      width: '24px',
-                      height: '24px',
-                      flexShrink: 0,
-                      flexGrow: 0,
-                    }}
-                  />
-                  {cartLength > 0 && (
-                    <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '0.7rem' }}>
-                      {cartLength}
-                    </span>
-                  )}
-                </button>
-
-                <button
-                  className="btn p-0 border-0 bg-transparent icon-btn text-secondary"
-                  onClick={handleLogout}
-                  title="Abmelden"
-                >
-                  <i className="ci-log-out fs-4"></i>
-                </button>
-              </div>
             </ul>
           </div>
+        </div>
+
+        {(user?.role.includes('admin') || user?.role.includes('verkauf')) && (
+          <div className="ms-auto me-3" style={{ width: 250 }}>
+            <Select
+              options={
+                [...kunden] // Kopie erstellen, um nicht das Original zu verändern
+                  .sort((a, b) => a.name.localeCompare(b.name)) // alphabetisch sortieren
+                  .map(k => ({ value: k.id, label: k.name }))
+              }
+              value={
+                kunden
+                  .map(k => ({ value: k.id, label: k.name }))
+                  .find(opt => opt.value === ausgewaehlterKunde) || null
+              }
+              onChange={(selected) => {
+                if (selected) {
+                  localStorage.setItem('ausgewaehlterKunde', selected.value);
+                  setAusgewaehlterKunde(selected.value);
+                  window.location.reload();
+                }
+              }}
+              placeholder="Kunde wählen..."
+              isClearable
+              styles={{
+                container: (base) => ({
+                  ...base,
+                  width: '100%',
+                }),
+                control: (base) => ({
+                  ...base,
+                  borderColor: '#6c757d',
+                  minHeight: '32px',
+                  height: '32px',
+                }),
+                valueContainer: (base) => ({
+                  ...base,
+                  height: '32px',
+                  padding: '0 8px',
+                }),
+                input: (base) => ({
+                  ...base,
+                  margin: 0,
+                  padding: 0,
+                }),
+                indicatorsContainer: (base) => ({
+                  ...base,
+                  height: '32px',
+                }),
+              }}
+            />
+          </div>
+        )}
+
+        {/* Icon-Buttons ganz rechts in der Navbar */}
+        <div className="d-flex align-items-center gap-3 ms-auto my-auto">
+          <button
+            className="btn p-0 border-0 bg-transparent position-relative icon-btn text-secondary"
+            onClick={onCartClick}
+            title="Warenkorb"
+          >
+            <img
+              src="https://img.icons8.com/?size=100&id=10603&format=png&color=000000"
+              alt="Shopping Cart"
+              style={{
+                width: '24px',
+                height: '24px',
+                flexShrink: 0,
+                flexGrow: 0,
+              }}
+            />
+            {cartLength > 0 && (
+              <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '0.7rem' }}>
+                {cartLength}
+              </span>
+            )}
+          </button>
+
+          <button
+            className="btn p-0 border-0 bg-transparent icon-btn text-secondary"
+            onClick={handleLogout}
+            title="Abmelden"
+          >
+            <i className="ci-log-out fs-4"></i>
+          </button>
         </div>
       </div>
     </header>

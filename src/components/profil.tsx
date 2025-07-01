@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../providers/Authcontext';
-import { KundeResource, VerkaeuferResource } from '../Resources';
+import { KundeResource, MitarbeiterResource } from '../Resources';
 import {
   getKundeById,
-  getVerkaeuferById,
+  getMitarbeiterById,
   updateKunde,
-  updateVerkaeufer,
+  updateMitarbeiter,
 } from '../backend/api';
 
 const Profil: React.FC = () => {
   const { user, logout } = useAuth();
-  const [userData, setUserData] = useState<KundeResource | VerkaeuferResource | null>(null);
+  const [userData, setUserData] = useState<KundeResource | MitarbeiterResource | null>(null);
   const [formData, setFormData] = useState<any>({});
   const [isEditing, setIsEditing] = useState(false);
   const [newPassword, setNewPassword] = useState('');
@@ -24,7 +24,7 @@ const Profil: React.FC = () => {
         setUserData(kunde);
         setFormData(kunde);
       } catch {
-        const verk = await getVerkaeuferById(user.id);
+        const verk = await getMitarbeiterById(user.id);
         setUserData(verk);
         setFormData(verk);
       }
@@ -40,7 +40,7 @@ const Profil: React.FC = () => {
   const handleSave = async () => {
     if (!user?.id) return;
     if (isKunde) await updateKunde(user.id, formData);
-    else await updateVerkaeufer(user.id, formData);
+    else await updateMitarbeiter(user.id, formData);
     setUserData(formData);
     setIsEditing(false);
   };
@@ -107,6 +107,15 @@ const Profil: React.FC = () => {
                       <li><strong>Gewerbe-Datei:</strong> <a href={(userData as KundeResource).gewerbeDateiUrl} target="_blank" rel="noopener noreferrer">Download</a></li>
                       <li><strong>Zusatz-Datei:</strong> <a href={(userData as KundeResource).zusatzDateiUrl} target="_blank" rel="noopener noreferrer">Download</a></li>
                     </>}
+                    {!isKunde && <>
+                      <li><strong>E-Mail:</strong> {(userData as MitarbeiterResource).email}</li>
+                      <li><strong>Telefon:</strong> {(userData as MitarbeiterResource).telefon}</li>
+                      <li><strong>Abteilung:</strong> {(userData as MitarbeiterResource).abteilung}</li>
+                      <li><strong>Status:</strong> {(userData as MitarbeiterResource).aktiv ? 'Aktiv' : 'nicht aktiv'}</li>
+                      <li><strong>Eintrittsdatum:</strong> {(userData as MitarbeiterResource).eintrittsdatum}</li>
+                      <li><strong>Rollen:</strong> {(userData as MitarbeiterResource).rollen?.join(', ')}</li>
+                      <li><strong>Bemerkung:</strong> {(userData as MitarbeiterResource).bemerkung}</li>
+                    </>}
                   </ul>
                 )}
                 {isEditing && (
@@ -143,6 +152,32 @@ const Profil: React.FC = () => {
                       <div className="col-sm-12">
                         <label className="form-label">Zusatz-Datei URL</label>
                         <input name="zusatzDateiUrl" className="form-control" value={formData.zusatzDateiUrl || ''} onChange={handleChange} />
+                      </div>
+                    </>}
+                    {!isKunde && <>
+                      <div className="col-sm-12">
+                        <label className="form-label">E-Mail</label>
+                        <input name="email" type="email" className="form-control" value={formData.email || ''} onChange={handleChange} />
+                      </div>
+                      <div className="col-sm-12">
+                        <label className="form-label">Telefon</label>
+                        <input name="telefon" className="form-control" value={formData.telefon || ''} onChange={handleChange} />
+                      </div>
+                      <div className="col-sm-12">
+                        <label className="form-label">Abteilung</label>
+                        <input name="abteilung" className="form-control" value={formData.abteilung || ''} onChange={handleChange} />
+                      </div>
+                      <div className="col-sm-12">
+                        <label className="form-label">Eintrittsdatum</label>
+                        <input name="eintrittsdatum" type="date" className="form-control" value={formData.eintrittsdatum || ''} onChange={handleChange} />
+                      </div>
+                      <div className="col-sm-12 form-check">
+                        <input className="form-check-input" type="checkbox" name="aktiv" id="aktiv" checked={formData.aktiv || false} onChange={(e) => setFormData((prev: any) => ({ ...prev, aktiv: e.target.checked }))} />
+                        <label className="form-check-label" htmlFor="aktiv">Aktiv</label>
+                      </div>
+                      <div className="col-sm-12">
+                        <label className="form-label">Bemerkung</label>
+                        <textarea name="bemerkung" className="form-control" value={formData.bemerkung || ''} onChange={handleChange} />
                       </div>
                     </>}
                     <div className="col-12 d-flex gap-3 pt-2">
@@ -199,7 +234,7 @@ const Profil: React.FC = () => {
                   if (newPassword.length < 6) return alert("Passwort zu kurz");
                   const updated = { ...formData, password: newPassword };
                   if (isKunde) await updateKunde(user!.id, updated);
-                  else await updateVerkaeufer(user!.id, updated);
+                  else await updateMitarbeiter(user!.id, updated);
                   setNewPassword('');
                   alert("Passwort geändert.");
                 }}>

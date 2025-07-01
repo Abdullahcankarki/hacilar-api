@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { VerkaeuferResource } from '../Resources';
-import { getVerkaeuferById } from '../backend/api';
+import { MitarbeiterResource } from '../Resources';
+import { getMitarbeiterById } from '../backend/api';
 import {
   Chart as ChartJS,
   LineElement,
@@ -29,7 +29,7 @@ ChartJS.register(
 const VerkaeuferDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [verkaeufer, setVerkaeufer] = useState<VerkaeuferResource | null>(null);
+  const [verkaeufer, setVerkaeufer] = useState<MitarbeiterResource | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [viewMode, setViewMode] = useState<'woche' | 'monat' | 'jahr'>('woche');
@@ -65,7 +65,7 @@ const VerkaeuferDetails: React.FC = () => {
     const fetchData = async () => {
       try {
         if (!id) throw new Error('Keine Verkäufer-ID angegeben.');
-        const data = await getVerkaeuferById(id);
+        const data = await getMitarbeiterById(id);
         setVerkaeufer(data);
         // TODO: Statistiken später per API laden
       } catch (err: any) {
@@ -96,7 +96,7 @@ const VerkaeuferDetails: React.FC = () => {
   if (!verkaeufer) {
     return (
       <div className="container my-5">
-        <div className="alert alert-warning">Kein Verkäufer gefunden.</div>
+        <div className="alert alert-warning">Kein Mitarbeiter gefunden.</div>
       </div>
     );
   }
@@ -109,13 +109,42 @@ const VerkaeuferDetails: React.FC = () => {
           <div>
             <h3 className="mb-1">{verkaeufer.name}</h3>
             <div className="text-muted small">ID: {verkaeufer.id}</div>
-            <div className="text-muted small">Rolle: {verkaeufer.admin ? 'Admin' : 'Standard'}</div>
+            <div className="mt-2">
+              <div><strong>E-Mail:</strong> {verkaeufer.email || <span className="text-muted">-</span>}</div>
+              <div><strong>Telefon:</strong> {verkaeufer.telefon || <span className="text-muted">-</span>}</div>
+              <div><strong>Abteilung:</strong> {verkaeufer.abteilung || <span className="text-muted">-</span>}</div>
+              <div>
+                <strong>Status:</strong>{' '}
+                {verkaeufer.aktiv
+                  ? <span className="badge bg-success">Aktiv</span>
+                  : <span className="badge bg-secondary">Inaktiv</span>
+                }
+              </div>
+              <div>
+                <strong>Eintritt:</strong>{' '}
+                {verkaeufer.eintrittsdatum
+                  ? new Date(verkaeufer.eintrittsdatum).toLocaleDateString('de-DE', {
+                      year: 'numeric',
+                      month: '2-digit',
+                      day: '2-digit',
+                    })
+                  : <span className="text-muted">-</span>
+                }
+              </div>
+              <div>
+                <strong>Rollen:</strong>{' '}
+                {Array.isArray(verkaeufer.rollen) && verkaeufer.rollen.length > 0
+                  ? verkaeufer.rollen.join(', ')
+                  : <span className="text-muted">-</span>
+                }
+              </div>
+            </div>
           </div>
           <div>
-            <button className="btn btn-outline-secondary me-2" onClick={() => navigate('/verkaeufer')}>
+            <button className="btn btn-outline-secondary me-2" onClick={() => navigate('/mitarbeiter')}>
               Zurück
             </button>
-            <Link to={`/verkaeufer/edit/${verkaeufer.id}`} className="btn btn-primary">
+            <Link to={`/mitarbeiter/edit/${verkaeufer.id}`} className="btn btn-primary">
               Bearbeiten
             </Link>
           </div>

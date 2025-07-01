@@ -21,7 +21,7 @@ export const Layout: React.FC = () => {
     if (!user) return;
 
     const kundenId =
-      user.role === 'a' || user.role === 'v' ? lokalAusgewaehlterKunde : user.id;
+      user.role.includes('admin') || user.role.includes('verkauf') ? lokalAusgewaehlterKunde : user.id;
 
     setAusgewaehlterKunde(kundenId ?? null);
   }, [user, lokalAusgewaehlterKunde]);
@@ -36,10 +36,7 @@ export const Layout: React.FC = () => {
         console.error('Fehler beim Laden der Kunden:', err);
       }
     };
-
-    if (user?.role === 'a' || user?.role === 'v') {
       fetchKunden();
-    }
   }, [user]);
 
   // Artikel laden
@@ -109,7 +106,7 @@ export const Layout: React.FC = () => {
   };
 
   const handleSubmit = async (lieferdatum: string) => {
-    const kundeId = user?.role === 'u' ? user.id : lokalAusgewaehlterKunde;
+    const kundeId = user?.role.includes('kunde') ? user.id : lokalAusgewaehlterKunde;
 
     if (!kundeId) {
       setMeldung({ text: 'Bitte einen Kunden auswählen.', variant: 'danger' });
