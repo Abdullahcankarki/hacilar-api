@@ -74,37 +74,51 @@ const NavBar: React.FC<NavBarProps> = ({
 
           <div className="offcanvas-body pt-0">
             <ul className="navbar-nav ms-lg-4 list-unstyled">
-              <li className="nav-item">
-                <NavLink className="nav-link" to="/home">Shop</NavLink>
-              </li>
-
-              {user && (user.role.includes('verkauf') || user.role.includes('admin')) && (
-                <>
-                  <li className="nav-item">
-                    <NavLink className="nav-link" to="/auftraege">Aufträge</NavLink>
-                  </li>
-                  <li className="nav-item">
-                    <NavLink className="nav-link" to="/artikel">Artikel</NavLink>
-                  </li>
-                </>
-              )}
-              {user && user.role.includes('admin') && (
-                <>
-                  <li className="nav-item">
-                    <NavLink className="nav-link" to="/kunden">Kunden</NavLink>
-                  </li>
-                  <li className="nav-item">
-                    <NavLink className="nav-link" to="/mitarbeiter">Mitarbeiter</NavLink>
-                  </li>
-                  <li className="nav-item">
-                    <NavLink className="nav-link" to="/stats">Statistiken</NavLink>
-                  </li>
-                </>
-              )}
               {user && (
-                <li className="nav-item">
-                  <NavLink className="nav-link" to="/profil">Profil</NavLink>
-                </li>
+                <>
+                  {(user.role.includes('verkauf') || user.role.includes('admin')) && (
+                    <>
+                      <li className="nav-item">
+                        <NavLink className="nav-link" to="/home">Shop</NavLink>
+                      </li>
+                      <li className="nav-item">
+                        <NavLink className="nav-link" to="/auftraege">Aufträge</NavLink>
+                      </li>
+                      <li className="nav-item">
+                        <NavLink className="nav-link" to="/artikel">Artikel</NavLink>
+                      </li>
+                      <li className="nav-item">
+                        <NavLink className="nav-link" to="/zerlege">Zerlegung</NavLink>
+                      </li>
+                      {user.role.includes('admin') && (
+                        <>
+                          <li className="nav-item">
+                            <NavLink className="nav-link" to="/kunden">Kunden</NavLink>
+                          </li>
+                          <li className="nav-item">
+                            <NavLink className="nav-link" to="/mitarbeiter">Mitarbeiter</NavLink>
+                          </li>
+                          <li className="nav-item">
+                            <NavLink className="nav-link" to="/stats">Statistiken</NavLink>
+                          </li>
+                        </>
+                      )}
+                      <li className="nav-item">
+                        <NavLink className="nav-link" to="/profil">Profil</NavLink>
+                      </li>
+                    </>
+                  )}
+                  {user.role.includes('zerleger') && !user.role.includes('verkauf') && !user.role.includes('admin') && (
+                    <>
+                      <li className="nav-item">
+                        <NavLink className="nav-link" to="/zerlege">Zerlegung</NavLink>
+                      </li>
+                      <li className="nav-item">
+                        <NavLink className="nav-link" to="/profil">Profil</NavLink>
+                      </li>
+                    </>
+                  )}
+                </>
               )}
 
             </ul>

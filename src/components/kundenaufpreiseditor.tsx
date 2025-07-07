@@ -281,8 +281,8 @@ const saveMassSurcharges = async () => {
                   >
                     <option value="">Kategorie wählen</option>
                     <option value="Discounter">Discounter</option>
-                    <option value="Gastronomie">Gastronomie</option>
                     <option value="Großhandel">Großhandel</option>
+                    <option value="Gastronomie">Gastronomie</option>
                     <option value="custom">Andere (manuell eingeben)</option>
                   </select>
                   {massEdit.kategorie === 'custom' && (

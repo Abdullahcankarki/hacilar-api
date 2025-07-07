@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Alert, Button, Form, Modal, Table } from 'react-bootstrap';
+import { Alert, Button, Form, Modal, Table, Spinner } from 'react-bootstrap';
 import { AuftragResource, ArtikelPositionResource, ArtikelResource } from '../Resources';
 import { api } from '../backend/api';
 import AuftragPositionenTabelle from './auftragsPositionenTabelle';
@@ -167,23 +167,39 @@ const AuftragDetail: React.FC = () => {
         ]);
     };
 
-    if (loading) return <div className="container my-4">Lade...</div>;
-    if (error) return <Alert variant="danger">{error}</Alert>;
-    if (!auftrag) return <Alert variant="warning">Kein Auftrag gefunden</Alert>;
+    if (loading) return (
+      <div className="d-flex justify-content-center align-items-center my-5" style={{ minHeight: '200px' }}>
+        <Spinner animation="border" role="status" />
+        <span className="ms-2">Lade...</span>
+      </div>
+    );
+    if (error) return (
+      <div className="d-flex justify-content-center align-items-center my-5" style={{ minHeight: '200px' }}>
+        <Alert variant="danger" className="w-50 text-center">{error}</Alert>
+      </div>
+    );
+    if (!auftrag) return (
+      <div className="d-flex justify-content-center align-items-center my-5" style={{ minHeight: '200px' }}>
+        <Alert variant="warning" className="w-50 text-center">Kein Auftrag gefunden</Alert>
+      </div>
+    );
 
     return (
         <div className="container my-4">
-            <div className="d-flex justify-content-between align-items-start flex-wrap">
-              <div>
-                <p className="mb-1"><strong>Kunde:</strong></p>
-                <h4>{auftrag.kundeName}</h4>
-              </div>
-              <div>
-                <p className="mb-1"><strong>Lieferdatum:</strong></p>
-                <span className="badge bg-secondary fs-6">{formatDate(auftrag.lieferdatum)}</span>
+            <div className="card card-body mb-3">
+              <div className="d-flex justify-content-between align-items-start flex-wrap">
+                <div>
+                  <p className="mb-1"><strong>Kunde:</strong></p>
+                  <h4>{auftrag.kundeName}</h4>
+                  <p className="mb-0"><strong>Auftragsnummer:</strong> <span className="badge bg-info text-uppercase">{auftrag.id?.slice(-6)}</span></p>
+                </div>
+                <div>
+                  <p className="mb-1"><strong>Lieferdatum:</strong></p>
+                  <span className="badge bg-secondary fs-6">{formatDate(auftrag.lieferdatum)}</span>
+                </div>
               </div>
             </div>
-            <Button className= "print-hidden" variant="outline-primary" onClick={() => setShowModal(true)}>
+            <Button className="btn btn-outline-accent rounded-pill btn-sm mb-3 print-hidden" onClick={() => setShowModal(true)}>
                 Auftrag bearbeiten
             </Button>
 
@@ -239,8 +255,13 @@ const AuftragDetail: React.FC = () => {
                 auftragId={auftrag.id!}
             />
 
-            <div className="mt-4">
-              <p><strong>Bemerkung:</strong> {auftrag.bemerkungen || '—'}</p>
+            <div className="card mt-4">
+              <div className="card-header">
+                Bemerkung
+              </div>
+              <div className="card-body">
+                <p className="mb-0">{auftrag.bemerkungen || '—'}</p>
+              </div>
             </div>
 
             {statusError && <Alert variant="danger" className="mt-3 print-hidden">{statusError}</Alert>}

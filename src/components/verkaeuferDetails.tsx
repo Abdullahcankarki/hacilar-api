@@ -108,12 +108,22 @@ const VerkaeuferDetails: React.FC = () => {
         <div className="card-body d-flex justify-content-between align-items-center">
           <div>
             <h3 className="mb-1">{verkaeufer.name}</h3>
-            <div className="text-muted small">ID: {verkaeufer.id}</div>
+            <div className="text-muted small">ID: <code>{verkaeufer.id}</code></div>
             <div className="mt-2">
-              <div><strong>E-Mail:</strong> {verkaeufer.email || <span className="text-muted">-</span>}</div>
-              <div><strong>Telefon:</strong> {verkaeufer.telefon || <span className="text-muted">-</span>}</div>
-              <div><strong>Abteilung:</strong> {verkaeufer.abteilung || <span className="text-muted">-</span>}</div>
               <div>
+                <i className="ci-mail me-2 text-muted"></i>
+                <strong>E-Mail:</strong> {verkaeufer.email || <span className="text-muted">-</span>}
+              </div>
+              <div>
+                <i className="ci-phone me-2 text-muted"></i>
+                <strong>Telefon:</strong> {verkaeufer.telefon || <span className="text-muted">-</span>}
+              </div>
+              <div>
+                <i className="ci-briefcase me-2 text-muted"></i>
+                <strong>Abteilung:</strong> {verkaeufer.abteilung || <span className="text-muted">-</span>}
+              </div>
+              <div>
+                <i className="ci-user me-2 text-muted"></i>
                 <strong>Status:</strong>{' '}
                 {verkaeufer.aktiv
                   ? <span className="badge bg-success">Aktiv</span>
@@ -121,6 +131,7 @@ const VerkaeuferDetails: React.FC = () => {
                 }
               </div>
               <div>
+                <i className="ci-calendar me-2 text-muted"></i>
                 <strong>Eintritt:</strong>{' '}
                 {verkaeufer.eintrittsdatum
                   ? new Date(verkaeufer.eintrittsdatum).toLocaleDateString('de-DE', {
@@ -132,6 +143,7 @@ const VerkaeuferDetails: React.FC = () => {
                 }
               </div>
               <div>
+                <i className="ci-settings me-2 text-muted"></i>
                 <strong>Rollen:</strong>{' '}
                 {Array.isArray(verkaeufer.rollen) && verkaeufer.rollen.length > 0
                   ? verkaeufer.rollen.join(', ')
@@ -141,11 +153,11 @@ const VerkaeuferDetails: React.FC = () => {
             </div>
           </div>
           <div>
-            <button className="btn btn-outline-secondary me-2" onClick={() => navigate('/mitarbeiter')}>
-              Zurück
+            <button className="btn btn-outline-secondary shadow-sm me-2" onClick={() => navigate('/mitarbeiter')}>
+              <i className="ci-arrow-left me-2"></i> Zurück
             </button>
-            <Link to={`/mitarbeiter/edit/${verkaeufer.id}`} className="btn btn-primary">
-              Bearbeiten
+            <Link to={`/mitarbeiter/edit/${verkaeufer.id}`} className="btn btn-primary shadow-sm">
+              <i className="ci-edit me-2"></i> Bearbeiten
             </Link>
           </div>
         </div>
@@ -156,7 +168,9 @@ const VerkaeuferDetails: React.FC = () => {
         {/* Umsatz Liniendiagramm */}
         <div className="col-md-8">
           <div className="d-flex justify-content-between align-items-center mb-2 px-2">
-            <h6 className="mb-0 text-muted">Umsatzverlauf</h6>
+            <h6 className="mb-0 fw-semibold">
+              <i className="ci-bar-chart me-2 text-primary"></i> Umsatzverlauf
+            </h6>
             <div className="btn-group btn-group-sm">
               <button
                 className={`btn ${viewMode === 'woche' ? 'btn-primary' : 'btn-outline-primary'}`}
@@ -183,54 +197,54 @@ const VerkaeuferDetails: React.FC = () => {
           </div>
 
           <div className="p-3 shadow-sm rounded border bg-white">
-            <div className="p-3 shadow-sm rounded border bg-white">
-              <Bar
-                data={{
-                  labels: chartLabels[viewMode],
-                  datasets: [
-                    {
-                      label: 'Umsatz (€)',
-                      data: chartData[viewMode],
-                      backgroundColor: 'rgba(13, 110, 253, 0.6)',
-                      borderRadius: 6,
-                      barThickness: 18,
-                    },
-                  ],
-                }}
-                options={{
-                  responsive: true,
-                  plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                      callbacks: {
-                        label: (ctx) => ` ${ctx.parsed.y.toFixed(2)} €`,
-                      },
+            <Bar
+              data={{
+                labels: chartLabels[viewMode],
+                datasets: [
+                  {
+                    label: 'Umsatz (€)',
+                    data: chartData[viewMode],
+                    backgroundColor: 'rgba(13, 110, 253, 0.6)',
+                    borderRadius: 6,
+                    barThickness: 18,
+                  },
+                ],
+              }}
+              options={{
+                responsive: true,
+                plugins: {
+                  legend: { display: false },
+                  tooltip: {
+                    callbacks: {
+                      label: (ctx) => ` ${ctx.parsed.y.toFixed(2)} €`,
                     },
                   },
-                  scales: {
-                    y: {
-                      ticks: {
-                        callback: (value) => `${value} €`,
-                        font: { size: 10 },
-                      },
-                      beginAtZero: true,
-                      grid: { color: 'rgba(0,0,0,0.04)' },
+                },
+                scales: {
+                  y: {
+                    ticks: {
+                      callback: (value) => `${value} €`,
+                      font: { size: 10 },
                     },
-                    x: {
-                      ticks: { font: { size: 10 } },
-                      grid: { display: false },
-                    },
+                    beginAtZero: true,
+                    grid: { color: 'rgba(0,0,0,0.04)' },
                   },
-                }}
-              />
-            </div>
+                  x: {
+                    ticks: { font: { size: 10 } },
+                    grid: { display: false },
+                  },
+                },
+              }}
+            />
           </div>
         </div>
 
         {/* Kreisdiagramm */}
         <div className="col-md-4">
           <div className="shadow-sm rounded border bg-white p-3 h-100">
-            <h6 className="text-muted mb-3 text-center">Umsatzanteile nach Artikel</h6>
+            <h6 className="text-muted mb-3 text-center">
+              <i className="ci-pie-chart me-2"></i> Umsatzanteile nach Artikel
+            </h6>
             <Pie
               data={{
                 labels: stats.artikel.map((a) => a.name),

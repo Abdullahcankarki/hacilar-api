@@ -14,6 +14,7 @@ const MitarbeiterRollen: MitarbeiterRolle[] = [
   'fahrer',
   'statistik',
   'kunde',
+  'zerleger',
   'support'
 ];
 
@@ -126,11 +127,11 @@ const VerkaeuferEdit: React.FC = () => {
     );
 
   return (
-    <div className="container my-4">
-      <h2 className="mb-4 text-center">Mitarbeiter bearbeiten</h2>
+    <div className="container my-4 shadow p-4 bg-white rounded">
+      <h2 className="mb-4 text-center"><i className="ci-user me-2"></i> Mitarbeiter bearbeiten</h2>
       <form onSubmit={handleSubmit}>
         <div className="mb-3">
-          <label className="form-label">Name</label>
+          <label className="form-label"><i className="ci-user me-2 text-muted"></i> Name</label>
           <input
             name="name"
             type="text"
@@ -141,7 +142,7 @@ const VerkaeuferEdit: React.FC = () => {
           />
         </div>
         <div className="mb-3">
-          <label className="form-label">E-Mail</label>
+          <label className="form-label"><i className="ci-mail me-2 text-muted"></i> E-Mail</label>
           <input
             name="email"
             type="email"
@@ -152,7 +153,7 @@ const VerkaeuferEdit: React.FC = () => {
           />
         </div>
         <div className="mb-3">
-          <label className="form-label">Telefon</label>
+          <label className="form-label"><i className="ci-phone me-2 text-muted"></i> Telefon</label>
           <input
             name="telefon"
             type="text"
@@ -162,7 +163,7 @@ const VerkaeuferEdit: React.FC = () => {
           />
         </div>
         <div className="mb-3">
-          <label className="form-label">Abteilung</label>
+          <label className="form-label"><i className="ci-briefcase me-2 text-muted"></i> Abteilung</label>
           <input
             name="abteilung"
             type="text"
@@ -185,7 +186,7 @@ const VerkaeuferEdit: React.FC = () => {
           </label>
         </div>
         <div className="mb-3">
-          <label className="form-label">Eintrittsdatum</label>
+          <label className="form-label"><i className="ci-calendar me-2 text-muted"></i> Eintrittsdatum</label>
           <input
             name="eintrittsdatum"
             type="date"
@@ -195,7 +196,7 @@ const VerkaeuferEdit: React.FC = () => {
           />
         </div>
         <div className="mb-3">
-          <label className="form-label">Bemerkung</label>
+          <label className="form-label"><i className="ci-note me-2 text-muted"></i> Bemerkung</label>
           <textarea
             name="bemerkung"
             className="form-control"
@@ -204,7 +205,7 @@ const VerkaeuferEdit: React.FC = () => {
           />
         </div>
         <div className="mb-3">
-          <label className="form-label">Rollen</label>
+          <label className="form-label"><i className="ci-settings me-2 text-muted"></i> Rollen</label>
           <div>
             {MitarbeiterRollen.map((rolle) => (
               <div className="form-check form-check-inline" key={rolle}>
@@ -225,7 +226,7 @@ const VerkaeuferEdit: React.FC = () => {
           </div>
         </div>
         <div className="mb-3">
-          <label className="form-label">Neues Passwort (nur bei Änderung)</label>
+          <label className="form-label"><i className="ci-lock me-2 text-muted"></i> Neues Passwort (nur bei Änderung)</label>
           <input
             name="password"
             type="password"
@@ -236,11 +237,11 @@ const VerkaeuferEdit: React.FC = () => {
           />
         </div>
         <div className="d-flex">
-          <button type="submit" className="btn btn-primary" disabled={saving}>
-            {saving ? 'Speichern...' : 'Speichern'}
+          <button type="submit" className="btn btn-primary d-inline-flex align-items-center" disabled={saving}>
+            <i className="ci-save me-2"></i> {saving ? 'Speichern...' : 'Speichern'}
           </button>
-          <Link to={`/mitarbeiter/${verkaeufer.id}`} className="btn btn-secondary ms-2">
-            Abbrechen
+          <Link to={`/mitarbeiter/${verkaeufer.id}`} className="btn btn-outline-secondary ms-2 d-inline-flex align-items-center">
+            <i className="ci-arrow-left me-2"></i> Abbrechen
           </Link>
         </div>
       </form>
