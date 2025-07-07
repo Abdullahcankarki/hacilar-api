@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuftragResource } from '../Resources';
-import { FaChevronDown, FaChevronRight, FaChevronUp } from 'react-icons/fa';
+import { FaChevronDown, FaChevronRight, FaChevronUp, FaEdit, FaFolderOpen, FaCheck, FaTimes, FaTrash } from 'react-icons/fa';
 import { useAuth } from '../providers/Authcontext';
 
 type Props = {
@@ -18,7 +18,7 @@ type Props = {
 const AuftragTabelle: React.FC<Props> = ({ titel, auftraege, onBearbeitung, onOeffnen, onComplete, onCancel, onDelete, defaultCollapsed }) => {
     const navigate = useNavigate();
     const [collapsed, setCollapsed] = useState<boolean>(defaultCollapsed ?? false);
-    const [sortField, setSortField] = useState<'kunde' | 'lieferdatum' | 'preis' | 'gewicht' | null>(null);
+    const [sortField, setSortField] = useState<'kunde' | 'lieferdatum' | 'preis' | 'gewicht' | 'auftragsnummer' | null>(null);
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
     const { user } = useAuth();
     const isUser = user?.role?.includes('kunde');
@@ -43,7 +43,9 @@ const AuftragTabelle: React.FC<Props> = ({ titel, auftraege, onBearbeitung, onOe
                 ? a.lieferdatum || ''
                 : sortField === 'preis'
                     ? a.preis || 0
-                    : a.gewicht || 0;
+                    : sortField === 'gewicht'
+                        ? a.gewicht || 0
+                        : a.id?.slice(-6).toUpperCase() || '';
 
         const valB = sortField === 'kunde'
             ? ((b as any).kundeName || b.kunde || '')
@@ -51,7 +53,9 @@ const AuftragTabelle: React.FC<Props> = ({ titel, auftraege, onBearbeitung, onOe
                 ? b.lieferdatum || ''
                 : sortField === 'preis'
                     ? b.preis || 0
-                    : b.gewicht || 0;
+                    : sortField === 'gewicht'
+                        ? b.gewicht || 0
+                        : b.id?.slice(-6).toUpperCase() || '';
 
         if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
         if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
@@ -59,9 +63,9 @@ const AuftragTabelle: React.FC<Props> = ({ titel, auftraege, onBearbeitung, onOe
     });
 
     return (
-        <div className="mb-4 border rounded">
+        <div className="card card-body shadow-sm mb-4">
             <div
-                className="d-flex justify-content-between align-items-center p-3 bg-light"
+                className="d-flex align-items-center justify-content-between fw-bold mb-3"
                 style={{ cursor: 'pointer' }}
                 onClick={toggleCollapse}
             >
@@ -70,27 +74,30 @@ const AuftragTabelle: React.FC<Props> = ({ titel, auftraege, onBearbeitung, onOe
             </div>
 
             {!collapsed && (
-                <div className="p-3">
+                <>
                     {sorted.length === 0 ? (
                         <p className="text-muted">Keine Aufträge vorhanden.</p>
                     ) : (
-                        <table className="table table-striped table-hover mb-0">
+                        <table className="table table-hover table-sm mb-0">
                             <thead className="table-light">
                                 <tr>
+                                    <th onClick={() => handleSort('auftragsnummer')} style={{ cursor: 'pointer' }}>
+                                        Auftragsnummer {sortField === 'auftragsnummer' ? (sortOrder === 'asc' ? <FaChevronUp /> : <FaChevronDown />) : ''}
+                                    </th>
                                     <th onClick={() => handleSort('kunde')} style={{ cursor: 'pointer' }}>
                                         Kunde {sortField === 'kunde' ? (sortOrder === 'asc' ? <FaChevronUp /> : <FaChevronDown />) : ''}
                                     </th>
-                                    <th onClick={() => handleSort('lieferdatum')} style={{ cursor: 'pointer' }}>
+                                    <th onClick={() => handleSort('lieferdatum')} style={{ cursor: 'pointer' }} className="text-nowrap">
                                         Lieferdatum {sortField === 'lieferdatum' ? (sortOrder === 'asc' ? <FaChevronUp /> : <FaChevronDown />) : ''}
                                     </th>
-                                    <th onClick={() => handleSort('preis')} style={{ cursor: 'pointer' }}>
+                                    <th onClick={() => handleSort('preis')} style={{ cursor: 'pointer' }} className="text-nowrap d-none d-md-table-cell">
                                         Preis {sortField === 'preis' ? (sortOrder === 'asc' ? <FaChevronUp /> : <FaChevronDown />) : ''}
                                     </th>
-                                    <th onClick={() => handleSort('gewicht')} style={{ cursor: 'pointer' }}>
+                                    <th onClick={() => handleSort('gewicht')} style={{ cursor: 'pointer' }} className="text-nowrap d-none d-md-table-cell">
                                         Gewicht {sortField === 'gewicht' ? (sortOrder === 'asc' ? <FaChevronUp /> : <FaChevronDown />) : ''}
                                     </th>
                                     {!isUser && (onBearbeitung || onOeffnen || onComplete || onCancel || onDelete) && (
-                                        <th>Aktionen</th>
+                                        <th className="d-none d-md-table-cell">Aktionen</th>
                                     )}
                                 </tr>
                             </thead>
@@ -101,51 +108,81 @@ const AuftragTabelle: React.FC<Props> = ({ titel, auftraege, onBearbeitung, onOe
                                         style={{ cursor: 'pointer' }}
                                         onClick={() => navigate(`/auftraege/${auftrag.id}`)}
                                     >
-                                        <td>{(auftrag as any).kundeName || auftrag.kunde}</td>
-                                        <td>{auftrag.lieferdatum ? new Date(auftrag.lieferdatum).toLocaleDateString() : '-'}</td>
                                         <td>
-                                            {auftrag.preis != null ? `${auftrag.preis.toFixed(2)} €` : '-'}
+                                            <span className="badge bg-info">{auftrag.id?.slice(-6).toUpperCase()}</span>
                                         </td>
-                                        <td>{auftrag.gewicht != null ? `${auftrag.gewicht.toFixed(2)} kg` : '-'}</td>
-                                        <td onClick={(e) => e.stopPropagation()}>
-                                            {!isUser && (onBearbeitung || onOeffnen || onComplete || onCancel || onDelete) && (
-                                                <td onClick={(e) => e.stopPropagation()}>
-                                                    <>
-                                                        {onBearbeitung && (
-                                                            <button className="btn btn-sm btn-warning me-1" onClick={() => onBearbeitung(auftrag.id!)}>
-                                                                Bearbeiten
-                                                            </button>
-                                                        )}
-                                                        {onOeffnen && (
-                                                            <button className="btn btn-sm btn-primary me-1" onClick={() => onOeffnen(auftrag.id!)}>
-                                                                Öffnen
-                                                            </button>
-                                                        )}
-                                                        {onComplete && (
-                                                            <button className="btn btn-sm btn-success me-1" onClick={() => onComplete(auftrag.id!)}>
-                                                                Abschließen
-                                                            </button>
-                                                        )}
-                                                        {onCancel && (
-                                                            <button className="btn btn-sm btn-danger" onClick={() => onCancel(auftrag.id!)}>
-                                                                Stornieren
-                                                            </button>
-                                                        )}
-                                                        {onDelete && (
-                                                            <button className="btn btn-sm btn-danger" onClick={() => onDelete(auftrag.id!)}>
-                                                                Endgültig Löschen
-                                                            </button>
-                                                        )}
-                                                    </>
-                                                </td>
-                                            )}
+                                        <td>{(auftrag as any).kundeName || auftrag.kunde}</td>
+                                        <td className="text-nowrap">
+                                            {auftrag.lieferdatum ? new Date(auftrag.lieferdatum).toLocaleDateString() : <span className="text-muted">-</span>}
                                         </td>
+                                        <td className="text-nowrap d-none d-md-table-cell">
+                                            {auftrag.preis != null ? `${auftrag.preis.toFixed(2)} €` : <span className="text-muted">-</span>}
+                                        </td>
+                                        <td className="text-nowrap d-none d-md-table-cell">
+                                            {auftrag.gewicht != null ? `${auftrag.gewicht.toFixed(2)} kg` : <span className="text-muted">-</span>}
+                                        </td>
+                                        {!isUser && (onBearbeitung || onOeffnen || onComplete || onCancel || onDelete) && (
+                                            <td onClick={(e) => e.stopPropagation()} className="d-none d-md-table-cell">
+                                                <div className="btn-group" role="group" aria-label="Aktionen">
+                                                    {onBearbeitung && (
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm btn-outline-warning"
+                                                            onClick={() => onBearbeitung(auftrag.id!)}
+                                                            title="Bearbeiten"
+                                                        >
+                                                            <FaEdit />
+                                                        </button>
+                                                    )}
+                                                    {onOeffnen && (
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm btn-outline-primary"
+                                                            onClick={() => onOeffnen(auftrag.id!)}
+                                                            title="Öffnen"
+                                                        >
+                                                            <FaFolderOpen />
+                                                        </button>
+                                                    )}
+                                                    {onComplete && (
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm btn-outline-success"
+                                                            onClick={() => onComplete(auftrag.id!)}
+                                                            title="Abschließen"
+                                                        >
+                                                            <FaCheck />
+                                                        </button>
+                                                    )}
+                                                    {onCancel && (
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm btn-outline-danger"
+                                                            onClick={() => onCancel(auftrag.id!)}
+                                                            title="Stornieren"
+                                                        >
+                                                            <FaTimes />
+                                                        </button>
+                                                    )}
+                                                    {onDelete && (
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm btn-outline-danger"
+                                                            onClick={() => onDelete(auftrag.id!)}
+                                                            title="Endgültig Löschen"
+                                                        >
+                                                            <FaTrash />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        )}
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
                     )}
-                </div>
+                </>
             )}
         </div>
     );

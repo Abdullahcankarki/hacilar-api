@@ -25,6 +25,8 @@ import './Cartzilla/assets/icons/cartzilla-icons.min.css';
 import ArtikelDetails from './components/artikelDetails';
 import AllArtikel from './components/allArtikel';
 import RegisterForm from './components/register';
+import ZerlegeAuftraege from './components/zerlegeAuftraege';
+import ZerlegeDetail from './components/zerlegeDetail';
 
 
 // 🛡️ Route-Schutz-Komponente
@@ -59,12 +61,14 @@ const AppRoutes: React.FC = () => {
       {/* Nicht eingeloggt → alles auf Login umleiten */}
       {!user && <Route path="*" element={<Navigate to="/login" replace />} />}
 
-      {/* Eingeloggt: Geschützte Layout-Route */}
-      {user && (
+      {/* Eingeloggt: Geschützte Layout-Route mit differenzierter Rollentrennung */}
+      {user && (user.role.includes('admin')) && (
         <Route path="/" element={<Layout />}>
           <Route path="home" element={<Dashboard />} />
           <Route path="auftraege" element={<Auftraege />} />
           <Route path="auftraege/:id" element={<AuftragDetail />} />
+          <Route path="zerlege" element={<ZerlegeAuftraege />} />
+          <Route path="zerlege/:id" element={<ZerlegeDetail />} />
           <Route path="artikel" element={<Artikel />} />
           <Route path="allArtikel" element={<AllArtikel />} />
           <Route path="artikel/:id" element={<ArtikelDetails />} />
@@ -78,6 +82,15 @@ const AppRoutes: React.FC = () => {
           <Route path="mitarbeiter/edit/:id" element={<VerkaeuferEdit />} />
           <Route path="stats" element={<Statistiken />} />
           <Route path="*" element={<Navigate to="/home" replace />} />
+        </Route>
+      )}
+
+      {user && user.role.includes('zerleger') && !user.role.includes('admin') && (
+        <Route path="/" element={<Layout />}>
+          <Route path="zerlege" element={<ZerlegeAuftraege />} />
+          <Route path="zerlege/:id" element={<ZerlegeDetail />} />
+          <Route path="profil" element={<Profil />} />
+          <Route path="*" element={<Navigate to="/zerlege" replace />} />
         </Route>
       )}
     </Routes>

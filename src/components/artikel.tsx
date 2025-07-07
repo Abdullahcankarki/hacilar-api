@@ -32,6 +32,7 @@ const Artikel: React.FC = () => {
   const [sortOption, setSortOption] = useState<string>('nameAsc'); // Standard-Sortierung
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [articleToDelete, setArticleToDelete] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const navigate = useNavigate();
 
@@ -141,13 +142,34 @@ const Artikel: React.FC = () => {
   if (error)
     return (
       <div className="container my-4">
-        <div className="alert alert-danger">{error}</div>
+        <div className="alert alert-danger d-flex align-items-center">
+          <i className="ci-close-circle me-2"></i> {error}
+        </div>
       </div>
     );
 
   return (
     <div className="container my-4">
-      <h2>Artikelverwaltung</h2>
+      <div className="d-flex align-items-center mb-4">
+        <i className="ci-box fs-3 me-2 text-primary"></i>
+        <h2 className="h4 mb-0">Artikelverwaltung</h2>
+        <div className="ms-auto">
+          <div className="btn-group" role="group">
+            <button
+              className={`btn btn-sm ${viewMode === 'grid' ? 'btn-primary' : 'btn-outline-primary'}`}
+              onClick={() => setViewMode('grid')}
+            >
+              <i className="ci-grid me-1"></i> Karten
+            </button>
+            <button
+              className={`btn btn-sm ${viewMode === 'list' ? 'btn-primary' : 'btn-outline-primary'}`}
+              onClick={() => setViewMode('list')}
+            >
+              <i className="ci-list me-1"></i> Liste
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Such- und Sortierleiste */}
       <div className="row mb-3">
@@ -176,90 +198,170 @@ const Artikel: React.FC = () => {
         </div>
         <div className="col-md-4 text-end">
           <button
-            className="btn btn-success"
+            className="btn btn-primary d-inline-flex align-items-center"
             onClick={() => {
               setShowArticleModal(true);
               setEditingArticle(null);
             }}
           >
-            Neuen Artikel erstellen
+            <i className="ci-add me-2"></i>Neuen Artikel
           </button>
         </div>
       </div>
 
-      {/* Artikeltabelle */}
-      <table className="table table-striped table-hover">
-        <thead className="table-light">
-          <tr>
-            <th>Bild</th>
-            <th>Name</th>
-            <th>Artikelnummer</th>
-            <th>Preis</th>
-            <th>Kategorie</th>
-            <th>Gewicht/Stück</th>
-            <th>Gewicht/Karton</th>
-            <th>Gewicht/Kiste</th>
-            <th>Aktionen</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredArticles.map(a => (
-            <tr key={a.id}>
-              <td>
+      {viewMode === 'grid' ? (
+        <div className="row mt-3">
+          {filteredArticles.length === 0 && (
+            <div className="col-12 text-center text-muted mb-3">
+              Keine Artikel gefunden.
+            </div>
+          )}
+          {filteredArticles.map((a) => (
+            <div className="col-md-4 mb-4 d-flex" key={a.id}>
+              {/* Karte wie bisher */}
+              <div className="card flex-fill shadow-sm h-100">
                 <img
                   src={a.bildUrl || fallbackImage}
                   alt={a.name}
-                  style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }}
+                  className="card-img-top"
+                  style={{ objectFit: 'cover', height: '180px', borderTopLeftRadius: '0.375rem', borderTopRightRadius: '0.375rem' }}
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = fallbackImage;
                   }}
                 />
-              </td>
-              <td>{a.name}</td>
-              <td>{a.artikelNummer}</td>
-              <td>{a.preis.toFixed(2)}€</td>
-              <td>{a.kategorie}</td>
-              <td>{a.gewichtProStueck !== undefined ? a.gewichtProStueck.toFixed(2) : '-'} kg</td>
-              <td>{a.gewichtProKarton !== undefined ? a.gewichtProKarton.toFixed(2) : '-'} kg</td>
-              <td>{a.gewichtProKiste !== undefined ? a.gewichtProKiste.toFixed(2) : '-'} kg</td>
-              <td onClick={(e) => e.stopPropagation()}>
-                <button className="btn btn-primary btn-sm me-1" onClick={() => {
-                  setEditingArticle(a);
-                  setNewArticle({
-                    name: a.name,
-                    preis: a.preis,
-                    artikelNummer: a.artikelNummer,
-                    kategorie: a.kategorie,
-                    gewichtProStueck: a.gewichtProStueck || 0,
-                    gewichtProKarton: a.gewichtProKarton || 0,
-                    gewichtProKiste: a.gewichtProKiste || 0,
-                    bildUrl: a.bildUrl || '',
-                    ausverkauft: a.ausverkauft || false,
-                  });
-                  setShowArticleModal(true);
-                }}>
-                  <i className="ci-edit me-1"></i>
-                </button>
-                <button className="btn btn-warning btn-sm me-1" onClick={() => navigate(`/kundenaufpreise/${a.id}`)}>
-                  <i className="ci-dollar-sign"></i>
-                </button>
-                <button className="btn btn-danger btn-sm" onClick={() => confirmDeleteArticle(a.id)}>
-                  <i className="ci-trash me-1"></i>
-                </button>
-              </td>
-            </tr>
+                <div className="card-body d-flex flex-column">
+                  <h5 className="card-title text-center mb-2">{a.name}</h5>
+                  <div className="d-flex justify-content-center mb-2">
+                    <span className="badge bg-secondary me-2">
+                      {a.artikelNummer}
+                    </span>
+                    <span className="badge bg-success">
+                      {a.preis.toFixed(2)}&nbsp;€
+                    </span>
+                  </div>
+                  <ul className="list-group list-group-flush mb-3">
+                    <li className="list-group-item py-1">
+                      <strong>Kategorie:</strong> {a.kategorie}
+                    </li>
+                    <li className="list-group-item py-1">
+                      <strong>Gewicht/Stück:</strong> {a.gewichtProStueck !== undefined ? a.gewichtProStueck.toFixed(2) : '-'} kg
+                    </li>
+                    <li className="list-group-item py-1">
+                      <strong>Gewicht/Karton:</strong> {a.gewichtProKarton !== undefined ? a.gewichtProKarton.toFixed(2) : '-'} kg
+                    </li>
+                    <li className="list-group-item py-1">
+                      <strong>Gewicht/Kiste:</strong> {a.gewichtProKiste !== undefined ? a.gewichtProKiste.toFixed(2) : '-'} kg
+                    </li>
+                  </ul>
+                  <div className="mt-auto d-flex justify-content-between">
+                    <button
+                      className="btn btn-primary btn-sm d-flex align-items-center"
+                      onClick={() => {
+                        setEditingArticle(a);
+                        setNewArticle({
+                          name: a.name,
+                          preis: a.preis,
+                          artikelNummer: a.artikelNummer,
+                          kategorie: a.kategorie,
+                          gewichtProStueck: a.gewichtProStueck || 0,
+                          gewichtProKarton: a.gewichtProKarton || 0,
+                          gewichtProKiste: a.gewichtProKiste || 0,
+                          bildUrl: a.bildUrl || '',
+                          ausverkauft: a.ausverkauft || false,
+                        });
+                        setShowArticleModal(true);
+                      }}
+                    >
+                      <i className="ci-edit me-1"></i> Bearbeiten
+                    </button>
+                    <button
+                      className="btn btn-warning btn-sm d-flex align-items-center"
+                      onClick={() => navigate(`/kundenaufpreise/${a.id}`)}
+                    >
+                      <i className="ci-dollar-sign me-1"></i> Kundenaufpreise
+                    </button>
+                    <button
+                      className="btn btn-danger btn-sm d-flex align-items-center"
+                      onClick={() => confirmDeleteArticle(a.id)}
+                    >
+                      <i className="ci-trash me-1"></i> Löschen
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           ))}
-        </tbody>
-      </table>
+        </div>
+      ) : (
+        <div className="table-responsive mt-3">
+          <table className="table table-hover align-middle">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Artikelnummer</th>
+                <th>Kategorie</th>
+                <th>Preis (€)</th>
+                <th>Aktionen</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredArticles.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="text-center text-muted">Keine Artikel gefunden.</td>
+                </tr>
+              ) : (
+                filteredArticles.map((a) => (
+                  <tr key={a.id}>
+                    <td>{a.name}</td>
+                    <td>{a.artikelNummer}</td>
+                    <td>{a.kategorie}</td>
+                    <td>{a.preis.toFixed(2)}</td>
+                    <td>
+                      <div className="btn-group btn-group-sm" role="group">
+                        <button className="btn btn-primary" onClick={() => {
+                          setEditingArticle(a);
+                          setNewArticle({
+                            name: a.name,
+                            preis: a.preis,
+                            artikelNummer: a.artikelNummer,
+                            kategorie: a.kategorie,
+                            gewichtProStueck: a.gewichtProStueck || 0,
+                            gewichtProKarton: a.gewichtProKarton || 0,
+                            gewichtProKiste: a.gewichtProKiste || 0,
+                            bildUrl: a.bildUrl || '',
+                            ausverkauft: a.ausverkauft || false,
+                          });
+                          setShowArticleModal(true);
+                        }}>
+                          <i className="ci-edit"></i>
+                        </button>
+                        <button className="btn btn-warning" onClick={() => navigate(`/kundenaufpreise/${a.id}`)}>
+                          <i className="ci-dollar-sign"></i>
+                        </button>
+                        <button className="btn btn-danger" onClick={() => confirmDeleteArticle(a.id)}>
+                          <i className="ci-trash"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Modal für Artikel erstellen / bearbeiten */}
       {showArticleModal && (
         <>
           <div className="modal show fade" style={{ display: 'block' }} tabIndex={-1}>
             <div className="modal-dialog">
-              <div className="modal-content">
+              <div className="modal-content shadow border-0">
                 <div className="modal-header">
-                  <h5 className="modal-title">{editingArticle ? 'Artikel bearbeiten' : 'Neuen Artikel erstellen'}</h5>
+                  <h5 className="modal-title">
+                    <i className="ci-edit me-2 text-primary"></i>
+                    {editingArticle ? 'Artikel bearbeiten' : 'Neuen Artikel erstellen'}
+                  </h5>
                   <button type="button" className="btn-close" onClick={() => setShowArticleModal(false)}></button>
                 </div>
                 <form onSubmit={handleArticleSubmit}>
@@ -404,9 +506,12 @@ const Artikel: React.FC = () => {
         <>
           <div className="modal show fade" style={{ display: 'block' }} tabIndex={-1}>
             <div className="modal-dialog">
-              <div className="modal-content">
+              <div className="modal-content shadow border-0">
                 <div className="modal-header">
-                  <h5 className="modal-title">Artikel löschen</h5>
+                  <h5 className="modal-title">
+                    <i className="ci-trash me-2 text-danger"></i>
+                    Artikel löschen
+                  </h5>
                   <button type="button" className="btn-close" onClick={() => setShowDeleteModal(false)}></button>
                 </div>
                 <div className="modal-body">

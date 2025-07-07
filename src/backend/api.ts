@@ -7,6 +7,7 @@ import {
   KundenPreisResource,
   AuftragResource,
   ArtikelPositionResource,
+  ZerlegeauftragResource,
 } from "../Resources";
 import { ErrorFromValidation, ErrorWithHTML, fetchWithErrorHandling } from "./fetchWithErrorHandling";
 import { useAuth } from '../providers/Authcontext'; // falls im selben Kontext
@@ -336,6 +337,35 @@ export async function removeKundenFavorit(kundenId: string, artikelId: string): 
   });
 }
 
+/* Zerlegeauftrag-Funktionen */
+export async function getAllZerlegeauftraege(): Promise<ZerlegeauftragResource[]> {
+  return apiFetch<ZerlegeauftragResource[]>("/api/zerlege");
+}
+
+export async function getZerlegeauftragById(id: string): Promise<ZerlegeauftragResource> {
+  return apiFetch<ZerlegeauftragResource>(`/api/zerlege/${id}`);
+}
+
+export async function getAllOffeneZerlegeauftraege(): Promise<ZerlegeauftragResource[]> {
+  return apiFetch<ZerlegeauftragResource[]>("/api/zerlege/offen/liste");
+}
+
+export async function updateZerlegeauftragStatus(
+  auftragId: string,
+  artikelPositionId: string
+): Promise<ZerlegeauftragResource> {
+  return apiFetch<ZerlegeauftragResource>(`/api/zerlege/${auftragId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ artikelPositionId }),
+  });
+}
+
+export async function deleteZerlegeauftraegeByDatum(datum: string): Promise<{ deleted: number }> {
+  return apiFetch<{ deleted: number }>(`/api/zerlege`, {
+    method: "DELETE",
+  });
+}
+
 /* Exportiere ein Objekt, das alle Funktionen zusammenfasst */
 export const api = {
   apiFetch,
@@ -371,6 +401,12 @@ export const api = {
   createAuftrag,
   updateAuftrag,
   deleteAuftrag,
+  // Zerlegeauftrag
+  getAllZerlegeauftraege,
+  getZerlegeauftragById,
+  getAllOffeneZerlegeauftraege,
+  updateZerlegeauftragStatus,
+  deleteZerlegeauftraegeByDatum,
   // ArtikelPosition
   getAllArtikelPosition,
   getArtikelPositionById,

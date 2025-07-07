@@ -21,6 +21,7 @@ export type MitarbeiterRolle =
   | "wareneingang"
   | "lager"
   | "fahrer"
+  | "zerleger"
   | "statistik"
   | "kunde"
   | "support";
@@ -70,6 +71,7 @@ export type ArtikelPositionResource = {
   zerlegung?: boolean; // Optionale Angabe, ob eine Zerlegung erfolgt
   vakuum?: boolean; // Optionale Angabe, ob das Produkt vakuumverpackt ist
   bemerkung?: string; // Optionale Bemerkungen
+  zerlegeBemerkung?: string;
   gesamtgewicht?: number; // Berechnetes Gesamtgewicht
   gesamtpreis?: number; // Berechneter Gesamtpreis
   auftragId?: string;
@@ -106,4 +108,24 @@ export type KundenPreisResource = {
   artikel: string; // ID des Artikels als String
   customer: string; // ID des Kunden als String
   aufpreis: number; // Aufpreis für diesen Kunden
+};
+
+export type ZerlegeArtikelPosition = {
+  artikelPositionId: string;
+  artikelName: string;
+  status: "offen" | "erledigt";
+  menge?: number;
+  bemerkung?: string;
+  erledigtAm?: string;
+};
+
+export type ZerlegeauftragResource = {
+  id?: string;
+  auftragId: string;
+  kundenName: string;
+  artikelPositionen: ZerlegeArtikelPosition[];
+  zerlegerId?: string;
+  zerlegerName?: string;
+  erstelltAm: string;
+  archiviert: boolean;
 };

@@ -92,7 +92,13 @@ const KundeEdit: React.FC = () => {
       await updateKunde(id!, payload);
       navigate(`/kunden/${id}`);
     } catch (err: any) {
-      setError(err.message || 'Fehler beim Aktualisieren des Kunden');
+      console.error('Fehler beim Speichern:', err);
+      if (err.response && err.response.data && typeof err.response.data === 'object') {
+        const serverErrors = Object.values(err.response.data).join(' ');
+        setError(`Fehler vom Server: ${serverErrors}`);
+      } else {
+        setError(err.message || 'Unbekannter Fehler beim Aktualisieren des Kunden.');
+      }
     } finally {
       setSaving(false);
     }
@@ -114,185 +120,208 @@ const KundeEdit: React.FC = () => {
 
   return (
     <div className="container my-4">
-      <h2 className="mb-4 text-center">Kunde bearbeiten</h2>
-      <form onSubmit={handleSubmit}>
-        <div className="mb-3">
-          <label className="form-label">Name</label>
-          <input
-            name="name"
-            type="text"
-            className="form-control"
-            value={formData.name}
-            onChange={handleChange}
-            required
-          />
+      <div className="card shadow">
+        <div className="card-header bg-primary text-white">
+          <h5 className="mb-0">Kunde bearbeiten</h5>
         </div>
-        <div className="mb-3">
-          <label className="form-label">USt-IdNr.</label>
-          <input
-            name="ustId"
-            type="text"
-            className="form-control"
-            value={formData.ustId}
-            onChange={handleChange}
-          />
-        </div>
-        <div className="mb-3">
-          <label className="form-label">Handelsregister-Nr.</label>
-          <input
-            name="handelsregisterNr"
-            type="text"
-            className="form-control"
-            value={formData.handelsregisterNr}
-            onChange={handleChange}
-          />
-        </div>
-        <div className="mb-3">
-          <label className="form-label">Ansprechpartner</label>
-          <input
-            name="ansprechpartner"
-            type="text"
-            className="form-control"
-            value={formData.ansprechpartner}
-            onChange={handleChange}
-          />
-        </div>
-        <div className="mb-3">
-          <label className="form-label">Website</label>
-          <input
-            name="website"
-            type="text"
-            className="form-control"
-            value={formData.website}
-            onChange={handleChange}
-          />
-        </div>
-        <div className="mb-3">
-          <label className="form-label">Kundennummer</label>
-          <input
-            name="kundenNummer"
-            type="text"
-            className="form-control"
-            value={formData.kundenNummer}
-            onChange={handleChange}
-            required
-          />
-        </div>
-        <div className="mb-3">
-          <label className="form-label">Email</label>
-          <input
-            name="email"
-            type="email"
-            className="form-control"
-            value={formData.email}
-            onChange={handleChange}
-            required
-          />
-        </div>
-        <div className="mb-3">
-          <label className="form-label">Adresse</label>
-          <input
-            name="adresse"
-            type="text"
-            className="form-control"
-            value={formData.adresse}
-            onChange={handleChange}
-            required
-          />
-        </div>
-        <div className="mb-3">
-          <label className="form-label">Telefon</label>
-          <input
-            name="telefon"
-            type="text"
-            className="form-control"
-            value={formData.telefon}
-            onChange={handleChange}
-          />
-        </div>
-        <div className="mb-3">
-          <label className="form-label">Lieferzeit</label>
-          <input
-            name="lieferzeit"
-            type="text"
-            className="form-control"
-            value={formData.lieferzeit}
-            onChange={handleChange}
-          />
-        </div>
-        <div className="mb-3">
-          <label className="form-label">Kategorie</label>
-          <input
-            name="kategorie"
-            type="text"
-            className="form-control"
-            value={formData.kategorie}
-            onChange={handleChange}
-          />
-        </div>
-        <div className="mb-3">
-          <label className="form-label">Region</label>
-          <input
-            name="region"
-            type="text"
-            className="form-control"
-            value={formData.region}
-            onChange={handleChange}
-          />
-        </div>
-        <div className="mb-3 form-check">
-          <input
-            name="isApproved"
-            type="checkbox"
-            className="form-check-input"
-            id="isApproved"
-            checked={formData.isApproved}
-            onChange={handleChange}
-          />
-          <label className="form-check-label" htmlFor="isApproved">
-            Genehmigt
-          </label>
-        </div>
-        <div className="mb-3">
-          <label className="form-label">Gewerbe Datei URL</label>
-          <input
-            name="gewerbeDateiUrl"
-            type="text"
-            className="form-control"
-            value={formData.gewerbeDateiUrl}
-            onChange={handleChange}
-          />
-        </div>
-        <div className="mb-3">
-          <label className="form-label">Zusatz Datei URL</label>
-          <input
-            name="zusatzDateiUrl"
-            type="text"
-            className="form-control"
-            value={formData.zusatzDateiUrl}
-            onChange={handleChange}
-          />
-        </div>
-        <div className="mb-3">
-          <label className="form-label">Neues Passwort (nur bei Änderung)</label>
-          <input
-            name="password"
-            type="password"
-            className="form-control"
-            value={formData.password}
-            onChange={handleChange}
-            placeholder="Leer lassen, falls nicht ändern"
-          />
-        </div>
-        <div className="d-flex">
-          <button type="submit" className="btn btn-primary" disabled={saving}>
-            {saving ? 'Speichern...' : 'Speichern'}
-          </button>
-          <Link to={`/kunden/${kunde.id}`} className="btn btn-secondary ms-2">
-            Abbrechen
-          </Link>
-        </div>
-      </form>
+        {/* Fehler-Alert oberhalb des Formulars */}
+        {error && (
+          <div className="alert alert-danger mx-3 mt-3">
+            <i className="ci-warning me-2"></i>{error}
+          </div>
+        )}
+        <form onSubmit={handleSubmit}>
+          <div className="card-body">
+            <div className="row">
+              <div className="col-md-6 mb-3">
+                <label className="form-label">Name</label>
+                <input
+                  name="name"
+                  type="text"
+                  className="form-control"
+                  value={formData.name}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+              <div className="col-md-6 mb-3">
+                <label className="form-label">USt-IdNr.</label>
+                <input
+                  name="ustId"
+                  type="text"
+                  className="form-control"
+                  value={formData.ustId}
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="col-md-6 mb-3">
+                <label className="form-label">Handelsregister-Nr.</label>
+                <input
+                  name="handelsregisterNr"
+                  type="text"
+                  className="form-control"
+                  value={formData.handelsregisterNr}
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="col-md-6 mb-3">
+                <label className="form-label">Ansprechpartner</label>
+                <input
+                  name="ansprechpartner"
+                  type="text"
+                  className="form-control"
+                  value={formData.ansprechpartner}
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="col-md-6 mb-3">
+                <label className="form-label">Website</label>
+                <input
+                  name="website"
+                  type="text"
+                  className="form-control"
+                  value={formData.website}
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="col-md-6 mb-3">
+                <label className="form-label">Kundennummer</label>
+                <input
+                  name="kundenNummer"
+                  type="text"
+                  className="form-control"
+                  value={formData.kundenNummer}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+              <div className="col-md-6 mb-3">
+                <label className="form-label">Email</label>
+                <input
+                  name="email"
+                  type="email"
+                  className="form-control"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+              <div className="col-md-6 mb-3">
+                <label className="form-label">Adresse</label>
+                <input
+                  name="adresse"
+                  type="text"
+                  className="form-control"
+                  value={formData.adresse}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+              <div className="col-md-6 mb-3">
+                <label className="form-label">Telefon</label>
+                <input
+                  name="telefon"
+                  type="text"
+                  className="form-control"
+                  value={formData.telefon}
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="col-md-6 mb-3">
+                <label className="form-label">Lieferzeit</label>
+                <input
+                  name="lieferzeit"
+                  type="text"
+                  className="form-control"
+                  value={formData.lieferzeit}
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="col-md-6 mb-3">
+                <label className="form-label">Kategorie</label>
+                <input
+                  name="kategorie"
+                  type="text"
+                  className="form-control"
+                  value={formData.kategorie}
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="col-md-6 mb-3">
+                <label className="form-label">Region</label>
+                <input
+                  name="region"
+                  type="text"
+                  className="form-control"
+                  value={formData.region}
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="col-md-6 mb-3">
+                <label className="form-label">Gewerbe Datei URL</label>
+                <input
+                  name="gewerbeDateiUrl"
+                  type="text"
+                  className="form-control"
+                  value={formData.gewerbeDateiUrl}
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="col-md-6 mb-3">
+                <label className="form-label">Zusatz Datei URL</label>
+                <input
+                  name="zusatzDateiUrl"
+                  type="text"
+                  className="form-control"
+                  value={formData.zusatzDateiUrl}
+                  onChange={handleChange}
+                />
+              </div>
+            </div>
+            <div className="mb-3 form-check">
+              <input
+                name="isApproved"
+                type="checkbox"
+                className="form-check-input"
+                id="isApproved"
+                checked={formData.isApproved}
+                onChange={handleChange}
+              />
+              <label className="form-check-label" htmlFor="isApproved">
+                Genehmigt
+              </label>
+            </div>
+            <div className="mb-3">
+              <label className="form-label">Neues Passwort (nur bei Änderung)</label>
+              <input
+                name="password"
+                type="password"
+                className="form-control"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Leer lassen, falls nicht ändern"
+              />
+            </div>
+          </div>
+          <div className="card-footer text-end">
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={saving}
+            >
+              <i className="ci-save me-2"></i>
+              {saving ? 'Speichern...' : 'Speichern'}
+            </button>
+            <Link
+              to={`/kunden/${kunde.id}`}
+              className="btn btn-secondary ms-2"
+            >
+              <i className="ci-arrow-left me-2"></i>
+              Abbrechen
+            </Link>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
