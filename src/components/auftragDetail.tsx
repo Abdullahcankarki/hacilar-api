@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Alert, Button, Form, Modal, Table, Spinner } from 'react-bootstrap';
+import { Alert, Button, Form, Modal, Spinner } from 'react-bootstrap';
 import { AuftragResource, ArtikelPositionResource, ArtikelResource } from '../Resources';
 import { api } from '../backend/api';
 import AuftragPositionenTabelle from './auftragsPositionenTabelle';
-
-const parseNumberInput = (value: string): number =>
-    parseFloat(value.replace(',', '.'));
+import { useAuth } from '../providers/Authcontext';
 
 const formatDate = (dateStr?: string) => {
     if (!dateStr) return '—';
@@ -20,6 +18,8 @@ const formatDate = (dateStr?: string) => {
 
 const AuftragDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
+    const { user } = useAuth();
+    const isKunde = user?.role?.includes('kunde');
     const [auftrag, setAuftrag] = useState<AuftragResource | null>(null);
     const [positions, setPositions] = useState<ArtikelPositionResource[]>([]);
     const [alleArtikel, setAlleArtikel] = useState<ArtikelResource[]>([]);
@@ -57,35 +57,18 @@ const AuftragDetail: React.FC = () => {
     }, [id]);
 
     useEffect(() => {
-      if (statusSuccess) {
-        const timeout = setTimeout(() => setStatusSuccess(''), 5000);
-        return () => clearTimeout(timeout);
-      }
+        if (statusSuccess) {
+            const timeout = setTimeout(() => setStatusSuccess(''), 5000);
+            return () => clearTimeout(timeout);
+        }
     }, [statusSuccess]);
 
     useEffect(() => {
-      if (statusError) {
-        const timeout = setTimeout(() => setStatusError(''), 5000);
-        return () => clearTimeout(timeout);
-      }
-    }, [statusError]);
-
-    const handlePositionChange = (
-        index: number,
-        field: keyof ArtikelPositionResource,
-        value: any
-    ) => {
-        const newPositions = [...positions];
-        (newPositions[index] as any)[field] = value;
-
-        if (field === 'menge' || field === 'einzelpreis') {
-            const menge = newPositions[index].menge || 0;
-            const einzelpreis = newPositions[index].einzelpreis || 0;
-            newPositions[index].gesamtpreis = menge * einzelpreis;
+        if (statusError) {
+            const timeout = setTimeout(() => setStatusError(''), 5000);
+            return () => clearTimeout(timeout);
         }
-
-        setPositions(newPositions);
-    };
+    }, [statusError]);
 
     const handleSavePositions = async () => {
         setError('');
@@ -133,139 +116,111 @@ const AuftragDetail: React.FC = () => {
         }
     };
 
-    const handleStatusChange = async (newStatus: AuftragResource['status']) => {
-        try {
-            if (!auftrag?.id) return;
-            setSaving(true);
-            const updated = await api.updateAuftrag(auftrag.id, {
-                ...auftrag,
-                status: newStatus,
-            });
-            setAuftrag(updated);
-            setStatusSuccess(`Status geändert zu "${newStatus}"`);
-        } catch (err: any) {
-            setStatusError(err.message || 'Fehler beim Ändern des Status');
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const handleNeuePosition = () => {
-        setPositions([
-            ...positions,
-            {
-                id: undefined,
-                artikel: '',
-                artikelName: '',
-                menge: 1,
-                einheit: 'kg',
-                einzelpreis: 0,
-                gesamtgewicht: 0,
-                gesamtpreis: 0,
-                bemerkung: '',
-            },
-        ]);
-    };
-
     if (loading) return (
-      <div className="d-flex justify-content-center align-items-center my-5" style={{ minHeight: '200px' }}>
-        <Spinner animation="border" role="status" />
-        <span className="ms-2">Lade...</span>
-      </div>
+        <div className="d-flex justify-content-center align-items-center my-5" style={{ minHeight: '200px' }}>
+            <Spinner animation="border" role="status" />
+            <span className="ms-2">Lade...</span>
+        </div>
     );
     if (error) return (
-      <div className="d-flex justify-content-center align-items-center my-5" style={{ minHeight: '200px' }}>
-        <Alert variant="danger" className="w-50 text-center">{error}</Alert>
-      </div>
+        <div className="d-flex justify-content-center align-items-center my-5" style={{ minHeight: '200px' }}>
+            <Alert variant="danger" className="w-50 text-center">{error}</Alert>
+        </div>
     );
     if (!auftrag) return (
-      <div className="d-flex justify-content-center align-items-center my-5" style={{ minHeight: '200px' }}>
-        <Alert variant="warning" className="w-50 text-center">Kein Auftrag gefunden</Alert>
-      </div>
+        <div className="d-flex justify-content-center align-items-center my-5" style={{ minHeight: '200px' }}>
+            <Alert variant="warning" className="w-50 text-center">Kein Auftrag gefunden</Alert>
+        </div>
     );
 
     return (
         <div className="container my-4">
             <div className="card card-body mb-3">
-              <div className="d-flex justify-content-between align-items-start flex-wrap">
-                <div>
-                  <p className="mb-1"><strong>Kunde:</strong></p>
-                  <h4>{auftrag.kundeName}</h4>
-                  <p className="mb-0"><strong>Auftragsnummer:</strong> <span className="badge bg-info text-uppercase">{auftrag.id?.slice(-6)}</span></p>
+                <div className="d-flex justify-content-between align-items-start flex-wrap">
+                    <div>
+                        <p className="mb-1"><strong>Kunde:</strong></p>
+                        <h4>{auftrag.kundeName}</h4>
+                        <p className="mb-0"><strong>Auftragsnummer:</strong> <span className="badge bg-info text-uppercase">{auftrag.id?.slice(-6)}</span></p>
+                    </div>
+                    <div>
+                        <p className="mb-1"><strong>Lieferdatum:</strong></p>
+                        <span className="badge bg-secondary fs-6">{formatDate(auftrag.lieferdatum)}</span>
+                    </div>
                 </div>
-                <div>
-                  <p className="mb-1"><strong>Lieferdatum:</strong></p>
-                  <span className="badge bg-secondary fs-6">{formatDate(auftrag.lieferdatum)}</span>
-                </div>
-              </div>
             </div>
-            <Button className="btn btn-outline-accent rounded-pill btn-sm mb-3 print-hidden" onClick={() => setShowModal(true)}>
-                Auftrag bearbeiten
-            </Button>
+            {!isKunde && (
+                <Button className="btn btn-outline-accent rounded-pill btn-sm mb-3 print-hidden" onClick={() => setShowModal(true)}>
+                    Auftrag bearbeiten
+                </Button>
+            )}
 
-            <Modal show={showModal} onHide={() => setShowModal(false)}>
-                <Modal.Header closeButton>
-                    <Modal.Title>Auftrag bearbeiten</Modal.Title>
-                </Modal.Header>
-                <Modal.Body>
-                    <Form.Group className="mb-3">
-                        <Form.Label>Lieferdatum</Form.Label>
-                        <Form.Control
-                            type="date"
-                            value={
-                                auftrag.lieferdatum
-                                    ? new Date(auftrag.lieferdatum).toISOString().split('T')[0]
-                                    : ''
-                            }
-                            onChange={(e) =>
-                                setAuftrag({ ...auftrag, lieferdatum: e.target.value })
-                            }
-                        />
-                    </Form.Group>
+            {!isKunde && (
+                <Modal show={showModal} onHide={() => setShowModal(false)}>
+                    <Modal.Header closeButton>
+                        <Modal.Title>Auftrag bearbeiten</Modal.Title>
+                    </Modal.Header>
+                    <Modal.Body>
+                        <Form.Group className="mb-3">
+                            <Form.Label>Lieferdatum</Form.Label>
+                            <Form.Control
+                                type="date"
+                                value={
+                                    auftrag.lieferdatum
+                                        ? new Date(auftrag.lieferdatum).toISOString().split('T')[0]
+                                        : ''
+                                }
+                                onChange={(e) =>
+                                    setAuftrag({ ...auftrag, lieferdatum: e.target.value })
+                                }
+                            />
+                        </Form.Group>
 
-                    <Form.Group className="mb-3">
-                        <Form.Label>Bemerkung</Form.Label>
-                        <Form.Control
-                            as="textarea"
-                            rows={3}
-                            value={auftrag.bemerkungen || ''}
-                            onChange={(e) =>
-                                setAuftrag({ ...auftrag, bemerkungen: e.target.value })
-                            }
-                        />
-                    </Form.Group>
+                        <Form.Group className="mb-3">
+                            <Form.Label>Bemerkung</Form.Label>
+                            <Form.Control
+                                as="textarea"
+                                rows={3}
+                                value={auftrag.bemerkungen || ''}
+                                onChange={(e) =>
+                                    setAuftrag({ ...auftrag, bemerkungen: e.target.value })
+                                }
+                            />
+                        </Form.Group>
 
-                </Modal.Body>
-                <Modal.Footer>
-                    <Button variant="secondary" onClick={() => setShowModal(false)}>
-                        Abbrechen
-                    </Button>
-                    <Button variant="primary" onClick={handleSaveAuftrag}>
-                        Speichern
-                    </Button>
-                </Modal.Footer>
-            </Modal>
+                    </Modal.Body>
+                    <Modal.Footer>
+                        <Button variant="secondary" onClick={() => setShowModal(false)}>
+                            Abbrechen
+                        </Button>
+                        <Button variant="primary" onClick={handleSaveAuftrag}>
+                            Speichern
+                        </Button>
+                    </Modal.Footer>
+                </Modal>
+            )}
 
             <AuftragPositionenTabelle
                 positions={positions}
                 alleArtikel={alleArtikel}
-                onChange={setPositions}
-                onSave={handleSavePositions}
-                saving={saving}
+                onChange={isKunde ? undefined : setPositions}
+                onSave={isKunde ? undefined : handleSavePositions}
+                saving={isKunde ? undefined : saving}
                 auftragId={auftrag.id!}
             />
 
-            <div className="card mt-4">
-              <div className="card-header">
-                Bemerkung
-              </div>
-              <div className="card-body">
-                <p className="mb-0">{auftrag.bemerkungen || '—'}</p>
-              </div>
-            </div>
+            {!isKunde && (
+                <div className="card mt-4">
+                    <div className="card-header">
+                        Bemerkung
+                    </div>
+                    <div className="card-body">
+                        <p className="mb-0">{auftrag.bemerkungen || '—'}</p>
+                    </div>
+                </div>
+            )}
 
-            {statusError && <Alert variant="danger" className="mt-3 print-hidden">{statusError}</Alert>}
-            {statusSuccess && <Alert variant="success" className="mt-3 print-hidden">{statusSuccess}</Alert>}
+            {!isKunde && statusError && <Alert variant="danger" className="mt-3 print-hidden">{statusError}</Alert>}
+            {!isKunde && statusSuccess && <Alert variant="success" className="mt-3 print-hidden">{statusSuccess}</Alert>}
         </div>
     );
 };

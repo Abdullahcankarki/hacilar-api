@@ -20,7 +20,6 @@ const Auftraege: React.FC = () => {
         ? await getAllAuftraege()
         : await getAuftragByCutomerId(user?.id!);
       setAuftraege(data);
-      console.log('Geladene Aufträge:', data);
     } catch (err: any) {
       setError(err.message || 'Fehler beim Laden der Aufträge');
     } finally {

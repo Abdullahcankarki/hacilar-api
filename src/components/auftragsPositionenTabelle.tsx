@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAuth } from '../providers/Authcontext';
 import { Button, Form, Table, Alert, Spinner } from 'react-bootstrap';
 import { ArtikelPositionResource, ArtikelResource } from '../Resources';
 import { api } from '../backend/api';
@@ -26,6 +27,9 @@ const AuftragPositionenTabelle: React.FC<Props> = ({
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
     const [editingField, setEditingField] = useState<keyof ArtikelPositionResource | null>(null);
     const [error, setError] = useState<string | null>(null);
+
+    const { user } = useAuth();
+    const isKunde = user?.role?.includes('kunde');
 
     const startEdit = (index: number, field: keyof ArtikelPositionResource) => {
         setEditingIndex(index);
@@ -173,9 +177,11 @@ const AuftragPositionenTabelle: React.FC<Props> = ({
         <div>
             <div className="d-flex align-items-center justify-content-between border-bottom pb-2 mb-4">
                 <h2 className="h4 mb-0">Artikelpositionen</h2>
-                <Button variant="outline-success" className="print-hidden" onClick={handleAdd}>
-                    + Neue Position
-                </Button>
+                {!isKunde && (
+                    <Button variant="outline-success" className="print-hidden" onClick={handleAdd}>
+                        + Neue Position
+                    </Button>
+                )}
             </div>
 
             {/* Fehleranzeige */}
@@ -190,161 +196,179 @@ const AuftragPositionenTabelle: React.FC<Props> = ({
                     <Table bordered hover responsive className="table-sm align-middle text-nowrap">
                         <thead>
                             <tr>
-                                <th className="d-none d-md-table-cell">Bemerkung</th>
+                                {!isKunde && <th className="d-none d-md-table-cell">Bemerkung</th>}
                                 <th>Artikel</th>
-                                <th>Menge</th>
-                                <th>Einheit</th>
-                                <th className="d-none d-md-table-cell">Zerlegung</th>
-                                <th className="d-none d-lg-table-cell">Zerlege-Bemerkung</th>
+                                <th className={!isKunde ? "" : "d-none"}>Menge</th>
+                                <th className={!isKunde ? "" : "d-none"}>Einheit</th>
+                                {!isKunde && <th className="d-none d-md-table-cell">Zerlegung</th>}
+                                {!isKunde && <th className="d-none d-lg-table-cell">Zerlege-Bemerkung</th>}
                                 <th className="d-none d-sm-table-cell">Einzelpreis (€)</th>
                                 <th className="d-none d-sm-table-cell">Gewicht (kg)</th>
                                 <th className="d-none d-lg-table-cell print-hidden">Gesamtpreis (€)</th>
-                                <th className="print-hidden">Aktionen</th>
+                                {!isKunde && <th className="print-hidden">Aktionen</th>}
                             </tr>
                         </thead>
                         <tbody>
                             {positions.map((pos, index) => (
                                 <tr key={index}>
                                     {/* Bemerkung */}
-                                    <td className="d-none d-md-table-cell" onClick={() => startEdit(index, 'bemerkung')}>
-                                        {editingIndex === index && editingField === 'bemerkung' ? (
-                                            <Form.Control
-                                                value={pos.bemerkung || ''}
-                                                autoFocus
-                                                onBlur={stopEdit}
-                                                onKeyDown={(e) => e.key === 'Enter' && stopEdit()}
-                                                onChange={(e) => handleChange(index, 'bemerkung', e.target.value)}
-                                                className="form-control-sm"
-                                            />
-                                        ) : (
-                                            <div className="editable-cell">
-                                                {pos.bemerkung || '-'}
-                                                <FaPen className="edit-icon ms-1" />
-                                            </div>
-                                        )}
-                                    </td>
-                                    {/* Artikel */}
-                                    <td>
-                                        <span className="d-inline d-sm-none text-muted small">Artikel: </span>
-                                        <span
-                                            onClick={() => startEdit(index, 'artikel')}
-                                            style={{ cursor: 'pointer' }}
-                                        >
-                                            {editingIndex === index && editingField === 'artikel' ? (
-                                                <Form.Select
-                                                    value={pos.artikel}
-                                                    onChange={(e) => {
-                                                        handleArtikelChange(
-                                                            index,
-                                                            e.target.value,
-                                                            pos.menge!,
-                                                            pos.einheit!,
-                                                            pos.bemerkung,
-                                                            pos.zerlegung,
-                                                            pos.vakuum
-                                                        );
-                                                        stopEdit();
-                                                    }}
-                                                    className="form-select-sm"
-                                                >
-                                                    <option value="">Artikel wählen...</option>
-                                                    {alleArtikel.map(a => (
-                                                        <option key={a.id} value={a.id}>
-                                                            {a.name} - {a.artikelNummer}
-                                                        </option>
-                                                    ))}
-                                                </Form.Select>
-                                            ) : (
-                                                <div className="editable-cell">
-                                                    {alleArtikel.find(a => a.id === pos.artikel)
-                                                        ? `${alleArtikel.find(a => a.id === pos.artikel)?.name} - ${alleArtikel.find(a => a.id === pos.artikel)?.artikelNummer}`
-                                                        : '-'}
-                                                    <FaPen className="edit-icon ms-1" />
-                                                </div>
-                                            )}
-                                        </span>
-                                    </td>
-                                    {/* Menge */}
-                                    <td>
-                                        <span className="d-inline d-sm-none text-muted small">Menge: </span>
-                                        <span
-                                            onClick={() => startEdit(index, 'menge')}
-                                            style={{ cursor: 'pointer' }}
-                                        >
-                                            {editingIndex === index && editingField === 'menge' ? (
+                                    {!isKunde && (
+                                        <td className="d-none d-md-table-cell" onClick={() => startEdit(index, 'bemerkung')}>
+                                            {editingIndex === index && editingField === 'bemerkung' ? (
                                                 <Form.Control
-                                                    type="number"
-                                                    min="1"
-                                                    value={pos.menge}
+                                                    value={pos.bemerkung || ''}
                                                     autoFocus
                                                     onBlur={stopEdit}
                                                     onKeyDown={(e) => e.key === 'Enter' && stopEdit()}
-                                                    onChange={(e) => handleChange(index, 'menge', parseNumberInput(e.target.value))}
+                                                    onChange={(e) => handleChange(index, 'bemerkung', e.target.value)}
                                                     className="form-control-sm"
                                                 />
                                             ) : (
                                                 <div className="editable-cell">
-                                                    {pos.menge || '-'}
+                                                    {pos.bemerkung || '-'}
                                                     <FaPen className="edit-icon ms-1" />
                                                 </div>
                                             )}
-                                        </span>
-                                    </td>
-                                    {/* Einheit */}
+                                        </td>
+                                    )}
+                                    {/* Artikel */}
                                     <td>
-                                        <span className="d-inline d-sm-none text-muted small">Einheit: </span>
-                                        <span
-                                            onClick={() => startEdit(index, 'einheit')}
-                                            style={{ cursor: 'pointer' }}
-                                        >
-                                            {editingIndex === index && editingField === 'einheit' ? (
-                                                <Form.Select
-                                                    value={pos.einheit}
-                                                    onChange={(e) => {
-                                                        handleChange(index, 'einheit', e.target.value);
-                                                        stopEdit();
-                                                    }}
-                                                    autoFocus
-                                                    onKeyDown={(e) => e.key === 'Enter' && stopEdit()}
-                                                    className="form-control-sm"
-                                                >
-                                                    <option value="kg">kg</option>
-                                                    <option value="stück">stück</option>
-                                                    <option value="kiste">kiste</option>
-                                                    <option value="karton">karton</option>
-                                                </Form.Select>
-                                            ) : (
-                                                <div className="editable-cell">
-                                                    {pos.einheit}
-                                                    <FaPen className="edit-icon ms-1" />
-                                                </div>
-                                            )}
-                                        </span>
-                                    </td>
-                                    {/* Zerlegung */}
-                                    <td className="d-none d-md-table-cell">
-                                        <input
-                                            type="checkbox"
-                                            checked={!!pos.zerlegung}
-                                            onChange={(e) => handleChange(index, 'zerlegung', e.target.checked)}
-                                            className="form-check-input"
-                                            style={{ cursor: 'pointer' }}
-                                        />
-                                    </td>
-                                    {/* Zerlege-Bemerkung */}
-                                    <td className="d-none d-lg-table-cell">
-                                        {pos.zerlegung ? (
-                                            <Form.Control
-                                                type="text"
-                                                className="form-control-sm"
-                                                placeholder="Zerlege-Bemerkung"
-                                                value={pos.zerlegeBemerkung || ''}
-                                                onChange={(e) => handleChange(index, 'zerlegeBemerkung', e.target.value)}
-                                            />
+                                        <span className="d-inline d-sm-none text-muted small">Artikel: </span>
+                                        {isKunde ? (
+                                            <span>
+                                                {alleArtikel.find(a => a.id === pos.artikel)
+                                                    ? `${alleArtikel.find(a => a.id === pos.artikel)?.name} - ${alleArtikel.find(a => a.id === pos.artikel)?.artikelNummer}`
+                                                    : '-'}
+                                            </span>
                                         ) : (
-                                            ''
+                                            <span
+                                                onClick={() => startEdit(index, 'artikel')}
+                                                style={{ cursor: 'pointer' }}
+                                            >
+                                                {editingIndex === index && editingField === 'artikel' ? (
+                                                    <Form.Select
+                                                        value={pos.artikel}
+                                                        onChange={(e) => {
+                                                            handleArtikelChange(
+                                                                index,
+                                                                e.target.value,
+                                                                pos.menge!,
+                                                                pos.einheit!,
+                                                                pos.bemerkung,
+                                                                pos.zerlegung,
+                                                                pos.vakuum
+                                                            );
+                                                            stopEdit();
+                                                        }}
+                                                        className="form-select-sm"
+                                                    >
+                                                        <option value="">Artikel wählen...</option>
+                                                        {alleArtikel.map(a => (
+                                                            <option key={a.id} value={a.id}>
+                                                                {a.name} - {a.artikelNummer}
+                                                            </option>
+                                                        ))}
+                                                    </Form.Select>
+                                                ) : (
+                                                    <div className="editable-cell">
+                                                        {alleArtikel.find(a => a.id === pos.artikel)
+                                                            ? `${alleArtikel.find(a => a.id === pos.artikel)?.name} - ${alleArtikel.find(a => a.id === pos.artikel)?.artikelNummer}`
+                                                            : '-'}
+                                                        <FaPen className="edit-icon ms-1" />
+                                                    </div>
+                                                )}
+                                            </span>
                                         )}
                                     </td>
+                                    {/* Menge */}
+                                    {!isKunde && (
+                                        <td>
+                                            <span className="d-inline d-sm-none text-muted small">Menge: </span>
+                                            <span
+                                                onClick={() => startEdit(index, 'menge')}
+                                                style={{ cursor: 'pointer' }}
+                                            >
+                                                {editingIndex === index && editingField === 'menge' ? (
+                                                    <Form.Control
+                                                        type="number"
+                                                        min="1"
+                                                        value={pos.menge}
+                                                        autoFocus
+                                                        onBlur={stopEdit}
+                                                        onKeyDown={(e) => e.key === 'Enter' && stopEdit()}
+                                                        onChange={(e) => handleChange(index, 'menge', parseNumberInput(e.target.value))}
+                                                        className="form-control-sm"
+                                                    />
+                                                ) : (
+                                                    <div className="editable-cell">
+                                                        {pos.menge || '-'}
+                                                        <FaPen className="edit-icon ms-1" />
+                                                    </div>
+                                                )}
+                                            </span>
+                                        </td>
+                                    )}
+                                    {/* Einheit */}
+                                    {!isKunde && (
+                                        <td>
+                                            <span className="d-inline d-sm-none text-muted small">Einheit: </span>
+                                            <span
+                                                onClick={() => startEdit(index, 'einheit')}
+                                                style={{ cursor: 'pointer' }}
+                                            >
+                                                {editingIndex === index && editingField === 'einheit' ? (
+                                                    <Form.Select
+                                                        value={pos.einheit}
+                                                        onChange={(e) => {
+                                                            handleChange(index, 'einheit', e.target.value);
+                                                            stopEdit();
+                                                        }}
+                                                        autoFocus
+                                                        onKeyDown={(e) => e.key === 'Enter' && stopEdit()}
+                                                        className="form-control-sm"
+                                                    >
+                                                        <option value="kg">kg</option>
+                                                        <option value="stück">stück</option>
+                                                        <option value="kiste">kiste</option>
+                                                        <option value="karton">karton</option>
+                                                    </Form.Select>
+                                                ) : (
+                                                    <div className="editable-cell">
+                                                        {pos.einheit}
+                                                        <FaPen className="edit-icon ms-1" />
+                                                    </div>
+                                                )}
+                                            </span>
+                                        </td>
+                                    )}
+                                    {/* Zerlegung */}
+                                    {!isKunde && (
+                                        <td className="d-none d-md-table-cell">
+                                            <input
+                                                type="checkbox"
+                                                checked={!!pos.zerlegung}
+                                                onChange={(e) => handleChange(index, 'zerlegung', e.target.checked)}
+                                                className="form-check-input"
+                                                style={{ cursor: 'pointer' }}
+                                            />
+                                        </td>
+                                    )}
+                                    {/* Zerlege-Bemerkung */}
+                                    {!isKunde && (
+                                        <td className="d-none d-lg-table-cell">
+                                            {pos.zerlegung ? (
+                                                <Form.Control
+                                                    type="text"
+                                                    className="form-control-sm"
+                                                    placeholder="Zerlege-Bemerkung"
+                                                    value={pos.zerlegeBemerkung || ''}
+                                                    onChange={(e) => handleChange(index, 'zerlegeBemerkung', e.target.value)}
+                                                />
+                                            ) : (
+                                                ''
+                                            )}
+                                        </td>
+                                    )}
                                     {/* Einzelpreis */}
                                     <td className="d-none d-sm-table-cell">
                                         {(pos.einzelpreis ?? 0).toFixed(2)} €
@@ -358,20 +382,21 @@ const AuftragPositionenTabelle: React.FC<Props> = ({
                                         {(pos.gesamtpreis ?? 0).toFixed(2)} €
                                     </td>
                                     {/* Aktionen */}
-                                    <td className="print-hidden">
-                                        <Button variant="danger" size="sm" title="Löschen" onClick={() => handleDelete(index)}>
-                                            <i className="ci-trash"></i>
-                                            <span className="d-none d-sm-inline ms-1">Löschen</span>
-                                        </Button>
-                                    </td>
+                                    {!isKunde && (
+                                        <td className="print-hidden">
+                                            <Button variant="danger" size="sm" title="Löschen" onClick={() => handleDelete(index)}>
+                                                <i className="ci-trash"></i>
+                                                <span className="d-none d-sm-inline ms-1">Löschen</span>
+                                            </Button>
+                                        </td>
+                                    )}
                                 </tr>
                             ))}
                         </tbody>
                     </Table>
                 </div>
             </div>
-
-            {positions.length > 0 && (
+            {!isKunde && positions.length > 0 && (
                 <div className="text-center mt-4">
                     <Button className="print-hidden" variant="primary" onClick={onSave} disabled={saving}>
                         {saving ? (

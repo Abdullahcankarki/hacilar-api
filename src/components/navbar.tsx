@@ -118,6 +118,16 @@ const NavBar: React.FC<NavBarProps> = ({
                       </li>
                     </>
                   )}
+                  {user.role.includes('kunde') && !user.role.includes('admin') && !user.role.includes('verkauf') && !user.role.includes('zerleger') && (
+                    <>
+                      <li className="nav-item">
+                        <NavLink className="nav-link" to="/shop">Shop</NavLink>
+                      </li>
+                      <li className="nav-item">
+                        <NavLink className="nav-link" to="/profil">Profil</NavLink>
+                      </li>
+                    </>
+                  )}
                 </>
               )}
 
