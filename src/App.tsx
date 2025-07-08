@@ -93,6 +93,17 @@ const AppRoutes: React.FC = () => {
           <Route path="*" element={<Navigate to="/zerlege" replace />} />
         </Route>
       )}
+
+      {user && user.role.includes('kunde') && !user.role.includes('admin') && (
+        <Route path="/" element={<Layout />}>
+          <Route path="home" element={<Dashboard />} />
+          <Route path="profil" element={<Profil />} />
+          <Route path="allArtikel" element={<AllArtikel />} />
+          <Route path="artikel/:id" element={<ArtikelDetails />} />
+          <Route path="auftraege/:id" element={<AuftragDetail />} />
+          <Route path="*" element={<Navigate to="/home" replace />} />
+        </Route>
+      )}
     </Routes>
   );
 };
