@@ -22,11 +22,21 @@ const KundenaufpreisEditor: React.FC = () => {
     rawAufpreis: '0',
   });
 
+  // Neuer State für Suche
+  const [searchTerm, setSearchTerm] = useState('');
+
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const entriesPerPage = 25;
-  const totalPages = Math.ceil(kundenpreise.length / entriesPerPage);
-  const visiblePrices = kundenpreise.slice(
+
+  const filteredPrices = kundenpreise.filter(kp => {
+    const customer = customers.find(c => c.id === kp.customer);
+    return !searchTerm || customer?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+  });
+
+  const totalPages = Math.ceil(filteredPrices.length / entriesPerPage);
+
+  const visiblePrices = filteredPrices.slice(
     (currentPage - 1) * entriesPerPage,
     currentPage * entriesPerPage
   );
@@ -181,6 +191,15 @@ const saveMassSurcharges = async () => {
               <button className="btn btn-outline-primary" onClick={() => setShowMassModal(true)}>
                 <i className="ci-group me-2"></i> Aufpreis für Kategorie/Region setzen
               </button>
+            </div>
+            <div className="mb-3">
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Kundenname durchsuchen..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
             <div className="table-responsive">
               <table className="table table-striped table-bordered">

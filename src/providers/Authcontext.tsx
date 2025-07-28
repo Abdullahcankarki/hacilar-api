@@ -12,6 +12,7 @@ interface AuthContextType {
   loading: boolean;
   ausgewaehlterKunde: string | null;
   setAusgewaehlterKunde: (id: string | null) => void;
+  checkTokenValidity: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -49,6 +50,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, [token]);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      checkTokenValidity();
+    }, 10000); // alle 10 Sekunden prüfen
+
+    return () => clearInterval(interval);
+  }, [token]);
+
   // Stelle beim Laden des Contexts den gespeicherten Zustand wieder her
   useEffect(() => {
     const storedToken = localStorage.getItem('token');
@@ -73,6 +82,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return JSON.parse(atob(token.split('.')[1]));
     } catch (e) {
       return null;
+    }
+  };
+
+  const checkTokenValidity = () => {
+    if (!token) return;
+    const decoded = parseJwt(token);
+    if (decoded?.exp && Date.now() >= decoded.exp * 1000) {
+      logout();
     }
   };
 
@@ -101,7 +118,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         logout,
         loading,
         ausgewaehlterKunde,
-        setAusgewaehlterKunde
+        setAusgewaehlterKunde,
+        checkTokenValidity,
       }}
     >
       {children}

@@ -272,19 +272,19 @@ const Artikel: React.FC = () => {
                         setShowArticleModal(true);
                       }}
                     >
-                      <i className="ci-edit me-1"></i> Bearbeiten
+                      <i className="ci-edit me-1"></i>
                     </button>
                     <button
                       className="btn btn-warning btn-sm d-flex align-items-center"
                       onClick={() => navigate(`/kundenaufpreise/${a.id}`)}
                     >
-                      <i className="ci-dollar-sign me-1"></i> Kundenaufpreise
+                      <i className="ci-dollar-sign me-1"></i>
                     </button>
                     <button
                       className="btn btn-danger btn-sm d-flex align-items-center"
                       onClick={() => confirmDeleteArticle(a.id)}
                     >
-                      <i className="ci-trash me-1"></i> Löschen
+                      <i className="ci-trash me-1"></i>
                     </button>
                   </div>
                 </div>

@@ -386,7 +386,6 @@ const AuftragPositionenTabelle: React.FC<Props> = ({
                                         <td className="print-hidden">
                                             <Button variant="danger" size="sm" title="Löschen" onClick={() => handleDelete(index)}>
                                                 <i className="ci-trash"></i>
-                                                <span className="d-none d-sm-inline ms-1">Löschen</span>
                                             </Button>
                                         </td>
                                     )}
