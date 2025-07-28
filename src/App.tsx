@@ -27,26 +27,14 @@ import AllArtikel from './components/allArtikel';
 import RegisterForm from './components/register';
 import ZerlegeAuftraege from './components/zerlegeAuftraege';
 import ZerlegeDetail from './components/zerlegeDetail';
+import KomAuftraege from './components/komAuftraege';
+import KomAuftragDetail from './components/komAuftragDetail';
 
-
-// 🛡️ Route-Schutz-Komponente
-const ProtectedRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
-  const { user, loading } = useAuth();
-
-  if (loading) {
-    return <div style={{ padding: '2rem', textAlign: 'center' }}>Lade Benutzerdaten...</div>;
-  }
-
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return children;
-};
 
 // 📌 App-Routen
 const AppRoutes: React.FC = () => {
   const { user, loading } = useAuth();
+  const roles = Array.isArray(user?.role) ? user.role : [];
 
   if (loading) {
     return <div style={{ padding: '2rem', textAlign: 'center' }}>Lade Benutzerdaten...</div>;
@@ -62,46 +50,64 @@ const AppRoutes: React.FC = () => {
       {!user && <Route path="*" element={<Navigate to="/login" replace />} />}
 
       {/* Eingeloggt: Geschützte Layout-Route mit differenzierter Rollentrennung */}
-      {user && (user.role.includes('admin')) && (
+      {user && (
         <Route path="/" element={<Layout />}>
-          <Route path="home" element={<Dashboard />} />
-          <Route path="auftraege" element={<Auftraege />} />
-          <Route path="auftraege/:id" element={<AuftragDetail />} />
-          <Route path="zerlege" element={<ZerlegeAuftraege />} />
-          <Route path="zerlege/:id" element={<ZerlegeDetail />} />
-          <Route path="artikel" element={<Artikel />} />
-          <Route path="allArtikel" element={<AllArtikel />} />
-          <Route path="artikel/:id" element={<ArtikelDetails />} />
-          <Route path="kunden" element={<Kunden />} />
-          <Route path="kunden/:id" element={<KundeDetail />} />
-          <Route path="kunden/edit/:id" element={<KundeEdit />} />
-          <Route path="kundenaufpreise/:artikelId" element={<KundenaufpreisEditor />} />
-          <Route path="profil" element={<Profil />} />
-          <Route path="mitarbeiter" element={<Verkaeufer />} />
-          <Route path="mitarbeiter/:id" element={<VerkaeuferDetails />} />
-          <Route path="mitarbeiter/edit/:id" element={<VerkaeuferEdit />} />
-          <Route path="stats" element={<Statistiken />} />
-          <Route path="*" element={<Navigate to="/home" replace />} />
-        </Route>
-      )}
-
-      {user && user.role.includes('zerleger') && !user.role.includes('admin') && (
-        <Route path="/" element={<Layout />}>
-          <Route path="zerlege" element={<ZerlegeAuftraege />} />
-          <Route path="zerlege/:id" element={<ZerlegeDetail />} />
-          <Route path="profil" element={<Profil />} />
-          <Route path="*" element={<Navigate to="/zerlege" replace />} />
-        </Route>
-      )}
-
-      {user && user.role.includes('kunde') && !user.role.includes('admin') && (
-        <Route path="/" element={<Layout />}>
-          <Route path="home" element={<Dashboard />} />
-          <Route path="profil" element={<Profil />} />
-          <Route path="allArtikel" element={<AllArtikel />} />
-          <Route path="artikel/:id" element={<ArtikelDetails />} />
-          <Route path="auftraege/:id" element={<AuftragDetail />} />
-          <Route path="*" element={<Navigate to="/home" replace />} />
+          {roles.includes('admin') ? (
+            <>
+              <Route path="home" element={<Dashboard />} />
+              <Route path="auftraege" element={<Auftraege />} />
+              <Route path="auftraege/:id" element={<AuftragDetail />} />
+              <Route path="kommissionierung" element={<KomAuftraege />} />
+              <Route path="kommissionierung/:id" element={<KomAuftragDetail />} />
+              <Route path="zerlege" element={<ZerlegeAuftraege />} />
+              <Route path="zerlege/:id" element={<ZerlegeDetail />} />
+              <Route path="artikel" element={<Artikel />} />
+              <Route path="allArtikel" element={<AllArtikel />} />
+              <Route path="artikel/:id" element={<ArtikelDetails />} />
+              <Route path="kunden" element={<Kunden />} />
+              <Route path="kunden/:id" element={<KundeDetail />} />
+              <Route path="kunden/edit/:id" element={<KundeEdit />} />
+              <Route path="kundenaufpreise/:artikelId" element={<KundenaufpreisEditor />} />
+              <Route path="profil" element={<Profil />} />
+              <Route path="mitarbeiter" element={<Verkaeufer />} />
+              <Route path="mitarbeiter/:id" element={<VerkaeuferDetails />} />
+              <Route path="mitarbeiter/edit/:id" element={<VerkaeuferEdit />} />
+              <Route path="stats" element={<Statistiken />} />
+              <Route path="*" element={<Navigate to="/home" replace />} />
+            </>
+          ) : roles.includes('zerleger') ? (
+            <>
+              <Route path="zerlege" element={<ZerlegeAuftraege />} />
+              <Route path="zerlege/:id" element={<ZerlegeDetail />} />
+              <Route path="profil" element={<Profil />} />
+              <Route path="*" element={<Navigate to="/zerlege" replace />} />
+            </>
+          ) : roles.includes('kunde') ? (
+            <>
+              <Route path="home" element={<Dashboard />} />
+              <Route path="profil" element={<Profil />} />
+              <Route path="allArtikel" element={<AllArtikel />} />
+              <Route path="artikel/:id" element={<ArtikelDetails />} />
+              <Route path="auftraege/:id" element={<AuftragDetail />} />
+              <Route path="*" element={<Navigate to="/home" replace />} />
+            </>
+          ) : roles.includes('kommissionierung') ? (
+            <>
+              <Route path="kommissionierung" element={<KomAuftraege />} />
+              <Route path="kommissionierung/:id" element={<KomAuftragDetail />} />
+              <Route path="profil" element={<Profil />} />
+              <Route path="*" element={<Navigate to="/kommissionierung" replace />} />
+            </>
+          ) : roles.includes('kontrolle') ? (
+            <>
+              <Route path="kommissionierung" element={<KomAuftraege />} />
+              <Route path="kommissionierung/:id" element={<KomAuftragDetail />} />
+              <Route path="profil" element={<Profil />} />
+              <Route path="*" element={<Navigate to="/kommissionierung" replace />} />
+            </>
+          ) : (
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          )}
         </Route>
       )}
     </Routes>

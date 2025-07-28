@@ -1,6 +1,6 @@
 // NavBar.tsx
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../providers/Authcontext';
 import logo from '../assets/logo.png';
 import 'bootstrap/dist/js/bootstrap.bundle.min';
@@ -32,11 +32,37 @@ const NavBar: React.FC<NavBarProps> = ({
 
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const [isLoggingOut, setIsLoggingOut] = React.useState(false);
 
   const handleLogout = () => {
+    setIsLoggingOut(true);
     logout();
     navigate('/login');
   };
+
+  const role = user?.role || [];
+  const isAdmin = role.includes('admin');
+  const isVerkauf = role.includes('verkauf');
+  const isKommissionierer = role.length === 1 && role[0] === 'kommissionierung';
+  const isKontrolleur = role.length === 1 && role[0] === 'kontrolle';
+  const isZerleger = role.length === 1 && role[0] === 'zerleger';
+  const isKunde = role.length === 1 && role[0] === 'kunde';
+  const isAdminOderVerkauf = isAdmin || isVerkauf;
+
+  const navLinks = [
+    { to: '/shop', label: 'Shop', visible: isKunde || isAdminOderVerkauf },
+    { to: '/auftraege', label: 'Aufträge', visible: isAdminOderVerkauf },
+    { to: '/artikel', label: 'Artikel', visible: isAdminOderVerkauf },
+    { to: '/zerlege', label: 'Zerlegung', visible: isZerleger || isAdminOderVerkauf },
+    { to: '/kommissionierung', label: 'Kommissionierung', visible: isKommissionierer || isAdminOderVerkauf },
+    { to: '/kontrolle', label: 'Kontrolle', visible: isKontrolleur },
+    { to: '/kunden', label: 'Kunden', visible: isAdminOderVerkauf },
+    { to: '/mitarbeiter', label: 'Mitarbeiter', visible: isAdminOderVerkauf },
+    { to: '/stats', label: 'Statistiken', visible: isAdminOderVerkauf },
+    { to: '/profil', label: 'Profil', visible: !!user },
+  ];
 
   return (
     <header className="navbar navbar-expand-lg bg-body sticky-top p-0">
@@ -74,73 +100,50 @@ const NavBar: React.FC<NavBarProps> = ({
 
           <div className="offcanvas-body pt-0">
             <ul className="navbar-nav ms-lg-4 list-unstyled">
-              {user && (
+              <li className="nav-item">
+                <NavLink className="nav-link" to="/shop">Shop</NavLink>
+              </li>
+              {isAdminOderVerkauf && (
                 <>
-                  {(user.role.includes('verkauf') || user.role.includes('admin')) && (
-                    <>
-                      <li className="nav-item">
-                        <NavLink className="nav-link" to="/home">Shop</NavLink>
-                      </li>
-                      <li className="nav-item">
-                        <NavLink className="nav-link" to="/auftraege">Aufträge</NavLink>
-                      </li>
-                      <li className="nav-item">
-                        <NavLink className="nav-link" to="/artikel">Artikel</NavLink>
-                      </li>
-                      <li className="nav-item">
-                        <NavLink className="nav-link" to="/zerlege">Zerlegung</NavLink>
-                      </li>
-                      {user.role.includes('admin') && (
-                        <>
-                          <li className="nav-item">
-                            <NavLink className="nav-link" to="/kunden">Kunden</NavLink>
-                          </li>
-                          <li className="nav-item">
-                            <NavLink className="nav-link" to="/mitarbeiter">Mitarbeiter</NavLink>
-                          </li>
-                          <li className="nav-item">
-                            <NavLink className="nav-link" to="/stats">Statistiken</NavLink>
-                          </li>
-                        </>
-                      )}
-                      <li className="nav-item">
-                        <NavLink className="nav-link" to="/profil">Profil</NavLink>
-                      </li>
-                    </>
-                  )}
-                  {user.role.includes('zerleger') && !user.role.includes('verkauf') && !user.role.includes('admin') && (
-                    <>
-                      <li className="nav-item">
-                        <NavLink className="nav-link" to="/zerlege">Zerlegung</NavLink>
-                      </li>
-                      <li className="nav-item">
-                        <NavLink className="nav-link" to="/profil">Profil</NavLink>
-                      </li>
-                    </>
-                  )}
-                  {user.role.includes('kunde') && !user.role.includes('admin') && !user.role.includes('verkauf') && !user.role.includes('zerleger') && (
-                    <>
-                      <li className="nav-item">
-                        <NavLink className="nav-link" to="/shop">Shop</NavLink>
-                      </li>
-                      <li className="nav-item">
-                        <NavLink className="nav-link" to="/profil">Profil</NavLink>
-                      </li>
-                    </>
-                  )}
+                  <li className="nav-item dropdown">
+                    <span className="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                      Produktion
+                    </span>
+                    <ul className="dropdown-menu">
+                      <li><NavLink className="dropdown-item" to="/auftraege">Aufträge</NavLink></li>
+                      <li><NavLink className="dropdown-item" to="/zerlege">Zerlegung</NavLink></li>
+                      <li><NavLink className="dropdown-item" to="/kommissionierung">Kommissionierung</NavLink></li>
+                    </ul>
+                  </li>
+
+                  <li className="nav-item dropdown">
+                    <span className="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                      Verwaltung
+                    </span>
+                    <ul className="dropdown-menu">
+                      <li><NavLink className="dropdown-item" to="/kunden">Kunden</NavLink></li>
+                      <li><NavLink className="dropdown-item" to="/mitarbeiter">Mitarbeiter</NavLink></li>
+                      <li><NavLink className="dropdown-item" to="/artikel">Artikel</NavLink></li>
+                      <li><NavLink className="dropdown-item" to="/stats">Statistiken</NavLink></li>
+                    </ul>
+                  </li>
                 </>
               )}
-
+              {navLinks.filter(link => link.visible && link.to !== '/auftraege' && link.to !== '/artikel' && link.to !== '/zerlege' && link.to !== '/kommissionierung' && link.to !== '/kunden' && link.to !== '/mitarbeiter' && link.to !== '/stats' && link.to !== '/shop').map(link => (
+                <li className="nav-item" key={link.to}>
+                  <NavLink className="nav-link" to={link.to}>{link.label}</NavLink>
+                </li>
+              ))}
             </ul>
           </div>
         </div>
 
-        {(user?.role.includes('admin') || user?.role.includes('verkauf')) && (
+        {isAdminOderVerkauf && (
           <div className="ms-auto me-3" style={{ width: 250 }}>
             <Select
               options={
-                [...kunden] // Kopie erstellen, um nicht das Original zu verändern
-                  .sort((a, b) => a.name.localeCompare(b.name)) // alphabetisch sortieren
+                [...kunden]
+                  .sort((a, b) => a.name.localeCompare(b.name))
                   .map(k => ({ value: k.id, label: k.name }))
               }
               value={
@@ -152,8 +155,11 @@ const NavBar: React.FC<NavBarProps> = ({
                 if (selected) {
                   localStorage.setItem('ausgewaehlterKunde', selected.value);
                   setAusgewaehlterKunde(selected.value);
-                  window.location.reload();
+                } else {
+                  localStorage.removeItem('ausgewaehlterKunde');
+                  setAusgewaehlterKunde('');
                 }
+                navigate(0);
               }}
               placeholder="Kunde wählen..."
               isClearable
@@ -187,7 +193,6 @@ const NavBar: React.FC<NavBarProps> = ({
           </div>
         )}
 
-        {/* Icon-Buttons ganz rechts in der Navbar */}
         <div className="d-flex align-items-center gap-3 ms-auto my-auto">
           <button
             className="btn p-0 border-0 bg-transparent position-relative icon-btn text-secondary"
@@ -215,8 +220,13 @@ const NavBar: React.FC<NavBarProps> = ({
             className="btn p-0 border-0 bg-transparent icon-btn text-secondary"
             onClick={handleLogout}
             title="Abmelden"
+            disabled={isLoggingOut}
           >
-            <i className="ci-log-out fs-4"></i>
+            {isLoggingOut ? (
+              <span className="spinner-border spinner-border-sm"></span>
+            ) : (
+              <i className="ci-log-out fs-4"></i>
+            )}
           </button>
         </div>
       </div>

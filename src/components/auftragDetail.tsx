@@ -140,7 +140,7 @@ const AuftragDetail: React.FC = () => {
                     <div>
                         <p className="mb-1"><strong>Kunde:</strong></p>
                         <h4>{auftrag.kundeName}</h4>
-                        <p className="mb-0"><strong>Auftragsnummer:</strong> <span className="badge bg-info text-uppercase">{auftrag.id?.slice(-6)}</span></p>
+                        <p className="mb-0"><strong>Auftragsnummer:</strong> <span className="badge bg-info text-uppercase">{auftrag.auftragsnummer ?? "-"}</span></p>
                     </div>
                     <div>
                         <p className="mb-1"><strong>Lieferdatum:</strong></p>
@@ -151,6 +151,23 @@ const AuftragDetail: React.FC = () => {
             {!isKunde && (
                 <Button className="btn btn-outline-accent rounded-pill btn-sm mb-3 print-hidden" onClick={() => setShowModal(true)}>
                     Auftrag bearbeiten
+                </Button>
+            )}
+            {!isKunde && !(auftrag.status === 'in Bearbeitung' && auftrag.kommissioniertStatus === 'offen') && (
+                <Button
+                    variant="outline-success"
+                    className="rounded-pill btn-sm mb-3 ms-2 print-hidden"
+                    onClick={async () => {
+                        try {
+                            if (!auftrag?.id) return;
+                            await api.setAuftragInBearbeitung(auftrag.id);
+                            setStatusSuccess('Auftrag in Kommissionierung überführt.');
+                        } catch (err: any) {
+                            setStatusError(err.message || 'Fehler beim Start der Kommissionierung.');
+                        }
+                    }}
+                >
+                    In Kommissionierung überführen
                 </Button>
             )}
 

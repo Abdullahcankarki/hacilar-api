@@ -129,7 +129,7 @@ const Profil: React.FC = () => {
                       href="#!"
                       onClick={() => setActiveTab('auftraege')}
                     >
-                      <i className="ci-cart fs-base opacity-75 me-2"></i>
+                      <i className="ci-file fs-base opacity-75 me-2"></i>
                       Aufträge
                     </a>
                   )}
@@ -496,7 +496,7 @@ const Profil: React.FC = () => {
                                 onClick={() => window.location.href = `/auftraege/${auftrag.id}`}
                                 style={{ cursor: 'pointer' }}
                               >
-                                <td className="fw-medium text-center">{auftrag.id?.slice(-6).toUpperCase()}</td>
+                                <td className="fw-medium text-center">{auftrag.auftragsnummer}</td>
                                 <td className="text-center d-none d-md-table-cell">{auftrag.createdAt ? new Date(auftrag.createdAt).toLocaleDateString() : '-'}</td>
                                 <td className="text-center">{auftrag.lieferdatum ? new Date(auftrag.lieferdatum).toLocaleDateString() : '-'}</td>
                                 <td className="text-center d-none d-md-table-cell">{auftrag.artikelPosition?.length || 0}</td>

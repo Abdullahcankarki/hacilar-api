@@ -77,6 +77,7 @@ const Verkaeufer: React.FC = () => {
     "admin",
     "verkauf",
     "kommissionierung",
+    "kontrolle",
     "buchhaltung",
     "wareneingang",
     "lager",

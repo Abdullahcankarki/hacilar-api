@@ -109,7 +109,7 @@ const AuftragTabelle: React.FC<Props> = ({ titel, auftraege, onBearbeitung, onOe
                                         onClick={() => navigate(`/auftraege/${auftrag.id}`)}
                                     >
                                         <td>
-                                            <span className="badge bg-info">{auftrag.id?.slice(-6).toUpperCase()}</span>
+                                            <span className="badge bg-info">{auftrag.auftragsnummer ?? "-"}</span>
                                         </td>
                                         <td>{(auftrag as any).kundeName || auftrag.kunde}</td>
                                         <td className="text-nowrap">

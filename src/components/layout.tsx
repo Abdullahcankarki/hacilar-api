@@ -105,7 +105,7 @@ export const Layout: React.FC = () => {
     );
   };
 
-  const handleSubmit = async (lieferdatum: string) => {
+  const handleSubmit = async (lieferdatum: string, bemerkung: string) => {
     const kundeId = user?.role.includes('kunde') ? user.id : lokalAusgewaehlterKunde;
 
     if (!kundeId) {
@@ -117,7 +117,7 @@ export const Layout: React.FC = () => {
       // Auftrag zuerst erstellen mit leerer Positionsliste
       const auftragDraft: Omit<AuftragResource, 'id' | 'createdAt' | 'updatedAt'> = {
         artikelPosition: [],
-        lieferdatum,
+        bemerkungen: bemerkung,
         kunde: kundeId,
         status: 'offen',
       };
@@ -145,7 +145,7 @@ export const Layout: React.FC = () => {
       const artikelPositionIds = gespeichertePositionen.map((p) => p.id!);
 
       // Auftrag mit Artikelpositionen aktualisieren
-      await updateAuftrag(auftragId, { artikelPosition: artikelPositionIds });
+      await updateAuftrag(auftragId, { artikelPosition: artikelPositionIds, lieferdatum: lieferdatum });
 
       setMeldung({ text: 'Bestellung wurde übermittelt!', variant: 'success' });
       setCart([]);

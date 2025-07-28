@@ -247,6 +247,10 @@ export async function getAuftragById(id: string): Promise<AuftragResource> {
   return apiFetch<AuftragResource>(`/api/auftrag/${id}`);
 }
 
+export async function getAlleAuftraegeInBearbeitung(): Promise<AuftragResource[]> {
+  return apiFetch<AuftragResource[]>(`/api/auftrag/in-bearbeitung`);
+}
+
 export async function getAuftragLetzte(): Promise<{
   auftrag: AuftragResource;
   artikelPositionen: ArtikelPositionResource[];
@@ -274,6 +278,12 @@ export async function updateAuftrag(id: string, data: Partial<AuftragResource>):
   return apiFetch<AuftragResource>(`/api/auftrag/${id}`, {
     method: "PUT",
     body: JSON.stringify(data),
+  });
+}
+
+export async function setAuftragInBearbeitung(id: string): Promise<AuftragResource> {
+  return apiFetch<AuftragResource>(`/api/auftrag/${id}/in-bearbeitung`, {
+    method: "PUT",
   });
 }
 
@@ -307,6 +317,16 @@ export async function updateArtikelPosition(
   data: Partial<ArtikelPositionResource>
 ): Promise<ArtikelPositionResource> {
   return apiFetch<ArtikelPositionResource>(`/api/artikelposition/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateArtikelPositionKommissionierung(
+  id: string,
+  data: Partial<ArtikelPositionResource>
+): Promise<ArtikelPositionResource> {
+  return apiFetch<ArtikelPositionResource>(`/api/artikelposition/${id}/kommissionierung`, {
     method: "PUT",
     body: JSON.stringify(data),
   });
@@ -396,10 +416,12 @@ export const api = {
   getAllAuftraege,
   getAuftragById,
   getAuftragByCutomerId,
+  getAlleAuftraegeInBearbeitung,
   getAuftragLetzte,
   getAuftragLetzteArtikel,
   createAuftrag,
   updateAuftrag,
+  setAuftragInBearbeitung,
   deleteAuftrag,
   // Zerlegeauftrag
   getAllZerlegeauftraege,
@@ -412,6 +434,7 @@ export const api = {
   getArtikelPositionById,
   createArtikelPosition,
   updateArtikelPosition,
+  updateArtikelPositionKommissionierung,
   deleteArtikelPosition,
   // Mitarbeiter
   getAllMitarbeiter,
