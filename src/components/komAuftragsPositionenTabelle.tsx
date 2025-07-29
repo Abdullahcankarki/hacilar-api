@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../providers/Authcontext';
 import { Button, Form, Table, Alert, Modal } from 'react-bootstrap';
 import { ArtikelPositionResource, ArtikelResource } from '../Resources';
@@ -28,15 +28,17 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
     const { user } = useAuth();
     const isAdmin = user?.role?.includes('admin');
     const isKommissionierer = user?.role?.includes('kommissionierung');
+    const isKontrolleur = user?.role?.includes('kontrolle');
     // Modal state
     const [modalOpenIndex, setModalOpenIndex] = useState<number | null>(null);
     const [modalFields, setModalFields] = useState<any>({});
+    // Edit mode state for modal
+    const [isEditMode, setIsEditMode] = useState(false);
 
     // Helper for Modal Pflichtfeld-Check
     const modalPflichtfelderGefuellt = () => {
         return (
-            modalFields.kommissioniertMenge &&
-            modalFields.kommissioniertEinheit &&
+            modalFields.leergut &&
             modalFields.bruttogewicht
         );
     };
@@ -48,8 +50,9 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
         const pos = positions[index];
         setModalOpenIndex(index);
         setModalFields({
-            kommissioniertMenge: pos.kommissioniertMenge || '',
-            kommissioniertEinheit: pos.kommissioniertEinheit || pos.einheit || '',
+            artikelName: pos.artikelName,
+            menge: pos.menge,
+            einheit: pos.einheit,
             kommissioniertBemerkung: pos.kommissioniertBemerkung || '',
             bruttogewicht: pos.bruttogewicht || '',
             leergut: pos.leergut?.length
@@ -58,13 +61,17 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
             chargennummern: pos.chargennummern?.length
                 ? [...pos.chargennummern]
                 : [],
+            kommissioniertAm: pos.kommissioniertAm, // für disabled-Logik
         });
+        // Nur editierbar, wenn noch nicht kommissioniert
+        setIsEditMode(!pos.kommissioniertAm);
     };
 
     // Modal schließen
     const closeKommissionierenModal = () => {
         setModalOpenIndex(null);
         setModalFields({});
+        setIsEditMode(false);
     };
 
     // Modal-Feld ändern
@@ -74,6 +81,26 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
             [field]: value,
         }));
     };
+
+    // Automatisches Setzen des Leergut-Gewichts bei Auswahl
+    useEffect(() => {
+        if (!modalFields.leergut) return;
+        const updatedLeergut = modalFields.leergut.map((item: any) => {
+            if (item.leergutArt === 'korb') return { ...item, leergutGewicht: 1.5 };
+            if (item.leergutArt === 'e2') return { ...item, leergutGewicht: 2 };
+            if (item.leergutArt === 'e1') return { ...item, leergutGewicht: 1.50 };
+            if (item.leergutArt === 'h1') return { ...item, leergutGewicht: 18 };
+            if (item.leergutArt === 'e6') return { ...item, leergutGewicht: 1.5 };
+            if (item.leergutArt === 'big box') return { ...item, leergutGewicht: 34.5 };
+            if (item.leergutArt === 'karton') return item; // manuell
+            return item;
+        });
+        setModalFields((prev: any) => ({
+            ...prev,
+            leergut: updatedLeergut,
+        }));
+        // eslint-disable-next-line
+    }, [modalFields.leergut?.map((l: any) => l.leergutArt).join(',')]);
 
     // Leergut hinzufügen/entfernen
     const addLeergut = () => {
@@ -125,13 +152,17 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
         const pos = positions[modalOpenIndex];
         const now = new Date();
         try {
+            // Leergut korrekt typisieren (Anzahl und Gewicht als Zahlen)
+            const leergutTyped = (modalFields.leergut || []).map((l: any) => ({
+                leergutArt: l.leergutArt,
+                leergutAnzahl: parseFloat(l.leergutAnzahl),
+                leergutGewicht: parseFloat(l.leergutGewicht),
+            }));
             // API-Update
             await api.updateArtikelPositionKommissionierung(pos.id, {
-                kommissioniertMenge: modalFields.kommissioniertMenge,
-                kommissioniertEinheit: modalFields.kommissioniertEinheit,
                 kommissioniertBemerkung: modalFields.kommissioniertBemerkung,
                 bruttogewicht: modalFields.bruttogewicht,
-                leergut: modalFields.leergut,
+                leergut: leergutTyped,
                 chargennummern: modalFields.chargennummern,
                 kommissioniertAm: now,
             });
@@ -139,11 +170,9 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
             const updated = [...positions];
             updated[modalOpenIndex] = {
                 ...pos,
-                kommissioniertMenge: modalFields.kommissioniertMenge,
-                kommissioniertEinheit: modalFields.kommissioniertEinheit,
                 kommissioniertBemerkung: modalFields.kommissioniertBemerkung,
                 bruttogewicht: modalFields.bruttogewicht,
-                leergut: modalFields.leergut,
+                leergut: leergutTyped,
                 chargennummern: modalFields.chargennummern,
                 kommissioniertAm: now,
             };
@@ -175,7 +204,7 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
                                 <th className="d-none d-md-table-cell">Bemerkung</th>
                                 <th>Artikel</th>
                                 <th>Menge</th>
-                                <th>Einheit</th>
+                                {isAdmin && <th>Kommissioniertes Gewicht (netto)</th>}
                                 <th></th>
                             </tr>
                         </thead>
@@ -200,24 +229,30 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
                                         </td>
                                         {/* Menge */}
                                         <td>
-                                            {pos.menge ?? '-'}
+                                            {pos.menge ?? '-'} {pos.einheit ?? "kg"}
                                         </td>
-                                        {/* Einheit */}
-                                        <td>
-                                            {pos.einheit}
-                                        </td>
+                                        {/* Kommissioniertes Gewicht (netto) */}
+                                        {isAdmin && (
+                                            <td>
+                                                {pos.kommissioniertAm
+                                                    ? (typeof pos.nettogewicht !== "undefined" && pos.nettogewicht !== null
+                                                        ? pos.nettogewicht
+                                                        : '—')
+                                                    : 'noch nicht kommissioniert'}
+                                            </td>
+                                        )}
                                         {/* Kommissionieren-Button */}
                                         <td>
                                             <Button
                                                 variant="primary"
                                                 size="sm"
-                                                disabled={isKommissioniert && !isAdmin}
+                                                disabled={isKommissioniert && !isAdmin && !isKontrolleur}
                                                 style={{ minWidth: 130 }}
                                                 onClick={() => openKommissionierenModal(index)}
                                                 className="me-2"
                                                 hidden={false}
                                             >
-                                                {isKommissioniert ? (isAdmin ? 'Bearbeiten' : 'Abgeschlossen') : 'Kommissionieren'}
+                                                {isKommissioniert ? (isAdmin || isKontrolleur ? 'Details' : 'Abgeschlossen') : 'Kommissionieren'}
                                             </Button>
                                         </td>
                                     </tr>
@@ -240,40 +275,10 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
                     <Modal.Title>Kommissionieren</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
+                    <p className="text-muted mt-2 mb-3">
+                        Zu kommissionieren: <strong>{modalFields.artikelName}</strong> – <strong>{modalFields.menge} {modalFields.einheit}</strong>
+                    </p>
                     <Form>
-                        <Form.Group className="mb-2">
-                            <Form.Label>Menge <span className="text-danger">*</span></Form.Label>
-                            <Form.Control
-                                type="number"
-                                min="0"
-                                value={modalFields.kommissioniertMenge ?? ''}
-                                onChange={e => handleModalFieldChange('kommissioniertMenge', e.target.value)}
-                                required
-                            />
-                        </Form.Group>
-                        <Form.Group className="mb-2">
-                            <Form.Label>Einheit <span className="text-danger">*</span></Form.Label>
-                            <Form.Select
-                                value={modalFields.kommissioniertEinheit ?? ''}
-                                onChange={e => handleModalFieldChange('kommissioniertEinheit', e.target.value)}
-                                required
-                            >
-                                <option value="">Bitte wählen...</option>
-                                <option value="kg">kg</option>
-                                <option value="stück">stück</option>
-                                <option value="kiste">kiste</option>
-                                <option value="karton">karton</option>
-                            </Form.Select>
-                        </Form.Group>
-                        <Form.Group className="mb-2">
-                            <Form.Label>Bemerkung</Form.Label>
-                            <Form.Control
-                                as="textarea"
-                                rows={2}
-                                value={modalFields.kommissioniertBemerkung ?? ''}
-                                onChange={e => handleModalFieldChange('kommissioniertBemerkung', e.target.value)}
-                            />
-                        </Form.Group>
                         <Form.Group className="mb-2">
                             <Form.Label>Bruttogewicht <span className="text-danger">*</span></Form.Label>
                             <Form.Control
@@ -282,11 +287,30 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
                                 value={modalFields.bruttogewicht ?? ''}
                                 onChange={e => handleModalFieldChange('bruttogewicht', e.target.value)}
                                 required
+                                disabled={
+                                    !!modalFields.kommissioniertAm &&
+                                    (isAdmin || isKontrolleur) &&
+                                    !isEditMode
+                                }
+                            />
+                        </Form.Group>
+                        <Form.Group className="mb-2">
+                            <Form.Label>Bemerkung</Form.Label>
+                            <Form.Control
+                                as="textarea"
+                                rows={2}
+                                value={modalFields.kommissioniertBemerkung ?? ''}
+                                onChange={e => handleModalFieldChange('kommissioniertBemerkung', e.target.value)}
+                                disabled={
+                                    !!modalFields.kommissioniertAm &&
+                                    (isAdmin || isKontrolleur) &&
+                                    !isEditMode
+                                }
                             />
                         </Form.Group>
                         {/* Leergut */}
                         <Form.Group className="mb-2">
-                            <Form.Label>Leergut</Form.Label>
+                            <Form.Label>Leergut <span className="text-danger">*</span></Form.Label>
                             <Table bordered size="sm" className="mb-2">
                                 <thead>
                                     <tr>
@@ -300,11 +324,25 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
                                     {(modalFields.leergut || []).map((l: any, i: number) => (
                                         <tr key={i}>
                                             <td>
-                                                <Form.Control
+                                                <Form.Select
                                                     value={l.leergutArt}
                                                     onChange={e => handleLeergutChange(i, 'leergutArt', e.target.value)}
                                                     size="sm"
-                                                />
+                                                    disabled={
+                                                        !!modalFields.kommissioniertAm &&
+                                                        (isAdmin || isKontrolleur) &&
+                                                        !isEditMode
+                                                    }
+                                                >
+                                                    <option value="">Bitte wählen...</option>
+                                                    <option value="e2">E2</option>
+                                                    <option value="e1">E1</option>
+                                                    <option value="h1">H1</option>
+                                                    <option value="karton">Karton</option>
+                                                    <option value="e6">E6</option>
+                                                    <option value="big box">Big Box</option>
+                                                    <option value="korb">Korb</option>
+                                                </Form.Select>
                                             </td>
                                             <td>
                                                 <Form.Control
@@ -312,6 +350,11 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
                                                     value={l.leergutAnzahl}
                                                     onChange={e => handleLeergutChange(i, 'leergutAnzahl', e.target.value)}
                                                     size="sm"
+                                                    disabled={
+                                                        !!modalFields.kommissioniertAm &&
+                                                        (isAdmin || isKontrolleur) &&
+                                                        !isEditMode
+                                                    }
                                                 />
                                             </td>
                                             <td>
@@ -320,6 +363,12 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
                                                     value={l.leergutGewicht}
                                                     onChange={e => handleLeergutChange(i, 'leergutGewicht', e.target.value)}
                                                     size="sm"
+                                                    disabled={
+                                                        (l.leergutArt !== 'karton') ||
+                                                        (!!modalFields.kommissioniertAm &&
+                                                            (isAdmin || isKontrolleur) &&
+                                                            !isEditMode)
+                                                    }
                                                 />
                                             </td>
                                             <td>
@@ -328,13 +377,27 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
                                                     size="sm"
                                                     onClick={() => removeLeergut(i)}
                                                     tabIndex={-1}
+                                                    disabled={
+                                                        !!modalFields.kommissioniertAm &&
+                                                        (isAdmin || isKontrolleur) &&
+                                                        !isEditMode
+                                                    }
                                                 >–</Button>
                                             </td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </Table>
-                            <Button variant="secondary" size="sm" onClick={addLeergut}>
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={addLeergut}
+                                disabled={
+                                    !!modalFields.kommissioniertAm &&
+                                    (isAdmin || isKontrolleur) &&
+                                    !isEditMode
+                                }
+                            >
                                 +
                             </Button>
                         </Form.Group>
@@ -347,6 +410,11 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
                                         value={c}
                                         onChange={e => handleChargennummerChange(i, e.target.value)}
                                         size="sm"
+                                        disabled={
+                                            !!modalFields.kommissioniertAm &&
+                                            (isAdmin || isKontrolleur) &&
+                                            !isEditMode
+                                        }
                                     />
                                     <Button
                                         variant="danger"
@@ -354,10 +422,24 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
                                         className="ms-1"
                                         onClick={() => removeChargennummer(i)}
                                         tabIndex={-1}
+                                        disabled={
+                                            !!modalFields.kommissioniertAm &&
+                                            (isAdmin || isKontrolleur) &&
+                                            !isEditMode
+                                        }
                                     >–</Button>
                                 </div>
                             ))}
-                            <Button variant="secondary" size="sm" onClick={addChargennummer}>
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={addChargennummer}
+                                disabled={
+                                    !!modalFields.kommissioniertAm &&
+                                    (isAdmin || isKontrolleur) &&
+                                    !isEditMode
+                                }
+                            >
                                 +
                             </Button>
                         </Form.Group>
@@ -371,13 +453,22 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
                     >
                         Abbrechen
                     </Button>
-                    <Button
-                        variant="primary"
-                        onClick={fertigstellen}
-                        disabled={!isAdmin && !modalPflichtfelderGefuellt()}
-                    >
-                        Fertigstellen
-                    </Button>
+                    {(isAdmin || isKontrolleur) && modalFields.kommissioniertAm && !isEditMode ? (
+                        <Button
+                            variant="primary"
+                            onClick={() => setIsEditMode(true)}
+                        >
+                            Bearbeiten
+                        </Button>
+                    ) : (
+                        <Button
+                            variant="success"
+                            onClick={fertigstellen}
+                            disabled={(!isAdmin && !isKontrolleur) && !modalPflichtfelderGefuellt()}
+                        >
+                            Fertigstellen
+                        </Button>
+                    )}
                 </Modal.Footer>
             </Modal>
         </div>
@@ -385,3 +476,4 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
 };
 
 export default KomAuftragPositionenTabelle;
+

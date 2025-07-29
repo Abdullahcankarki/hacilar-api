@@ -45,6 +45,7 @@ const KomAuftragDetail: React.FC = () => {
     const [showModal, setShowModal] = useState(false);
     const [editingKommissioniert, setEditingKommissioniert] = useState(false);
     const [editingKontrollstatus, setEditingKontrollstatus] = useState(false);
+    const [editingPaletten, setEditingPaletten] = useState(false);
 
     const isAdmin = user?.role?.includes('admin');
     const isKommissionierer = user?.role?.includes('kommissionierung');
@@ -216,17 +217,57 @@ const KomAuftragDetail: React.FC = () => {
 
     return (
         <div className="container my-4">
+            {/* Kundenname, Lieferdatum und Auftragsnummer immer sichtbar */}
             <div className="card card-body mb-3">
                 <div className="d-flex justify-content-between align-items-start flex-wrap">
                     <div>
                         <p className="mb-1"><strong>Kunde:</strong></p>
                         <h4>{auftrag.kundeName}</h4>
                         <p className="mb-0"><strong>Auftragsnummer:</strong> <span className="badge bg-info text-uppercase"> {auftrag.auftragsnummer ?? "-"} </span></p>
-                        <p className="mb-0"><strong>Gesamtanzahl der Paletten:</strong> {auftrag.gesamtPaletten ?? "-"}</p>
-                        <p className="mb-0">
-                            <strong>Kommissionierungsstatus:</strong>{' '}
-                            {isAdmin ? (
-                                editingKommissioniert ? (
+                        {(isKontrolleur || isAdmin) && (
+                            <div>
+                                <p className="mb-0"><strong>Gesamtanzahl der Paletten:</strong>{' '}
+                                    {!editingPaletten ? (
+                                        <span style={{ cursor: 'pointer' }} onClick={() => setEditingPaletten(true)}>
+                                            {auftrag.gesamtPaletten ?? '—'} <i className="bi bi-pencil ms-1"></i>
+                                        </span>
+                                    ) : (
+                                        <Form.Control
+                                            type="number"
+                                            min={0}
+                                            value={auftrag.gesamtPaletten || ''}
+                                            onChange={(e) => setAuftrag(prev => ({ ...prev!, gesamtPaletten: parseInt(e.target.value) }))}
+                                            onBlur={async () => {
+                                                setEditingPaletten(false);
+                                                if (auftrag?.id) {
+                                                    const updated = await api.updateAuftrag(auftrag.id, { ...auftrag, gesamtPaletten: auftrag.gesamtPaletten });
+                                                    setAuftrag(updated);
+                                                }
+                                            }}
+                                            autoFocus
+                                            size="sm"
+                                            style={{ display: 'inline-block', width: '100px' }}
+                                        />
+                                    )}
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                    <div>
+                        <p className="mb-1"><strong>Lieferdatum:</strong></p>
+                        <span className="badge bg-secondary fs-6">{formatDateJustDay(auftrag.lieferdatum)}</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Detailinformationen nur für Admin */}
+            {isAdmin && (
+                <div className="card card-body mb-3">
+                    <div className="d-flex justify-content-between align-items-start flex-wrap">
+                        <div>
+                            <p className="mb-0">
+                                <strong>Kommissionierungsstatus:</strong>{' '}
+                                {editingKommissioniert ? (
                                     <Form.Select
                                         size="sm"
                                         className="d-inline w-auto ms-2"
@@ -251,24 +292,20 @@ const KomAuftragDetail: React.FC = () => {
                                     >
                                         {auftrag.kommissioniertStatus || 'offen'}
                                     </span>
-                                )
-                            ) : (
-                                <span className={`badge bg-${statusColor} ms-2`}>{auftrag.kommissioniertStatus || 'offen'}</span>
-                            )}
-                        </p>
-                        <p className="mb-0"><strong>Kommisioniert von:</strong> {auftrag.kommissioniertVonName || '—'}</p>
-                        <p className="mb-0"><strong>Kommissionierung gestartet:</strong> {formatDate(auftrag.kommissioniertStartzeit)}</p>
-                        <p className="mb-0"><strong>Kommissionierung abgeschlossen:</strong> {formatDate(auftrag.kommissioniertEndzeit)}</p>
-                        <p className="mb-0">
-                            <strong>Dauer:</strong>{' '}
-                            {auftrag.kommissioniertStartzeit && auftrag.kommissioniertEndzeit
-                                ? `${dauerMinuten} Minuten`
-                                : '—'}
-                        </p>
-                        <p className="mb-0">
-                            <strong>Kontrollstatus:</strong>{' '}
-                            {isAdmin ? (
-                                editingKontrollstatus ? (
+                                )}
+                            </p>
+                            <p className="mb-0"><strong>Kommisioniert von:</strong> {auftrag.kommissioniertVonName || '—'}</p>
+                            <p className="mb-0"><strong>Kommissionierung gestartet:</strong> {formatDate(auftrag.kommissioniertStartzeit)}</p>
+                            <p className="mb-0"><strong>Kommissionierung abgeschlossen:</strong> {formatDate(auftrag.kommissioniertEndzeit)}</p>
+                            <p className="mb-0">
+                                <strong>Dauer:</strong>{' '}
+                                {auftrag.kommissioniertStartzeit && auftrag.kommissioniertEndzeit
+                                    ? `${dauerMinuten} Minuten`
+                                    : '—'}
+                            </p>
+                            <p className="mb-0">
+                                <strong>Kontrollstatus:</strong>{' '}
+                                {editingKontrollstatus ? (
                                     <Form.Select
                                         size="sm"
                                         className="d-inline w-auto ms-2"
@@ -293,53 +330,23 @@ const KomAuftragDetail: React.FC = () => {
                                     >
                                         {auftrag.kontrolliertStatus || '—'}
                                     </span>
-                                )
-                            ) : (
-                                <span className={`badge bg-${kontrollStatusColor} ms-2`}>{auftrag.kontrolliertStatus || '—'}</span>
-                            )}
-                        </p>
-                        <p className="mb-0"><strong>Kontrolliert von:</strong> {auftrag.kontrolliertVonName || '—'}</p>
-                        <p className="mb-0"><strong>Kontrolliert am:</strong> {formatDate(auftrag.kontrolliertZeit)}</p>
-                    </div>
-                    <div>
-                        <p className="mb-1"><strong>Lieferdatum:</strong></p>
-                        <span className="badge bg-secondary fs-6">{formatDateJustDay(auftrag.lieferdatum)}</span>
+                                )}
+                            </p>
+                            <p className="mb-0"><strong>Kontrolliert von:</strong> {auftrag.kontrolliertVonName || '—'}</p>
+                            <p className="mb-0"><strong>Kontrolliert am:</strong> {formatDate(auftrag.kontrolliertZeit)}</p>
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
 
-            {(isKontrolleur || isAdmin) && auftrag.kontrolliertStatus === 'in Kontrolle' && istZustaendigerKontrolleur ? (
-                <Button
-                    variant="success"
-                    className="mb-3"
-                    onClick={handleEndeKontrolle}
-                >
-                    Kontrolle abschließen
-                </Button>
-            ) : (!isKontrolleur && (isKommissionierer || isAdmin) && auftrag.kommissioniertStatus !== 'fertig') ? (
-                <Button
-                    variant="danger"
-                    className="mb-3"
-                    onClick={() => setShowModal(true)}
-                    title="Kommissionierung abschließen"
-                >
-                    Kommissionierung beenden
-                </Button>
-            ) : null}
-
-            {(isKontrolleur || isAdmin) && auftrag.kontrolliertStatus === 'in Kontrolle' && istZustaendigerKontrolleur && (
-                <div className="card mt-4">
-                    <div className="card-header">
-                        Gesamtanzahl der Paletten (Kontrolle)
-                    </div>
-                    <div className="card-body">
-                        <Form.Control
-                            type="number"
-                            min={0}
-                            value={auftrag.gesamtPaletten || ''}
-                            onChange={(e) => setAuftrag(prev => ({ ...prev!, gesamtPaletten: parseInt(e.target.value) }))}
-                        />
-                    </div>
+            {/* Kontrolleur sieht nur zwei Felder */}
+            {!isAdmin && isKontrolleur && (
+                <div className="card card-body mb-3">
+                    <p className="mb-0"><strong>Kommissioniert von:</strong> {auftrag.kommissioniertVonName || '—'}</p>
+                    <p className="mb-0">
+                        <strong>Kommissionierungsstatus:</strong>{' '}
+                        <span className={`badge bg-${statusColor} ms-2`}>{auftrag.kommissioniertStatus || 'offen'}</span>
+                    </p>
                 </div>
             )}
 
@@ -369,6 +376,7 @@ const KomAuftragDetail: React.FC = () => {
                 </Modal.Footer>
             </Modal>
 
+            {/* Positions-Tabelle */}
             <KomAuftragPositionenTabelle
                 positions={positions}
                 alleArtikel={alleArtikel}
@@ -377,6 +385,41 @@ const KomAuftragDetail: React.FC = () => {
                 saving={saving}
                 auftragId={auftrag.id!}
             />
+
+            {/* Button Kommissionierung beenden UNTER der Tabelle */}
+            {(() => {
+                const allePositionenFertig = positions.every(p => !!p.kommissioniertAm);
+                // Button nur zeigen, wenn Admin oder (Kommissionierer UND allePositionenFertig)
+                if (
+                    !isKontrolleur &&
+                    auftrag.kommissioniertStatus !== 'fertig' &&
+                    (isAdmin || (isKommissionierer && allePositionenFertig))
+                ) {
+                    return (
+                        <Button
+                            variant="danger"
+                            className="mb-3 mt-3"
+                            onClick={() => setShowModal(true)}
+                            title="Kommissionierung abschließen"
+                        >
+                            Kommissionierung beenden
+                        </Button>
+                    );
+                }
+                // Button Kontrolle abschließen wie gehabt
+                if ((isKontrolleur || isAdmin) && auftrag.kontrolliertStatus === 'in Kontrolle' && istZustaendigerKontrolleur) {
+                    return (
+                        <Button
+                            variant="success"
+                            className="mb-3 mt-3"
+                            onClick={handleEndeKontrolle}
+                        >
+                            Kontrolle abschließen
+                        </Button>
+                    );
+                }
+                return null;
+            })()}
 
             <div className="card mt-4">
                 <div className="card-header">

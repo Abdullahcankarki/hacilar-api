@@ -90,7 +90,7 @@ export type ArtikelPositionResource = {
   gesamtgewicht?: number; // Berechnetes Gesamtgewicht
   gesamtpreis?: number; // Berechneter Gesamtpreis
   auftragId?: string;
-    kommissioniertMenge?: number;
+  kommissioniertMenge?: number;
   kommissioniertEinheit?: string;
   kommissioniertBemerkung?: string;
   kommissioniertVon?: string;

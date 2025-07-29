@@ -32,7 +32,7 @@ const KomAuftragTabelle: React.FC<Props> = ({ titel, auftraege, defaultCollapsed
 
     const darfKontrollieren = (auftrag: AuftragResource) => {
         return (
-            (user?.role?.includes('kommissionierung') || user?.role?.includes('admin')) &&
+            (user?.role?.includes('kontrolle') || user?.role?.includes('admin')) &&
             auftrag.kommissioniertStatus === 'fertig' &&
             !auftrag.kontrolliertVon
         );
