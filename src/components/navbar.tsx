@@ -52,7 +52,7 @@ const NavBar: React.FC<NavBarProps> = ({
   const isAdminOderVerkauf = isAdmin || isVerkauf;
 
   const navLinks = [
-    { to: '/shop', label: 'Shop', visible: isKunde || isAdminOderVerkauf },
+    { to: isKommissionierer ? '/kommissionierung' : '/shop', label: isKommissionierer ? 'Kommissionierung' : 'Shop', visible: isKunde || isAdminOderVerkauf || isKommissionierer },
     { to: '/auftraege', label: 'Aufträge', visible: isAdminOderVerkauf },
     { to: '/artikel', label: 'Artikel', visible: isAdminOderVerkauf },
     { to: '/zerlege', label: 'Zerlegung', visible: isZerleger || isAdminOderVerkauf },
@@ -100,9 +100,13 @@ const NavBar: React.FC<NavBarProps> = ({
 
           <div className="offcanvas-body pt-0">
             <ul className="navbar-nav ms-lg-4 list-unstyled">
-              <li className="nav-item">
-                <NavLink className="nav-link" to="/shop">Shop</NavLink>
-              </li>
+              {(isKunde || isAdminOderVerkauf || isKommissionierer) && (
+                <li className="nav-item">
+                  <NavLink className="nav-link" to={isKommissionierer ? '/kommissionierung' : '/shop'}>
+                    {isKommissionierer ? 'Kommissionierung' : 'Shop'}
+                  </NavLink>
+                </li>
+              )}
               {isAdminOderVerkauf && (
                 <>
                   <li className="nav-item dropdown">
@@ -129,7 +133,7 @@ const NavBar: React.FC<NavBarProps> = ({
                   </li>
                 </>
               )}
-              {navLinks.filter(link => link.visible && link.to !== '/auftraege' && link.to !== '/artikel' && link.to !== '/zerlege' && link.to !== '/kommissionierung' && link.to !== '/kunden' && link.to !== '/mitarbeiter' && link.to !== '/stats' && link.to !== '/shop').map(link => (
+              {navLinks.filter(link => link.visible && link.to !== '/auftraege' && link.to !== '/artikel' && link.to !== '/zerlege' && link.to !== '/kommissionierung' && link.to !== '/kunden' && link.to !== '/mitarbeiter' && link.to !== '/stats' && (link.to !== '/shop' && !(isKommissionierer && link.to === '/kommissionierung'))).map(link => (
                 <li className="nav-item" key={link.to}>
                   <NavLink className="nav-link" to={link.to}>{link.label}</NavLink>
                 </li>

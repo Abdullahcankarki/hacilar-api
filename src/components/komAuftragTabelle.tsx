@@ -80,7 +80,10 @@ const KomAuftragTabelle: React.FC<Props> = ({ titel, auftraege, defaultCollapsed
                                         key={auftrag.id}
                                         style={user?.role?.includes('admin') ? { cursor: 'pointer' } : undefined}
                                         onClick={() => {
-                                            if (user?.role?.includes('admin')) {
+                                            if (
+                                                user?.role?.includes('admin') ||
+                                                (user?.role?.includes('kommissionierung') && auftrag.kommissioniertVon === user?.id)
+                                            ) {
                                                 navigate(`/kommissionierung/${auftrag.id}`);
                                             }
                                         }}
@@ -90,7 +93,10 @@ const KomAuftragTabelle: React.FC<Props> = ({ titel, auftraege, defaultCollapsed
                                                 className="badge bg-info"
                                                 style={{ cursor: 'pointer' }}
                                                 onClick={() => {
-                                                    if (user?.role?.includes('admin')) {
+                                                    if (
+                                                        user?.role?.includes('admin') ||
+                                                        (user?.role?.includes('kommissionierung') && auftrag.kommissioniertVon === user?.id)
+                                                    ) {
                                                       navigate(`/kommissionierung/${auftrag.id}`);
                                                     }
                                                   }}

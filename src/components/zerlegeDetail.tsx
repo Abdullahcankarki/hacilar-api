@@ -33,6 +33,7 @@ const ZerlegeDetail: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showError, setShowError] = useState(true);
 
   const isZerleger = user?.role.includes("zerleger")
   const isAdmin = user?.role.includes("admin")
@@ -76,7 +77,12 @@ const ZerlegeDetail: React.FC = () => {
   };
 
   if (loading) return <Spinner animation="border" />;
-  if (error) return <Alert variant="danger">{error}</Alert>;
+  if (error && showError) return (
+    <div className="alert alert-danger alert-dismissible fade show" role="alert">
+      {error}
+      <button type="button" className="btn-close" onClick={() => setShowError(false)} aria-label="Close"></button>
+    </div>
+  );
   if (!data) return <Alert variant="warning">Kein Zerlegeauftrag gefunden.</Alert>;
 
   return (
@@ -86,7 +92,7 @@ const ZerlegeDetail: React.FC = () => {
           <div>
             <h5 className="mb-0">Zerlegeauftrag</h5>
             <small className="text-muted">für {data.kundenName}</small><br />
-            <small className="text-muted">Auftragsnummer: {data.auftragId?.slice(-6).toUpperCase()}</small>
+            <small className="text-muted">Auftragsnummer: {data.auftragsnummer}</small>
           </div>
           <small className="text-muted text-end">{formatDateNormal(data.erstelltAm)}</small>
         </div>

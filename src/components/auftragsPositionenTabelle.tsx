@@ -43,19 +43,19 @@ const AuftragPositionenTabelle: React.FC<Props> = ({
     const handleChange = (index: number, field: keyof ArtikelPositionResource, value: any) => {
         const newPositions = [...positions];
         (newPositions[index] as any)[field] = value;
-    
+
         const pos = newPositions[index];
-    
+
         // Artikel suchen
         const artikel = alleArtikel.find(a => a.id === pos.artikel);
-    
+
         // Menge setzen
         const menge = pos.menge || 0;
         const einzelpreis = pos.einzelpreis ?? 0;
-    
+
         // Standard: Gewicht
         let gewicht = 0;
-    
+
         if (artikel) {
             switch (pos.einheit) {
                 case 'kg':
@@ -74,11 +74,31 @@ const AuftragPositionenTabelle: React.FC<Props> = ({
                     gewicht = 0;
             }
         }
-    
+
         pos.gesamtgewicht = gewicht;
         pos.gesamtpreis = einzelpreis * gewicht; // Jetzt gewichtsbasiert!
-    
+
         onChange(newPositions);
+
+        // Hintergrund-Update: alle Felder aktualisieren, wenn Position eine ID hat
+        const posToUpdate = newPositions[index];
+        if (posToUpdate.id) {
+            api.updateArtikelPosition(posToUpdate.id, {
+                artikel: posToUpdate.artikel,
+                menge: posToUpdate.menge,
+                einheit: posToUpdate.einheit,
+                einzelpreis: posToUpdate.einzelpreis,
+                gesamtgewicht: posToUpdate.gesamtgewicht,
+                gesamtpreis: posToUpdate.gesamtpreis,
+                bemerkung: posToUpdate.bemerkung,
+                zerlegung: posToUpdate.zerlegung,
+                vakuum: posToUpdate.vakuum,
+                zerlegeBemerkung: posToUpdate.zerlegeBemerkung,
+                auftragId
+            }).catch((err) => {
+                console.error("Fehler beim Hintergrund-Update:", err);
+            });
+        }
     };
 
     const handleAdd = () => {
@@ -298,6 +318,7 @@ const AuftragPositionenTabelle: React.FC<Props> = ({
                                                         onKeyDown={(e) => e.key === 'Enter' && stopEdit()}
                                                         onChange={(e) => handleChange(index, 'menge', parseNumberInput(e.target.value))}
                                                         className="form-control-sm"
+                                                        style={{ minWidth: '120px' }}
                                                     />
                                                 ) : (
                                                     <div className="editable-cell">
@@ -326,6 +347,7 @@ const AuftragPositionenTabelle: React.FC<Props> = ({
                                                         autoFocus
                                                         onKeyDown={(e) => e.key === 'Enter' && stopEdit()}
                                                         className="form-control-sm"
+                                                        style={{ minWidth: '120px' }}
                                                     >
                                                         <option value="kg">kg</option>
                                                         <option value="stück">stück</option>

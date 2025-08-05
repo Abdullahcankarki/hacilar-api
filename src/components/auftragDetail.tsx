@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Alert, Button, Form, Modal, Spinner } from 'react-bootstrap';
 import { AuftragResource, ArtikelPositionResource, ArtikelResource } from '../Resources';
 import { api } from '../backend/api';
@@ -18,6 +18,7 @@ const formatDate = (dateStr?: string) => {
 
 const AuftragDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
+    const navigate = useNavigate();
     const { user } = useAuth();
     const isKunde = user?.role?.includes('kunde');
     const [auftrag, setAuftrag] = useState<AuftragResource | null>(null);
@@ -162,6 +163,7 @@ const AuftragDetail: React.FC = () => {
                             if (!auftrag?.id) return;
                             await api.setAuftragInBearbeitung(auftrag.id);
                             setStatusSuccess('Auftrag in Kommissionierung überführt.');
+                            navigate('/auftraege');
                         } catch (err: any) {
                             setStatusError(err.message || 'Fehler beim Start der Kommissionierung.');
                         }
