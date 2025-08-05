@@ -157,6 +157,13 @@ export const Layout: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    if (meldung) {
+      const timer = setTimeout(() => setMeldung(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [meldung]);
+
   return (
     <>
       <NavBar

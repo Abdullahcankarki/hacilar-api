@@ -179,7 +179,7 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
             onChange(updated);
             closeKommissionierenModal();
         } catch (err: any) {
-            setError('Fehler beim Speichern: ' + (err.message || 'Unbekannter Fehler'));
+            setError('Beim Speichern ist ein Problem aufgetreten. Bitte überprüfe deine Eingaben und versuche es erneut.');
         }
     };
 

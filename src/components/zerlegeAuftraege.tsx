@@ -41,6 +41,13 @@ const ZerlegeAuftraege: React.FC = () => {
     fetchZerlegeauftraege();
   }, []);
 
+  useEffect(() => {
+    if (todayDeleted) {
+      const timeout = setTimeout(() => setTodayDeleted(false), 5000);
+      return () => clearTimeout(timeout);
+    }
+  }, [todayDeleted]);
+
   if (loading) return <div className="container my-4">Lädt...</div>;
 
   return (
@@ -60,8 +67,9 @@ const ZerlegeAuftraege: React.FC = () => {
       </div>
 
       {todayDeleted && (
-        <div className="alert alert-success" role="alert">
+        <div className="alert alert-success alert-dismissible fade show" role="alert">
           Zerlegeaufträge wurden erfolgreich gelöscht.
+          <button type="button" className="btn-close" onClick={() => setTodayDeleted(false)} aria-label="Close"></button>
         </div>
       )}
       {error && (
@@ -90,7 +98,7 @@ const ZerlegeAuftraege: React.FC = () => {
                     onClick={() => navigate(`/zerlege/${auftrag.id}`)}
                   >
                     <td className="fw-semibold">
-                      #{auftrag.auftragId?.slice(-6).toUpperCase()}
+                      #{auftrag.auftragsnummer}
                     </td>
                     <td>{auftrag.kundenName}</td>
                     <td>

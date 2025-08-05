@@ -1,7 +1,7 @@
 // Auftraege.tsx
 import React, { useEffect, useState } from 'react';
 import { AuftragResource } from '../Resources';
-import {getAlleAuftraegeInBearbeitung } from '../backend/api';
+import { getAlleAuftraegeInBearbeitung } from '../backend/api';
 import { useAuth } from '../providers/Authcontext';
 import KomAuftragTabelle from './komAuftragTabelle';
 
@@ -77,6 +77,7 @@ const KomAuftraege: React.FC = () => {
             return (
                 <>
                     <KomAuftragTabelle titel="Bereit zur Kommissionierung" auftraege={gruppiertNachStatus.offen} />
+                    <KomAuftragTabelle titel="In Kommissionierung" auftraege={gruppiertNachStatus.gestartet} />
                     <KomAuftragTabelle titel="Bereit zum Beladen" auftraege={gruppiertNachStatus.gepruft} />
                 </>
             );
