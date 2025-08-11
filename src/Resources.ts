@@ -60,9 +60,9 @@ export type AuftragResource = {
   bearbeiter?: string;
   gewicht?: number;
   preis?: number;
-  palettenAnzahl?: number;
   kontrolliertAm?: string;
   gesamtPaletten?: number;
+  gesamtBoxen?: number;
   kommissioniertVon?: string;
   kommissioniertVonName?: string;
   kontrolliertVon?: string;

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../providers/Authcontext';
+import { useNavigate } from 'react-router-dom';
 import { KundeResource, MitarbeiterResource } from '../Resources';
 import {
   getAuftragByCutomerId,
@@ -11,6 +12,7 @@ import {
 
 const Profil: React.FC = () => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [userData, setUserData] = useState<KundeResource | MitarbeiterResource | null>(null);
   const [formData, setFormData] = useState<any>({});
   const [isEditing, setIsEditing] = useState(false);
@@ -493,7 +495,7 @@ const Profil: React.FC = () => {
                             {sortedAuftraege.map((auftrag) => (
                               <tr
                                 key={auftrag.id}
-                                onClick={() => window.location.href = `/auftraege/${auftrag.id}`}
+                                onClick={() => navigate(`/auftraege/${auftrag.id}`)}
                                 style={{ cursor: 'pointer' }}
                               >
                                 <td className="fw-medium text-center">{auftrag.auftragsnummer}</td>

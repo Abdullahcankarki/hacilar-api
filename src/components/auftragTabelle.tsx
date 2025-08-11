@@ -96,6 +96,7 @@ const AuftragTabelle: React.FC<Props> = ({ titel, auftraege, onBearbeitung, onOe
                                     <th onClick={() => handleSort('gewicht')} style={{ cursor: 'pointer' }} className="text-nowrap d-none d-md-table-cell">
                                         Gewicht {sortField === 'gewicht' ? (sortOrder === 'asc' ? <FaChevronUp /> : <FaChevronDown />) : ''}
                                     </th>
+                                    <th className="text-nowrap d-none d-md-table-cell">Status</th>
                                     {!isUser && (onBearbeitung || onOeffnen || onComplete || onCancel || onDelete) && (
                                         <th className="d-none d-md-table-cell">Aktionen</th>
                                     )}
@@ -120,6 +121,19 @@ const AuftragTabelle: React.FC<Props> = ({ titel, auftraege, onBearbeitung, onOe
                                         </td>
                                         <td className="text-nowrap d-none d-md-table-cell">
                                             {auftrag.gewicht != null ? `${auftrag.gewicht.toFixed(2)} kg` : <span className="text-muted">-</span>}
+                                        </td>
+                                        <td className="text-nowrap d-none d-md-table-cell">
+                                            {auftrag.kontrolliertStatus ? (
+                                                <span className={`badge bg-${auftrag.kontrolliertStatus === 'geprüft' ? 'success' : auftrag.kontrolliertStatus === 'in Kontrolle' ? 'warning' : 'secondary'}`}>
+                                                    Kontrolle: {auftrag.kontrolliertStatus}
+                                                </span>
+                                            ) : auftrag.kommissioniertStatus ? (
+                                                <span className={`badge bg-${auftrag.kommissioniertStatus === 'fertig' ? 'success' : auftrag.kommissioniertStatus === 'gestartet' ? 'warning' : 'secondary'}`}>
+                                                    Kommission: {auftrag.kommissioniertStatus}
+                                                </span>
+                                            ) : (
+                                                <span className="badge bg-secondary">–</span>
+                                            )}
                                         </td>
                                         {!isUser && (onBearbeitung || onOeffnen || onComplete || onCancel || onDelete) && (
                                             <td onClick={(e) => e.stopPropagation()} className="d-none d-md-table-cell">

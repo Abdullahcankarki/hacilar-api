@@ -19,6 +19,7 @@ const formatDate = (dateStr?: string) => {
     });
 };
 
+
 const formatDateJustDay = (dateStr?: string) => {
     if (!dateStr) return '—';
     return new Date(dateStr).toLocaleString('de-DE', {
@@ -27,6 +28,26 @@ const formatDateJustDay = (dateStr?: string) => {
         month: '2-digit',
         year: 'numeric',
     });
+};
+
+// Hilfsfunktion: Summiert Paletten und Boxen aus Leergut-Feldern aller Positionen
+const calcTotalsFromLeergut = (positions: ArtikelPositionResource[]) => {
+    let paletten = 0;
+    let boxen = 0;
+    for (const pos of positions) {
+        if (!pos.leergut || !Array.isArray(pos.leergut)) continue;
+        for (const lg of pos.leergut) {
+            const artNorm = (lg.leergutArt || '').toString().trim().toLowerCase();
+            const anzahl = Number(lg.leergutAnzahl) || 0;
+            // Zähllogik basierend auf den fixen Values aus dem UI
+            const paletteKeys = new Set(['h1', 'einwegpalette', 'euro palette', 'europalette']);
+            const isPalette = paletteKeys.has(artNorm);
+            const isBigBox = artNorm === 'big box';
+            if (isPalette) paletten += anzahl;
+            if (isBigBox) boxen += anzahl;
+        }
+    }
+    return { paletten, boxen };
 };
 
 
@@ -46,6 +67,8 @@ const KomAuftragDetail: React.FC = () => {
     const [editingKommissioniert, setEditingKommissioniert] = useState(false);
     const [editingKontrollstatus, setEditingKontrollstatus] = useState(false);
     const [editingPaletten, setEditingPaletten] = useState(false);
+    const [editingBoxen, setEditingBoxen] = useState(false);
+    const [showKontrolleModal, setShowKontrolleModal] = useState(false);
 
     const isAdmin = user?.role?.includes('admin');
     const isKommissionierer = user?.role?.includes('kommissionierung');
@@ -91,6 +114,22 @@ const KomAuftragDetail: React.FC = () => {
             return () => clearTimeout(timeout);
         }
     }, [statusError]);
+
+    // Automatische Berechnung der Leergut-Summen, solange keine manuelle Bearbeitung aktiv ist
+    useEffect(() => {
+        if (!auftrag) return;
+        if (editingPaletten || editingBoxen) return; // manuelle Eingabe hat Vorrang
+        const { paletten, boxen } = calcTotalsFromLeergut(positions);
+        setAuftrag(prev => prev ? { ...prev, gesamtPaletten: paletten, gesamtBoxen: boxen } : prev);
+    }, [positions, editingPaletten, editingBoxen]);
+
+    // Beim Öffnen des Modals aktuelle berechnete Werte in den Auftrag setzen, damit Felder vorbefüllt sind
+    useEffect(() => {
+        if (!auftrag) return;
+        if (!showModal) return;
+        const { paletten, boxen } = calcTotalsFromLeergut(positions);
+        setAuftrag(prev => prev ? { ...prev, gesamtPaletten: paletten, gesamtBoxen: boxen } : prev);
+    }, [showModal, positions]);
 
     const handleSavePositions = async () => {
         setError('');
@@ -250,6 +289,30 @@ const KomAuftragDetail: React.FC = () => {
                                         />
                                     )}
                                 </p>
+                                <p className="mb-0"><strong>Gesamtanzahl der Boxen:</strong>{' '}
+                                    {!editingBoxen ? (
+                                        <span style={{ cursor: 'pointer' }} onClick={() => setEditingBoxen(true)}>
+                                            {auftrag.gesamtBoxen ?? '—'} <i className="bi bi-pencil ms-1"></i>
+                                        </span>
+                                    ) : (
+                                        <Form.Control
+                                            type="number"
+                                            min={0}
+                                            value={auftrag.gesamtBoxen || ''}
+                                            onChange={(e) => setAuftrag(prev => ({ ...prev!, gesamtBoxen: parseInt(e.target.value) }))}
+                                            onBlur={async () => {
+                                                setEditingBoxen(false);
+                                                if (auftrag?.id) {
+                                                    const updated = await api.updateAuftrag(auftrag.id, { ...auftrag, gesamtBoxen: auftrag.gesamtBoxen });
+                                                    setAuftrag(updated);
+                                                }
+                                            }}
+                                            autoFocus
+                                            size="sm"
+                                            style={{ display: 'inline-block', width: '100px' }}
+                                        />
+                                    )}
+                                </p>
                             </div>
                         )}
                     </div>
@@ -361,8 +424,17 @@ const KomAuftragDetail: React.FC = () => {
                         <Form.Control
                             type="number"
                             min={0}
-                            value={auftrag.gesamtPaletten || ''}
+                            value={auftrag.gesamtPaletten || '0'}
                             onChange={(e) => setAuftrag({ ...auftrag, gesamtPaletten: parseInt(e.target.value) })}
+                        />
+                    </Form.Group>
+                    <Form.Group className="mb-3">
+                        <Form.Label>Gesamtanzahl der Boxen</Form.Label>
+                        <Form.Control
+                            type="number"
+                            min={0}
+                            value={auftrag.gesamtBoxen || '0'}
+                            onChange={(e) => setAuftrag({ ...auftrag, gesamtBoxen: parseInt(e.target.value) })}
                         />
                     </Form.Group>
                 </Modal.Body>
@@ -406,13 +478,13 @@ const KomAuftragDetail: React.FC = () => {
                         </Button>
                     );
                 }
-                // Button Kontrolle abschließen wie gehabt
+                // Button Kontrolle abschließen öffnet Modal
                 if ((isKontrolleur || isAdmin) && auftrag.kontrolliertStatus === 'in Kontrolle' && istZustaendigerKontrolleur) {
                     return (
                         <Button
                             variant="success"
                             className="mb-3 mt-3"
-                            onClick={handleEndeKontrolle}
+                            onClick={() => setShowKontrolleModal(true)}
                         >
                             Kontrolle abschließen
                         </Button>
@@ -421,17 +493,76 @@ const KomAuftragDetail: React.FC = () => {
                 return null;
             })()}
 
-            <div className="card mt-4">
-                <div className="card-header">
+            <div className="card mt-4 border-secondary">
+                <div className="card-header bg-light text-dark">
                     Bemerkung
                 </div>
                 <div className="card-body">
-                    <p className="mb-0">{auftrag.bemerkungen || '—'}</p>
+                    {auftrag.bemerkungen ? (
+                        <p className="mb-0 fw-bold" style={{ backgroundColor: '#dc3545', color: 'white', padding: '10px', borderRadius: '6px' }}>
+                            {auftrag.bemerkungen}
+                        </p>
+                    ) : (
+                        <p className="mb-0 text-muted">—</p>
+                    )}
                 </div>
             </div>
 
             {statusError && <Alert variant="danger" className="mt-3 print-hidden">{statusError}</Alert>}
             {statusSuccess && <Alert variant="success" className="mt-3 print-hidden">{statusSuccess}</Alert>}
+
+            {/* Kontrolle abschließen Modal */}
+            <Modal show={showKontrolleModal} onHide={() => setShowKontrolleModal(false)}>
+                <Modal.Header closeButton>
+                    <Modal.Title>Kontrolle abschließen</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <p>Bist du sicher, dass du die Kontrolle abschließen möchtest? Diese Aktion kann nicht rückgängig gemacht werden.</p>
+                    <p><strong>Zusammenfassung Leergut:</strong></p>
+                    <table className="table table-sm table-bordered">
+                        <thead>
+                            <tr>
+                                {Array.from(
+                                    new Set(
+                                        positions.flatMap(pos =>
+                                            pos.leergut?.map(lg => lg.leergutArt) || []
+                                        )
+                                    )
+                                ).map(art => (
+                                    <th key={art}>{art}</th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                {Object.entries(positions.reduce((acc, pos) => {
+                                    if (pos.leergut && Array.isArray(pos.leergut)) {
+                                        for (const lg of pos.leergut) {
+                                            const key = lg.leergutArt;
+                                            if (!acc[key]) acc[key] = 0;
+                                            acc[key] += lg.leergutAnzahl || 0;
+                                        }
+                                    }
+                                    return acc;
+                                }, {} as Record<string, number>)).map(([_, anzahl]) => (
+                                    <td key={_}>{anzahl}</td>
+                                ))}
+                            </tr>
+                        </tbody>
+                    </table>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setShowKontrolleModal(false)}>
+                        Abbrechen
+                    </Button>
+                    <Button variant="success" onClick={() => {
+                        handleEndeKontrolle();
+                        setShowKontrolleModal(false);
+                    }}>
+                        Kontrolle jetzt abschließen
+                    </Button>
+                </Modal.Footer>
+            </Modal>
         </div>
     );
 };
