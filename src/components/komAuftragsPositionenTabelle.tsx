@@ -93,6 +93,11 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
             if (item.leergutArt === 'e6') return { ...item, leergutGewicht: 1.5 };
             if (item.leergutArt === 'big box') return { ...item, leergutGewicht: 34.5 };
             if (item.leergutArt === 'karton') return item; // manuell
+            // additional cases
+            if (item.leergutArt === 'euro palette') return item; // manuell
+            if (item.leergutArt === 'einwegpalette') return item; // manuell
+            if (item.leergutArt === 'haken') return { ...item, leergutGewicht: 1.3 };
+            if (item.leergutArt === 'tüten') return { ...item, leergutGewicht: 0 };
             return item;
         });
         setModalFields((prev: any) => ({
@@ -204,7 +209,8 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
                                 <th className="d-none d-md-table-cell">Bemerkung</th>
                                 <th>Artikel</th>
                                 <th>Menge</th>
-                                {isAdmin && <th>Kommissioniertes Gewicht (netto)</th>}
+                                {(isKontrolleur || isAdmin) && <th>Kommissioniertes Gewicht (netto)</th>}
+                                {(isKontrolleur || isAdmin) && <th>Leergut</th>}
                                 <th></th>
                             </tr>
                         </thead>
@@ -219,7 +225,13 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
                                     >
                                         {/* Bemerkung */}
                                         <td className="d-none d-md-table-cell">
-                                            {pos.bemerkung || '-'}
+                                            {pos.bemerkung ? (
+                                                <span style={{ backgroundColor: '#dc3545', color: 'white', padding: '4px 8px', borderRadius: '6px', fontWeight: 'bold', display: 'inline-block' }}>
+                                                    {pos.bemerkung}
+                                                </span>
+                                            ) : (
+                                                <span className="text-muted">–</span>
+                                            )}
                                         </td>
                                         {/* Artikel */}
                                         <td>
@@ -232,13 +244,26 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
                                             {pos.menge ?? '-'} {pos.einheit ?? "kg"}
                                         </td>
                                         {/* Kommissioniertes Gewicht (netto) */}
-                                        {isAdmin && (
+                                        {(isKontrolleur || isAdmin) && (
                                             <td>
                                                 {pos.kommissioniertAm
                                                     ? (typeof pos.nettogewicht !== "undefined" && pos.nettogewicht !== null
                                                         ? pos.nettogewicht
                                                         : '—')
                                                     : 'noch nicht kommissioniert'}
+                                            </td>
+                                        )}
+                                        {/* Leergut Spalte */}
+                                        {(isKontrolleur || isAdmin) && (
+                                            <td>
+                                                {pos.leergut && pos.leergut.length > 0 ? (
+                                                    pos.leergut
+                                                        .filter(l => l.leergutArt && l.leergutAnzahl)
+                                                        .map(l => `${l.leergutArt}: ${l.leergutAnzahl}`)
+                                                        .join(', ')
+                                                ) : (
+                                                    <span className="text-muted">–</span>
+                                                )}
                                             </td>
                                         )}
                                         {/* Kommissionieren-Button */}
@@ -260,6 +285,31 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
                             })}
                         </tbody>
                     </Table>
+                    {/* Summierte Leergutarten-Tabelle */}
+                    {(isKontrolleur || isAdmin) && (
+                        <Table bordered size="sm" className="mt-4 w-auto">
+                            <thead>
+                                <tr>
+                                    {Array.from(new Set(positions.flatMap(p => p.leergut || []).map(l => l.leergutArt)))
+                                        .map((art, i) => (
+                                            <th key={i} className="text-center">{art}</th>
+                                        ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    {Array.from(new Set(positions.flatMap(p => p.leergut || []).map(l => l.leergutArt)))
+                                        .map((art, i) => {
+                                            const summe = positions
+                                                .flatMap(p => p.leergut || [])
+                                                .filter(l => l.leergutArt === art)
+                                                .reduce((acc, l) => acc + (typeof l.leergutAnzahl === 'number' ? l.leergutAnzahl : 0), 0);
+                                            return <td key={i} className="text-center fw-bold">{summe || '–'}</td>;
+                                        })}
+                                </tr>
+                            </tbody>
+                        </Table>
+                    )}
                 </div>
             </div>
 
@@ -342,6 +392,10 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
                                                     <option value="e6">E6</option>
                                                     <option value="big box">Big Box</option>
                                                     <option value="korb">Korb</option>
+                                                    <option value="euro palette">Europalette</option>
+                                                    <option value="einwegpalette">Einwegpalette</option>
+                                                    <option value="haken">Haken</option>
+                                                    <option value="tüten">Tüte(n)</option>
                                                 </Form.Select>
                                             </td>
                                             <td>
@@ -364,12 +418,15 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
                                                     onChange={e => handleLeergutChange(i, 'leergutGewicht', e.target.value)}
                                                     size="sm"
                                                     disabled={
-                                                        (l.leergutArt !== 'karton') ||
+                                                        !(l.leergutArt === 'karton' || l.leergutArt === 'einwegpalette' || l.leergutArt === 'euro palette') ||
                                                         (!!modalFields.kommissioniertAm &&
                                                             (isAdmin || isKontrolleur) &&
                                                             !isEditMode)
                                                     }
                                                 />
+                                                {(l.leergutArt === 'karton' || l.leergutArt === 'einwegpalette' || l.leergutArt === 'euro palette') && (
+                                                    <small className="text-danger">Bitte wiege das Objekt ab und trage das Gewicht ein.</small>
+                                                )}
                                             </td>
                                             <td>
                                                 <Button
