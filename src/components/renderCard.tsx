@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ArtikelResource, ArtikelPositionResource } from '../Resources';
 import { Card, Col, Form, Button, Badge, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
@@ -27,6 +27,11 @@ type Props = {
     setBemerkungen: (data: { [id: string]: string }) => void;
 };
 
+const unitFromModus = (modus?: string) =>
+    modus === 'STÜCK' ? 'stück'
+        : modus === 'KARTON' ? 'karton'
+            : 'kg'; // fallback
+
 const RenderCard: React.FC<Props> = ({
     article, favoriten, setFavoriten, cart, setCart, onAddToCart,
     einheiten, setEinheiten, mengen, setMengen,
@@ -43,6 +48,15 @@ const RenderCard: React.FC<Props> = ({
     const { user } = useAuth();
     const [lokaleMenge, setLokaleMenge] = useState<{ [artikelId: string]: number }>({});
     const [lokaleEinheit, setLokaleEinheit] = useState<{ [artikelId: string]: string }>({});
+
+    useEffect(() => {
+        if (!article.id) return;
+        const desired = unitFromModus(article.erfassungsModus);
+        setLokaleEinheit(prev => {
+            if (prev[article.id] === desired) return prev; // kein unnötiges Update
+            return { ...prev, [article.id]: desired };
+        });
+    }, [article.id, article.erfassungsModus]);
 
     const toggleFavorit = async () => {
         if (!article.id || !user) return;
@@ -141,12 +155,11 @@ const RenderCard: React.FC<Props> = ({
                             style={{ backgroundColor: '#f0f2f5' }}
                             value={
                                 isInCart
-                                    ? cartItem?.einheit?.toString() ?? ''
-                                    : lokaleEinheit[article.id!]?.toString() ?? ''
+                                    ? (cartItem?.einheit ?? '')
+                                    : (lokaleEinheit[article.id!] ?? unitFromModus(article.erfassungsModus))
                             }
                             onChange={(e) => {
-                                const neueEinheit = e.target.value as "kg" | "stück" | "kiste" | "karton";
-
+                                const neueEinheit = e.target.value as 'kg' | 'stück' | 'kiste' | 'karton';
                                 if (isInCart) {
                                     const updatedCart = cart.map(item =>
                                         item.artikel === article.id ? { ...item, einheit: neueEinheit } : item
@@ -154,10 +167,7 @@ const RenderCard: React.FC<Props> = ({
                                     setCart(updatedCart);
                                     localStorage.setItem('warenkorb', JSON.stringify(updatedCart));
                                 } else {
-                                    setLokaleEinheit(prev => ({
-                                        ...prev,
-                                        [article.id!]: neueEinheit
-                                    }));
+                                    setLokaleEinheit(prev => ({ ...prev, [article.id!]: neueEinheit }));
                                 }
                             }}
                         >

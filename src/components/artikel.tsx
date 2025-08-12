@@ -15,7 +15,7 @@ const Artikel: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [showArticleModal, setShowArticleModal] = useState<boolean>(false);
   const [editingArticle, setEditingArticle] = useState<ArtikelResource | null>(null);
-  const [newArticle, setNewArticle] = useState<Omit<ArtikelResource, 'id'>>({
+  const [newArticle, setNewArticle] = useState<Omit<ArtikelResource, 'id'> & { erfassungsModus: 'GEWICHT' | 'KARTON' | 'STÜCK'}>({
     name: '',
     preis: 0,
     artikelNummer: '',
@@ -25,6 +25,7 @@ const Artikel: React.FC = () => {
     gewichtProKiste: 0,
     bildUrl: '',
     ausverkauft: false, // NEU
+    erfassungsModus: 'GEWICHT',
   });
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
   const [customers, setCustomers] = useState<KundeResource[]>([]);
@@ -85,7 +86,8 @@ const Artikel: React.FC = () => {
         gewichtProKarton: 0,
         gewichtProKiste: 0,
         bildUrl: '',
-        ausverkauft: false
+        ausverkauft: false,
+        erfassungsModus: 'GEWICHT'
       });
     } catch (err: any) {
       alert(err.message || 'Fehler beim Speichern des Artikels');
@@ -121,16 +123,48 @@ const Artikel: React.FC = () => {
       );
     })
     .sort((a, b) => {
-      if (sortOption === 'nameAsc') {
-        return a.name.localeCompare(b.name);
-      } else if (sortOption === 'nameDesc') {
-        return b.name.localeCompare(a.name);
-      } else if (sortOption === 'preisAsc') {
-        return a.preis - b.preis;
-      } else if (sortOption === 'preisDesc') {
-        return b.preis - a.preis;
+      const getStr = (v?: string) => (v ?? '').toString().toLowerCase();
+      const getNum = (v?: number) => (typeof v === 'number' && !isNaN(v) ? v : Number.NEGATIVE_INFINITY);
+      switch (sortOption) {
+        case 'nameAsc':
+          return getStr(a.name).localeCompare(getStr(b.name));
+        case 'nameDesc':
+          return getStr(b.name).localeCompare(getStr(a.name));
+        case 'preisAsc':
+          return a.preis - b.preis;
+        case 'preisDesc':
+          return b.preis - a.preis;
+        case 'kategorieAsc':
+          return getStr(a.kategorie).localeCompare(getStr(b.kategorie));
+        case 'kategorieDesc':
+          return getStr(b.kategorie).localeCompare(getStr(a.kategorie));
+        case 'artikelNummerAsc':
+          return getStr(a.artikelNummer).localeCompare(getStr(b.artikelNummer));
+        case 'artikelNummerDesc':
+          return getStr(b.artikelNummer).localeCompare(getStr(a.artikelNummer));
+        case 'gewichtProStueckAsc':
+          return getNum(a.gewichtProStueck) - getNum(b.gewichtProStueck);
+        case 'gewichtProStueckDesc':
+          return getNum(b.gewichtProStueck) - getNum(a.gewichtProStueck);
+        case 'gewichtProKartonAsc':
+          return getNum(a.gewichtProKarton) - getNum(b.gewichtProKarton);
+        case 'gewichtProKartonDesc':
+          return getNum(b.gewichtProKarton) - getNum(a.gewichtProKarton);
+        case 'gewichtProKisteAsc':
+          return getNum(a.gewichtProKiste) - getNum(b.gewichtProKiste);
+        case 'gewichtProKisteDesc':
+          return getNum(b.gewichtProKiste) - getNum(a.gewichtProKiste);
+        case 'modusAsc':
+          return getStr(a.erfassungsModus).localeCompare(getStr(b.erfassungsModus));
+        case 'modusDesc':
+          return getStr(b.erfassungsModus).localeCompare(getStr(a.erfassungsModus));
+        case 'ausverkauftAsc':
+          return Number(!!a.ausverkauft) - Number(!!b.ausverkauft);
+        case 'ausverkauftDesc':
+          return Number(!!b.ausverkauft) - Number(!!a.ausverkauft);
+        default:
+          return 0;
       }
-      return 0;
     });
 
   if (loading)
@@ -190,10 +224,22 @@ const Artikel: React.FC = () => {
           >
             <option value="nameAsc">Name: Aufsteigend</option>
             <option value="nameDesc">Name: Absteigend</option>
-            <option value="preisAsc">Preis: Aufsteigend</option>
-            <option value="preisDesc">Preis: Absteigend</option>
+            <option value="artikelNummerAsc">Artikelnummer: Aufsteigend</option>
+            <option value="artikelNummerDesc">Artikelnummer: Absteigend</option>
             <option value="kategorieAsc">Kategorie: Aufsteigend</option>
             <option value="kategorieDesc">Kategorie: Absteigend</option>
+            <option value="preisAsc">Preis: Aufsteigend</option>
+            <option value="preisDesc">Preis: Absteigend</option>
+            <option value="gewichtProStueckAsc">Gew./Stück: Aufsteigend</option>
+            <option value="gewichtProStueckDesc">Gew./Stück: Absteigend</option>
+            <option value="gewichtProKartonAsc">Gew./Karton: Aufsteigend</option>
+            <option value="gewichtProKartonDesc">Gew./Karton: Absteigend</option>
+            <option value="gewichtProKisteAsc">Gew./Kiste: Aufsteigend</option>
+            <option value="gewichtProKisteDesc">Gew./Kiste: Absteigend</option>
+            <option value="modusAsc">Erfassungsmodus: Aufsteigend</option>
+            <option value="modusDesc">Erfassungsmodus: Absteigend</option>
+            <option value="ausverkauftAsc">Ausverkauft: Nein→Ja</option>
+            <option value="ausverkauftDesc">Ausverkauft: Ja→Nein</option>
           </select>
         </div>
         <div className="col-md-4 text-end">
@@ -268,6 +314,7 @@ const Artikel: React.FC = () => {
                           gewichtProKiste: a.gewichtProKiste || 0,
                           bildUrl: a.bildUrl || '',
                           ausverkauft: a.ausverkauft || false,
+                          erfassungsModus: a.erfassungsModus || 'GEWICHT',
                         });
                         setShowArticleModal(true);
                       }}
@@ -301,13 +348,18 @@ const Artikel: React.FC = () => {
                 <th>Artikelnummer</th>
                 <th>Kategorie</th>
                 <th>Preis (€)</th>
+                <th>Gew./Stück (kg)</th>
+                <th>Gew./Karton (kg)</th>
+                <th>Gew./Kiste (kg)</th>
+                <th>Modus</th>
+                <th>Ausverkauft</th>
                 <th>Aktionen</th>
               </tr>
             </thead>
             <tbody>
               {filteredArticles.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center text-muted">Keine Artikel gefunden.</td>
+                  <td colSpan={10} className="text-center text-muted">Keine Artikel gefunden.</td>
                 </tr>
               ) : (
                 filteredArticles.map((a) => (
@@ -316,6 +368,11 @@ const Artikel: React.FC = () => {
                     <td>{a.artikelNummer}</td>
                     <td>{a.kategorie}</td>
                     <td>{a.preis.toFixed(2)}</td>
+                    <td>{a.gewichtProStueck !== undefined ? a.gewichtProStueck.toFixed(2) : '-'}</td>
+                    <td>{a.gewichtProKarton !== undefined ? a.gewichtProKarton.toFixed(2) : '-'}</td>
+                    <td>{a.gewichtProKiste !== undefined ? a.gewichtProKiste.toFixed(2) : '-'}</td>
+                    <td>{a.erfassungsModus}</td>
+                    <td>{a.ausverkauft ? 'Ja' : 'Nein'}</td>
                     <td>
                       <div className="btn-group btn-group-sm" role="group">
                         <button className="btn btn-primary" onClick={() => {
@@ -330,6 +387,7 @@ const Artikel: React.FC = () => {
                             gewichtProKiste: a.gewichtProKiste || 0,
                             bildUrl: a.bildUrl || '',
                             ausverkauft: a.ausverkauft || false,
+                            erfassungsModus: a.erfassungsModus || 'GEWICHT',
                           });
                           setShowArticleModal(true);
                         }}>
@@ -468,6 +526,18 @@ const Artikel: React.FC = () => {
                         value={newArticle.bildUrl || ''}
                         onChange={(e) => setNewArticle({ ...newArticle, bildUrl: e.target.value })}
                       />
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label">Erfassungsmodus</label>
+                      <select
+                        className="form-select"
+                        value={newArticle.erfassungsModus || 'GEWICHT'}
+                        onChange={(e) => setNewArticle({ ...newArticle, erfassungsModus: e.target.value as 'GEWICHT' | 'KARTON'| 'STÜCK' })}
+                      >
+                        <option value="GEWICHT">Gewicht</option>
+                        <option value="KARTON">Karton</option>
+                        <option value="STÜCK">Stück</option>
+                      </select>
                     </div>
                     <div className="form-check mb-3">
                       <input

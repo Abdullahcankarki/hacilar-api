@@ -15,6 +15,27 @@ type Props = {
 
 const parseNumberInput = (value: string): number => parseFloat(value.replace(',', '.'));
 
+// Holt das Karton-Gewicht aus dem Artikel (passe Feldnamen an deinen ArtikelResource an)
+const getKartonGewicht = (artikel?: Partial<ArtikelResource>) => {
+    return (artikel as any)?.kartonGewicht
+        ?? (artikel as any)?.kartongewicht
+        ?? (artikel as any)?.gewichtProKarton
+        ?? (artikel as any)?.gewicht_karton
+        ?? null;
+};
+
+// Rechnet Nettogewicht im KARTON-Modus:
+// basis = anzahl * kgProKarton
+// für Irregularitäten (mehrere Gruppen möglich): (basis - irregularCount*kgProKarton + sum(irregularCount_i * irregularGew_i))
+const computeNettoForKarton = (anzahl: number, kgProKarton: number, irregulars: Array<{ anzahl: number, gewicht: number }>) => {
+    const basis = anzahl * kgProKarton;
+    if (!irregulars?.length) return basis;
+    const totalIrreg = irregulars.reduce((acc, cur) => acc + (cur.anzahl || 0), 0);
+    const sumIrregGewicht = irregulars.reduce((acc, cur) => acc + (cur.anzahl || 0) * (cur.gewicht || 0), 0);
+    return basis - (totalIrreg * kgProKarton) + sumIrregGewicht;
+};
+
+
 const KomAuftragPositionenTabelle: React.FC<Props> = ({
     positions,
     alleArtikel,
@@ -37,11 +58,19 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
 
     // Helper for Modal Pflichtfeld-Check
     const modalPflichtfelderGefuellt = () => {
-        return (
-            modalFields.leergut &&
-            modalFields.bruttogewicht
-        );
+        if (modalOpenIndex === null) return false;
+        const modus = positions[modalOpenIndex]?.erfassungsModus;
+        if (modus === 'STÜCK') {
+            return modalFields.kommissioniertMenge !== '' && modalFields.kommissioniertMenge !== undefined && modalFields.kommissioniertMenge !== null;
+        }
+        if (modus === 'KARTON') {
+            return modalFields.kartonAnzahl !== '' && modalFields.kartonAnzahl !== undefined && modalFields.kartonAnzahl !== null;
+        }
+        // Gewichtsmodus
+        return modalFields.bruttogewicht !== '' && modalFields.bruttogewicht !== undefined && modalFields.bruttogewicht !== null;
     };
+
+
     // Admin darf Modal immer schließen
     const darfModalSchliessen = isAdmin || modalPflichtfelderGefuellt();
 
@@ -53,16 +82,19 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
             artikelName: pos.artikelName,
             menge: pos.menge,
             einheit: pos.einheit,
+            kommisioniertMenge: pos.kommissioniertMenge,
+            kommisioniertEinheit: pos.kommissioniertEinheit,
             kommissioniertBemerkung: pos.kommissioniertBemerkung || '',
             bruttogewicht: pos.bruttogewicht || '',
-            leergut: pos.leergut?.length
-                ? pos.leergut.map((l: any) => ({ ...l }))
-                : [],
-            chargennummern: pos.chargennummern?.length
-                ? [...pos.chargennummern]
-                : [],
-            kommissioniertAm: pos.kommissioniertAm, // für disabled-Logik
+            // NEU:
+            kartonAnzahl: (pos.kommissioniertEinheit === 'karton' ? pos.kommissioniertMenge : '') ?? '',
+            kartonIrregulars: [], // [{ anzahl: number, gewicht: number }]
+            //
+            leergut: pos.leergut?.length ? pos.leergut.map((l: any) => ({ ...l })) : [],
+            chargennummern: pos.chargennummern?.length ? [...pos.chargennummern] : [],
+            kommissioniertAm: pos.kommissioniertAm,
         });
+
         // Nur editierbar, wenn noch nicht kommissioniert
         setIsEditMode(!pos.kommissioniertAm);
     };
@@ -156,31 +188,99 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
         if (modalOpenIndex === null) return;
         const pos = positions[modalOpenIndex];
         const now = new Date();
+        setError(null);
+
         try {
-            // Leergut korrekt typisieren (Anzahl und Gewicht als Zahlen)
-            const leergutTyped = (modalFields.leergut || []).map((l: any) => ({
-                leergutArt: l.leergutArt,
-                leergutAnzahl: parseFloat(l.leergutAnzahl),
-                leergutGewicht: parseFloat(l.leergutGewicht),
-            }));
-            // API-Update
-            await api.updateArtikelPositionKommissionierung(pos.id, {
+            const isStueckModus = positions[modalOpenIndex]?.erfassungsModus === 'STÜCK';
+            const isKartonModus = positions[modalOpenIndex]?.erfassungsModus === 'KARTON';
+
+            // Basis-Payload (für beide Modi)
+            const payload: any = {
                 kommissioniertBemerkung: modalFields.kommissioniertBemerkung,
-                bruttogewicht: modalFields.bruttogewicht,
-                leergut: leergutTyped,
                 chargennummern: modalFields.chargennummern,
                 kommissioniertAm: now,
-            });
+            };
+
+            if (isStueckModus) {
+                const mengeVal = modalFields.kommissioniertMenge;
+                if (mengeVal === '' || mengeVal === undefined || mengeVal === null) {
+                    setError('Bitte die Stückanzahl eingeben.');
+                    return;
+                }
+                payload.kommissioniertMenge = parseNumberInput(String(mengeVal));
+                payload.kommissioniertEinheit = modalFields.kommissioniertEinheit || 'stück';
+            } else if (isKartonModus) {
+                const anzahlVal = modalFields.kartonAnzahl;
+                if (anzahlVal === '' || anzahlVal === undefined || anzahlVal === null) {
+                    setError('Bitte die Anzahl der Kartons eingeben.');
+                    return;
+                }
+                const artikelObj = alleArtikel.find(a => a.id === pos.artikel);
+                const kgProKartonRaw = getKartonGewicht(artikelObj);
+                if (!kgProKartonRaw || isNaN(Number(kgProKartonRaw))) {
+                    setError('Für diesen Artikel ist kein Kartongewicht hinterlegt.');
+                    return;
+                }
+                const anzahl = parseNumberInput(String(anzahlVal));
+                const kgProKarton = Number(kgProKartonRaw);
+
+                const irregulars = (modalFields.kartonIrregulars || []).map((r: any) => ({
+                    anzahl: (r.anzahl === '' || r.anzahl === undefined || r.anzahl === null) ? 0 : parseNumberInput(String(r.anzahl)),
+                    gewicht: (r.gewicht === '' || r.gewicht === undefined || r.gewicht === null) ? 0 : parseNumberInput(String(r.gewicht)),
+                }));
+
+                const netto = computeNettoForKarton(anzahl, kgProKarton, irregulars);
+
+                // Wir wollen NETTO speichern.
+                // Da dein Backend das Nettogewicht aus Brutto/Leergut ableitet,
+                // schicken wir bruttogewicht = netto und KEIN Leergut => Backend setzt nettogewicht = bruttogewicht.
+                payload.kommissioniertMenge = anzahl;
+                payload.kommissioniertEinheit = 'karton';
+                payload.bruttogewicht = netto;   // <-- netto als bruttogewicht senden
+                payload.leergut = [];            //    leergut leer lassen => nettogewicht = bruttogewicht im Backend
+            } else {
+                // Gewichts-Modus (wie gehabt)
+                const bruttoVal = modalFields.bruttogewicht;
+                if (bruttoVal === '' || bruttoVal === undefined || bruttoVal === null) {
+                    setError('Bitte das Bruttogewicht eingeben.');
+                    return;
+                }
+                const leergutTyped = (modalFields.leergut || []).map((l: any) => ({
+                    leergutArt: l.leergutArt,
+                    leergutAnzahl: l.leergutAnzahl === '' || l.leergutAnzahl === undefined || l.leergutAnzahl === null
+                        ? undefined
+                        : parseNumberInput(String(l.leergutAnzahl)),
+                    leergutGewicht: l.leergutGewicht === '' || l.leergutGewicht === undefined || l.leergutGewicht === null
+                        ? undefined
+                        : parseNumberInput(String(l.leergutGewicht)),
+                }));
+                payload.bruttogewicht = parseNumberInput(String(bruttoVal));
+                payload.leergut = leergutTyped;
+            }
+
+
+            // API-Update
+            await api.updateArtikelPositionKommissionierung(pos.id, payload);
+
             // Soft update local state
             const updated = [...positions];
             updated[modalOpenIndex] = {
                 ...pos,
-                kommissioniertBemerkung: modalFields.kommissioniertBemerkung,
-                bruttogewicht: modalFields.bruttogewicht,
-                leergut: leergutTyped,
-                chargennummern: modalFields.chargennummern,
+                kommissioniertBemerkung: payload.kommissioniertBemerkung,
+                chargennummern: payload.chargennummern,
                 kommissioniertAm: now,
-            };
+                ...(payload.hasOwnProperty('kommissioniertMenge') ? {
+                    kommissioniertMenge: payload.kommissioniertMenge,
+                    kommissioniertEinheit: payload.kommissioniertEinheit,
+                } : {}),
+                ...(payload.hasOwnProperty('bruttogewicht') ? {
+                    bruttogewicht: payload.bruttogewicht,
+                    nettogewicht: payload.bruttogewicht, // UI-Optimismus
+                    leergut: payload.leergut,
+                } : {}),
+            } as any;
+
+
             onChange(updated);
             closeKommissionierenModal();
         } catch (err: any) {
@@ -330,20 +430,127 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
                     </p>
                     <Form>
                         <Form.Group className="mb-2">
-                            <Form.Label>Bruttogewicht <span className="text-danger">*</span></Form.Label>
-                            <Form.Control
-                                type="number"
-                                min="0"
-                                value={modalFields.bruttogewicht ?? ''}
-                                onChange={e => handleModalFieldChange('bruttogewicht', e.target.value)}
-                                required
-                                disabled={
-                                    !!modalFields.kommissioniertAm &&
-                                    (isAdmin || isKontrolleur) &&
-                                    !isEditMode
-                                }
-                            />
+                            {positions[modalOpenIndex]?.erfassungsModus === 'STÜCK' ? (
+                                <>
+                                    <Form.Label>Stückanzahl</Form.Label>
+                                    <Form.Control
+                                        type="number"
+                                        min="0"
+                                        value={modalFields.kommissioniertMenge ?? ''}
+                                        onChange={e => {
+                                            handleModalFieldChange('kommissioniertMenge', e.target.value);
+                                            handleModalFieldChange('kommissioniertEinheit', 'stück');
+                                        }}
+                                        required
+                                        disabled={!!modalFields.kommissioniertAm && (isAdmin || isKontrolleur) && !isEditMode}
+                                    />
+                                </>
+                            ) : positions[modalOpenIndex]?.erfassungsModus === 'KARTON' ? (
+                                <>
+                                    <Form.Label>Anzahl Kartons <span className="text-danger">*</span></Form.Label>
+                                    <Form.Control
+                                        type="number"
+                                        min="0"
+                                        value={modalFields.kartonAnzahl ?? ''}
+                                        onChange={e => {
+                                            handleModalFieldChange('kartonAnzahl', e.target.value);
+                                            handleModalFieldChange('kommissioniertEinheit', 'karton');
+                                        }}
+                                        required
+                                        disabled={!!modalFields.kommissioniertAm && (isAdmin || isKontrolleur) && !isEditMode}
+                                    />
+
+                                    {/* Irregularitäten-Editor */}
+                                    <div className="mt-3">
+                                        <div className="d-flex align-items-center justify-content-between">
+                                            <Form.Label className="mb-0">Irregularitäten (abweichende Kartons)</Form.Label>
+                                            <Button
+                                                variant="secondary"
+                                                size="sm"
+                                                onClick={() => {
+                                                    const arr = Array.isArray(modalFields.kartonIrregulars) ? modalFields.kartonIrregulars : [];
+                                                    handleModalFieldChange('kartonIrregulars', [...arr, { anzahl: '', gewicht: '' }]);
+                                                }}
+                                                disabled={!!modalFields.kommissioniertAm && (isAdmin || isKontrolleur) && !isEditMode}
+                                            >
+                                                +
+                                            </Button>
+                                        </div>
+
+                                        {(modalFields.kartonIrregulars || []).map((row: any, i: number) => (
+                                            <div key={i} className="d-flex gap-2 mt-2">
+                                                <Form.Control
+                                                    placeholder="Anzahl"
+                                                    type="number"
+                                                    min="0"
+                                                    value={row.anzahl ?? ''}
+                                                    onChange={e => {
+                                                        const arr = [...(modalFields.kartonIrregulars || [])];
+                                                        arr[i] = { ...arr[i], anzahl: e.target.value };
+                                                        handleModalFieldChange('kartonIrregulars', arr);
+                                                    }}
+                                                    size="sm"
+                                                    disabled={!!modalFields.kommissioniertAm && (isAdmin || isKontrolleur) && !isEditMode}
+                                                />
+                                                <Form.Control
+                                                    placeholder="Gewicht pro Karton (kg)"
+                                                    type="number"
+                                                    min="0"
+                                                    value={row.gewicht ?? ''}
+                                                    onChange={e => {
+                                                        const arr = [...(modalFields.kartonIrregulars || [])];
+                                                        arr[i] = { ...arr[i], gewicht: e.target.value };
+                                                        handleModalFieldChange('kartonIrregulars', arr);
+                                                    }}
+                                                    size="sm"
+                                                    disabled={!!modalFields.kommissioniertAm && (isAdmin || isKontrolleur) && !isEditMode}
+                                                />
+                                                <Button
+                                                    variant="danger"
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        const arr = [...(modalFields.kartonIrregulars || [])];
+                                                        arr.splice(i, 1);
+                                                        handleModalFieldChange('kartonIrregulars', arr);
+                                                    }}
+                                                    disabled={!!modalFields.kommissioniertAm && (isAdmin || isKontrolleur) && !isEditMode}
+                                                >
+                                                    –
+                                                </Button>
+                                            </div>
+                                        ))}
+
+                                        {/* Vorschau Netto */}
+                                        {(() => {
+                                            const pos = positions[modalOpenIndex!];
+                                            const art = alleArtikel.find(a => a.id === pos.artikel);
+                                            const kgProKarton = Number(getKartonGewicht(art)) || 0;
+                                            const anzahl = Number(String(modalFields.kartonAnzahl || '').replace(',', '.')) || 0;
+                                            const irregulars = (modalFields.kartonIrregulars || [])
+                                                .map((r: any) => ({
+                                                    anzahl: Number(String(r.anzahl || '').replace(',', '.')) || 0,
+                                                    gewicht: Number(String(r.gewicht || '').replace(',', '.')) || 0,
+                                                }));
+                                            const preview = kgProKarton ? computeNettoForKarton(anzahl, kgProKarton, irregulars) : null;
+                                            return preview ? <small className="text-muted">≈ Netto: {preview} kg</small> : null;
+                                        })()}
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <Form.Label>Bruttogewicht <span className="text-danger">*</span></Form.Label>
+                                    <Form.Control
+                                        type="number"
+                                        min="0"
+                                        value={modalFields.bruttogewicht ?? ''}
+                                        onChange={e => handleModalFieldChange('bruttogewicht', e.target.value)}
+                                        required
+                                        disabled={!!modalFields.kommissioniertAm && (isAdmin || isKontrolleur) && !isEditMode}
+                                    />
+                                </>
+                            )}
                         </Form.Group>
+
                         <Form.Group className="mb-2">
                             <Form.Label>Bemerkung</Form.Label>
                             <Form.Control
@@ -424,7 +631,7 @@ const KomAuftragPositionenTabelle: React.FC<Props> = ({
                                                             !isEditMode)
                                                     }
                                                 />
-                                                {(l.leergutArt === 'karton' || l.leergutArt === 'einwegpalette' || l.leergutArt === 'euro palette') && (
+                                                {(l.leergutArt === 'karton' || l.leergutArt === 'einwegpalette' || l.leergutArt === 'euro palette') && !l.leergutGewicht && (
                                                     <small className="text-danger">Bitte wiege das Objekt ab und trage das Gewicht ein.</small>
                                                 )}
                                             </td>
