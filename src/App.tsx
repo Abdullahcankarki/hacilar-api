@@ -29,6 +29,7 @@ import ZerlegeAuftraege from './components/zerlegeAuftraege';
 import ZerlegeDetail from './components/zerlegeDetail';
 import KomAuftraege from './components/komAuftraege';
 import KomAuftragDetail from './components/komAuftragDetail';
+import FahrzeugUebersicht from './components/fahrzeug';
 
 
 // 📌 App-Routen
@@ -73,6 +74,7 @@ const AppRoutes: React.FC = () => {
               <Route path="mitarbeiter/:id" element={<VerkaeuferDetails />} />
               <Route path="mitarbeiter/edit/:id" element={<VerkaeuferEdit />} />
               <Route path="stats" element={<Statistiken />} />
+              <Route path="fahrzeug" element={<FahrzeugUebersicht />} />
               <Route path="*" element={<Navigate to="/home" replace />} />
             </>
           ) : roles.includes('zerleger') ? (
