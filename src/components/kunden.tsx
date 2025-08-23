@@ -48,7 +48,7 @@ const handleSort = (field: keyof KundeResource) => {
   const fetchKunden = async () => {
     try {
       const data = await api.getAllKunden();
-      setKunden(data);
+      setKunden(data.items);
     } catch (err: any) {
       setError(err.message || 'Fehler beim Laden der Kunden');
     } finally {

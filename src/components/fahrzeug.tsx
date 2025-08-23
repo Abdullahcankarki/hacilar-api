@@ -25,6 +25,51 @@ function cx(...classes: (string | false | undefined)[]) {
     return classes.filter(Boolean).join(" ");
 }
 
+const ConfirmModal: React.FC<{
+  title?: string;
+  message: React.ReactNode;
+  confirmText?: string;
+  cancelText?: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  busy?: boolean;
+}> = ({
+  title = "Löschen bestätigen",
+  message,
+  confirmText = "Löschen",
+  cancelText = "Abbrechen",
+  onConfirm,
+  onCancel,
+  busy,
+}) => {
+  return (
+    <div className="modal d-block" tabIndex={-1} role="dialog" style={{ background: "rgba(30,33,37,.6)" }}>
+      <div className="modal-dialog modal-dialog-centered" role="document">
+        <div className="modal-content">
+          <div className="modal-header">
+            <h5 className="modal-title">{title}</h5>
+            <button type="button" className="btn-close" onClick={onCancel} />
+          </div>
+          <div className="modal-body">
+            <div className="d-flex align-items-start">
+              <i className="ci-trash fs-4 me-3 text-danger" />
+              <div>{message}</div>
+            </div>
+          </div>
+          <div className="modal-footer">
+            <button type="button" className="btn btn-outline-secondary" onClick={onCancel} disabled={!!busy}>
+              {cancelText}
+            </button>
+            <button type="button" className="btn btn-danger" onClick={onConfirm} disabled={!!busy}>
+              {busy && <span className="spinner-border spinner-border-sm me-2" />} {confirmText}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function FahrzeugUebersicht() {
     const [items, setItems] = useState<FahrzeugResource[]>([]);
     const [total, setTotal] = useState(0);
@@ -41,6 +86,9 @@ export default function FahrzeugUebersicht() {
     const [showEdit, setShowEdit] = useState(false);
     const [form, setForm] = useState<FahrzeugResource>(initialForm);
     const [saving, setSaving] = useState(false);
+
+    const [confirmItem, setConfirmItem] = useState<FahrzeugResource | null>(null);
+    const [confirmBusy, setConfirmBusy] = useState(false);
 
     // Toaster
     const [toast, setToast] = useState<{ type: "success" | "error"; msg: string } | null>(null);
@@ -179,16 +227,24 @@ export default function FahrzeugUebersicht() {
         }
     }
 
-    async function deleteItem(item: FahrzeugResource) {
+    function requestDelete(item: FahrzeugResource) {
         if (!item.id) return;
-        if (!window.confirm(`„${item.kennzeichen}“ wirklich löschen?`)) return;
+        setConfirmItem(item);
+    }
+
+    async function doConfirmDelete() {
+        if (!confirmItem?.id) return;
+        setConfirmBusy(true);
         try {
-            await deleteFahrzeug(item.id!);
+            await deleteFahrzeug(confirmItem.id);
             showToast("success", "Fahrzeug gelöscht");
-            setItems((prev) => prev.filter((x) => x.id !== item.id));
+            setItems((prev) => prev.filter((x) => x.id !== confirmItem.id));
             setTotal((t) => Math.max(0, t - 1));
+            setConfirmItem(null);
         } catch (e: any) {
             showToast("error", e?.message ?? "Löschen fehlgeschlagen");
+        } finally {
+            setConfirmBusy(false);
         }
     }
 
@@ -222,8 +278,8 @@ export default function FahrzeugUebersicht() {
                             nur aktive
                         </label>
                     </div>
-                    <button className="btn btn-primary" onClick={openCreate}>
-                        <i className="ci-add me-2" /> Neues Fahrzeug
+                    <button className="btn btn-dark rounded-3" onClick={openCreate}>
+                        <i className="ci-plus me-2" /> Neues Fahrzeug
                     </button>
                 </div>
             </div>
@@ -304,7 +360,7 @@ export default function FahrzeugUebersicht() {
                                         <button className="btn btn-sm btn-outline-secondary" onClick={() => openEdit(item)} title="Bearbeiten">
                                             <i className="ci-edit" />
                                         </button>
-                                        <button className="btn btn-sm btn-outline-danger" onClick={() => deleteItem(item)} title="Löschen">
+                                        <button className="btn btn-sm btn-outline-danger" onClick={() => requestDelete(item)} title="Löschen">
                                             <i className="ci-trash" />
                                         </button>
                                     </div>
@@ -465,6 +521,23 @@ export default function FahrzeugUebersicht() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Delete Confirm Modal */}
+            {confirmItem && (
+                <ConfirmModal
+                    title="Fahrzeug löschen?"
+                    message={
+                        <>
+                            Möchtest du das Fahrzeug <strong>„{confirmItem.kennzeichen}”</strong> wirklich löschen?
+                            <div className="text-muted small mt-2">Dieser Vorgang kann nicht rückgängig gemacht werden.</div>
+                        </>
+                    }
+                    confirmText="Ja, löschen"
+                    onConfirm={doConfirmDelete}
+                    onCancel={() => { if (!confirmBusy) setConfirmItem(null); }}
+                    busy={confirmBusy}
+                />
             )}
 
             {/* Toast */}

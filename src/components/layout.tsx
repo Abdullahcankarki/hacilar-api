@@ -1,6 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import NavBar from './navbar';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import WarenkorbModal from './warenkorb';
 import { ArtikelPositionResource, AuftragResource, KundeResource, ArtikelResource } from '../Resources';
 import { createArtikelPosition, createAuftrag, getAllKunden, getAllArtikel, setGlobalAusgewaehlterKunde, updateAuftrag } from '../backend/api';
@@ -26,12 +26,24 @@ export const Layout: React.FC = () => {
     setAusgewaehlterKunde(kundenId ?? null);
   }, [user, lokalAusgewaehlterKunde]);
 
+  // aktuell gewählter Kunde und seine Region ableiten
+  const kundeId = useMemo(() => {
+    if (!user) return null;
+    return user.role.includes('kunde') ? user.id : lokalAusgewaehlterKunde;
+  }, [user, lokalAusgewaehlterKunde]);
+
+  const kundeRegion = useMemo(() => {
+    if (!kundeId) return null;
+    const k = kunden.find((x) => x.id === kundeId);
+    return k?.region ?? null;
+  }, [kunden, kundeId]);
+
   // Kundenliste laden für Admin oder Verkäufer
   useEffect(() => {
     const fetchKunden = async () => {
       try {
         const res = await getAllKunden();
-        setKunden(res);
+        setKunden(res.items);
       } catch (err) {
         console.error('Fehler beim Laden der Kunden:', err);
       }
@@ -44,7 +56,7 @@ export const Layout: React.FC = () => {
     const fetchArticles = async () => {
       try {
         const res = await getAllArtikel();
-        setArticles(res);
+        setArticles(res.items);
       } catch (err) {
         console.error('Fehler beim Laden der Artikel:', err);
       }
@@ -106,8 +118,6 @@ export const Layout: React.FC = () => {
   };
 
   const handleSubmit = async (lieferdatum: string, bemerkung: string) => {
-    const kundeId = user?.role.includes('kunde') ? user.id : lokalAusgewaehlterKunde;
-
     if (!kundeId) {
       setMeldung({ text: 'Bitte einen Kunden auswählen.', variant: 'danger' });
       return;
@@ -204,6 +214,7 @@ export const Layout: React.FC = () => {
         onSubmit={handleSubmit}
         onEinheitChange={handleEinheitChange}
         articles={articles}
+        kundeRegion={kundeRegion}
       />
     </>
   );

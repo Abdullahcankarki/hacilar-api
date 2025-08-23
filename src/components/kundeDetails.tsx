@@ -1,57 +1,237 @@
-// KundeDetail.tsx
-import React, { useEffect, useState } from 'react';
+// KundeDetail.tsx – Redesigned (Cartzilla/Bootstrap High-Quality)
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { KundeResource, AuftragResource } from '../Resources';
 import { getKundeById, apiFetch, api } from '../backend/api';
 
+// ---------- UI Helpers ----------
+const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
+
+const Badge: React.FC<{ variant?: 'success'|'warning'|'secondary'|'danger'|string; children: React.ReactNode }> = ({ variant = 'secondary', children }) => (
+  <span className={cx('badge', `bg-${variant}`)}>{children}</span>
+);
+
+const InfoRow: React.FC<{ label: string; value?: React.ReactNode }> = ({ label, value }) => (
+  <div className="col-md-4">
+    <p className="mb-1 text-muted small">{label}</p>
+    <p className="mb-0 fw-medium">{value ?? '—'}</p>
+  </div>
+);
+
+// Confirm Modal (no window.confirm)
+const ConfirmModal: React.FC<{
+  title?: string;
+  message: React.ReactNode;
+  confirmText?: string;
+  cancelText?: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  busy?: boolean;
+}> = ({ title = 'Löschen bestätigen', message, confirmText = 'Löschen', cancelText = 'Abbrechen', onConfirm, onCancel, busy }) => (
+  <div className="modal d-block" tabIndex={-1} role="dialog" style={{ background: 'rgba(30,33,37,.6)' }}>
+    <div className="modal-dialog modal-dialog-centered" role="document">
+      <div className="modal-content">
+        <div className="modal-header">
+          <h5 className="modal-title">{title}</h5>
+          <button type="button" className="btn-close" onClick={onCancel} />
+        </div>
+        <div className="modal-body">
+          <div className="d-flex align-items-start">
+            <i className="ci-trash fs-4 me-3 text-danger" />
+            <div>{message}</div>
+          </div>
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-outline-secondary" onClick={onCancel} disabled={!!busy}>{cancelText}</button>
+          <button className="btn btn-danger" onClick={onConfirm} disabled={!!busy}>
+            {busy && <span className="spinner-border spinner-border-sm me-2" />} {confirmText}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+// EditKundeModal component
+const EditKundeModal: React.FC<{
+  kunde: KundeResource;
+  onCancel: () => void;
+  onSave: (updatedData: Partial<KundeResource>) => Promise<void>;
+}> = ({ kunde, onCancel, onSave }) => {
+  const [formData, setFormData] = useState<Partial<KundeResource>>({
+    name: kunde.name,
+    email: kunde.email,
+    telefon: kunde.telefon,
+    adresse: kunde.adresse,
+    region: kunde.region,
+    kategorie: kunde.kategorie,
+  });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>('');
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      await onSave(formData);
+    } catch (err: any) {
+      setError(err?.message || 'Fehler beim Speichern');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="modal d-block" tabIndex={-1} role="dialog" style={{ background: 'rgba(30,33,37,.6)' }}>
+      <div className="modal-dialog modal-dialog-centered" role="document">
+        <form className="modal-content" onSubmit={handleSubmit}>
+          <div className="modal-header">
+            <h5 className="modal-title">Kunde bearbeiten</h5>
+            <button type="button" className="btn-close" onClick={onCancel} disabled={busy} />
+          </div>
+          <div className="modal-body">
+            {error && <div className="alert alert-danger">{error}</div>}
+            <div className="mb-3">
+              <label htmlFor="name" className="form-label">Name</label>
+              <input id="name" name="name" className="form-control" value={formData.name || ''} onChange={handleChange} disabled={busy} required />
+            </div>
+            <div className="mb-3">
+              <label htmlFor="email" className="form-label">Email</label>
+              <input id="email" name="email" type="email" className="form-control" value={formData.email || ''} onChange={handleChange} disabled={busy} />
+            </div>
+            <div className="mb-3">
+              <label htmlFor="telefon" className="form-label">Telefon</label>
+              <input id="telefon" name="telefon" className="form-control" value={formData.telefon || ''} onChange={handleChange} disabled={busy} />
+            </div>
+            <div className="mb-3">
+              <label htmlFor="adresse" className="form-label">Adresse</label>
+              <input id="adresse" name="adresse" className="form-control" value={formData.adresse || ''} onChange={handleChange} disabled={busy} />
+            </div>
+            <div className="mb-3">
+              <label htmlFor="region" className="form-label">Region</label>
+              <input id="region" name="region" className="form-control" value={formData.region || ''} onChange={handleChange} disabled={busy} />
+            </div>
+            <div className="mb-3">
+              <label htmlFor="kategorie" className="form-label">Kategorie</label>
+              <input id="kategorie" name="kategorie" className="form-control" value={formData.kategorie || ''} onChange={handleChange} disabled={busy} />
+            </div>
+          </div>
+          <div className="modal-footer">
+            <button type="button" className="btn btn-outline-secondary" onClick={onCancel} disabled={busy}>Abbrechen</button>
+            <button type="submit" className="btn btn-primary" disabled={busy}>
+              {busy && <span className="spinner-border spinner-border-sm me-2" />} Speichern
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// ---------- Main Component ----------
 const KundeDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+
   const [kunde, setKunde] = useState<KundeResource | null>(null);
   const [auftraege, setAuftraege] = useState<AuftragResource[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
 
+  // UI states
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders'>('overview');
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmBusy, setConfirmBusy] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+
   useEffect(() => {
-    const fetchData = async () => {
+    const load = async () => {
       try {
         if (!id) throw new Error('Keine Kunden-ID angegeben.');
-        // Lade Kundendaten
         const kundeData = await getKundeById(id);
         setKunde(kundeData);
-        // Lade Aufträge des Kunden (angenommener Endpunkt)
         const auftraegeData = await apiFetch<AuftragResource[]>(`/api/auftrag/kunden/${id}`);
         setAuftraege(auftraegeData);
       } catch (err: any) {
-        setError(err.message || 'Fehler beim Laden der Daten');
+        setError(err?.message || 'Fehler beim Laden der Daten');
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
+    load();
   }, [id]);
 
-  const handleDelete = async (id: string | undefined) => {
-    if (!id) return;
-    if (!window.confirm('Möchten Sie diesen Kunden wirklich löschen?')) return;
+  const counts = useMemo(() => ({
+    offen: auftraege.filter(a => a.status === 'offen').length,
+    ib: auftraege.filter(a => a.status === 'in Bearbeitung').length,
+    abgeschlossen: auftraege.filter(a => a.status === 'abgeschlossen').length,
+    storniert: auftraege.filter(a => a.status === 'storniert').length,
+  }), [auftraege]);
+
+  const grouped = useMemo(() => ({
+    offen: auftraege.filter(a => a.status === 'offen'),
+    ib: auftraege.filter(a => a.status === 'in Bearbeitung'),
+    abgeschlossen: auftraege.filter(a => a.status === 'abgeschlossen'),
+    storniert: auftraege.filter(a => a.status === 'storniert'),
+  }), [auftraege]);
+
+  const approveToggle = async (approve: boolean) => {
+    if (!kunde?.id) return;
     try {
-      await api.deleteKunde(id);
+      await api.approveKunde(kunde.id, approve);
+      const fresh = await getKundeById(kunde.id);
+      setKunde(fresh);
     } catch (err: any) {
-      setError(err.message || 'Fehler beim Löschen des Kunden');
+      setError(err?.message || 'Aktion fehlgeschlagen');
     }
+  };
+
+  const handleDelete = async () => {
+    if (!kunde?.id) return;
+    setConfirmBusy(true);
+    try {
+      await api.deleteKunde(kunde.id);
+      navigate('/kunden');
+    } catch (err: any) {
+      setError(err?.message || 'Fehler beim Löschen des Kunden');
+    } finally {
+      setConfirmBusy(false);
+      setConfirmOpen(false);
+    }
+  };
+
+  const handleSaveEdit = async (updatedData: Partial<KundeResource>) => {
+    if (!kunde?.id) return;
+    await api.updateKunde(kunde.id, updatedData);
+    const fresh = await getKundeById(kunde.id);
+    setKunde(fresh);
+    setEditOpen(false);
   };
 
   if (loading) {
     return (
-      <div className="container text-center my-4">
-        <p>Lädt...</p>
+      <div className="container py-5 text-center">
+        <div className="spinner-border" />
+        <p className="mt-3 text-muted">Lade Kunden…</p>
       </div>
     );
   }
   if (error) {
     return (
       <div className="container my-4">
-        <div className="alert alert-danger">{error}</div>
+        <div className="alert alert-danger d-flex align-items-start">
+          <i className="ci-close-circle fs-4 me-2"></i>
+          <div>{error}</div>
+        </div>
+        <button className="btn btn-outline-secondary" onClick={() => navigate('/kunden')}>
+          <i className="ci-arrow-left me-1"></i> Zurück zur Liste
+        </button>
       </div>
     );
   }
@@ -59,192 +239,174 @@ const KundeDetail: React.FC = () => {
     return (
       <div className="container my-4">
         <div className="alert alert-warning">Kein Kunde gefunden.</div>
+        <button className="btn btn-outline-secondary" onClick={() => navigate('/kunden')}>
+          <i className="ci-arrow-left me-1"></i> Zurück zur Liste
+        </button>
       </div>
     );
   }
 
-  // Aufträge gruppieren
-  const offeneAuftraege = auftraege.filter(a => a.status === 'offen');
-  const inBearbeitungAuftraege = auftraege.filter(a => a.status === 'in Bearbeitung');
-  const abgeschlosseneAuftraege = auftraege.filter(a => a.status === 'abgeschlossen');
-  const stornierteAuftraege = auftraege.filter(a => a.status === 'storniert');
-
-  // Hilfsfunktion: Rendern einer Auftragsliste
-
-  const renderAuftragsListe = (title: string, list: AuftragResource[]) => (
-    <div className="mb-4">
-      <h5>{title} ({list.length})</h5>
-      {list.length === 0 ? (
-        <p className="text-muted">Keine Aufträge in diesem Status.</p>
-      ) : (
-        <ul className="list-group">
-          {list.map(auftrag => (
-            <Link
-              key={auftrag.id}
-              to={`/auftraege/${auftrag.id}`}
-              className="list-group-item list-group-item-action d-flex justify-content-between align-items-center text-dark text-decoration-none"
-            >
-              <div className="w-100">
-                <div className="d-flex justify-content-between">
-                  <strong>Auftrag #{auftrag.id?.slice(-6).toUpperCase()}</strong>
-                  <small
-                    className="text-muted"
-                    title={`Zuletzt geändert: ${new Date(auftrag.updatedAt!).toLocaleString('de-DE')}`}
-                  >
-                    {new Date(auftrag.createdAt!).toLocaleDateString('de-DE')}
-                  </small>
-                </div>
-
-                {auftrag.lieferdatum && (
-                  <div className="text-muted small mt-1">
-                    Lieferung am: {new Date(auftrag.lieferdatum).toLocaleDateString('de-DE')}
-                  </div>
-                )}
-
-                <div className="text-muted small d-flex flex-wrap mt-1">
-                  {auftrag.gewicht != null && <span className="me-3">Gewicht: {auftrag.gewicht} kg</span>}
-                  {auftrag.preis != null && <span className="me-3">Wert: {auftrag.preis.toFixed(2)} €</span>}
-                  {auftrag.bemerkungen && (
-                    <span className="me-3">
-                      <i className="ci-note text-muted" title={auftrag.bemerkungen}></i>
-                    </span>
-                  )}
-                </div>
-              </div>
-            </Link>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-
+  // ---------- UI ----------
   return (
     <div className="container my-4">
-      {/* Header-Bereich als Cartzilla Card */}
-      <div className="card shadow mb-4">
-        <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-          <h5 className="mb-0">{kunde.name}</h5>
-          <div>
-            <Link to={`/kunden/edit/${kunde.id}`} className="btn btn-light btn-sm me-2">
-              <i className="ci-edit me-1"></i> Bearbeiten
-            </Link>
-            <button className="btn btn-light btn-sm me-2" onClick={() => handleDelete(kunde.id)}>
-              <i className="ci-trash me-1"></i> Löschen
-            </button>
-            <button
-              className="btn btn-success btn-sm"
-              onClick={async () => {
-                try {
-                  await api.updateKunde(kunde.id!, { isApproved: true });
-                  const updatedKunde = await getKundeById(kunde.id!);
-                  setKunde(updatedKunde);
-                } catch (err: any) {
-                  setError(err.message || 'Fehler beim Genehmigen des Kunden');
-                }
-              }}
-              disabled={kunde.isApproved}
-            >
-              <i className="ci-check me-1"></i> Genehmigen
-            </button>
-          </div>
-        </div>
+      {/* Header Card */}
+      <div className="card border-0 shadow-sm mb-4">
         <div className="card-body">
-          <div className="row g-4">
-            <div className="col-md-4">
-              <p className="mb-1"><strong>Email</strong></p>
-              <p>{kunde.email}</p>
+          <div className="d-flex align-items-start justify-content-between flex-wrap gap-3">
+            <div className="d-flex align-items-center gap-3">
+              <div className="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style={{ width: 56, height: 56 }}>
+                <i className="ci-user fs-4"></i>
+              </div>
+              <div>
+                <h3 className="h5 mb-1">{kunde.name} {kunde.kundenNummer && <span className="text-muted">· #{kunde.kundenNummer}</span>}</h3>
+                <div className="d-flex align-items-center gap-2">
+                  <Badge variant={kunde.isApproved ? 'success' : 'warning'}>
+                    {kunde.isApproved ? 'Genehmigt' : 'Nicht genehmigt'}
+                  </Badge>
+                  {kunde.region && <Badge variant="secondary">{kunde.region}</Badge>}
+                  {kunde.kategorie && <Badge variant="secondary">{kunde.kategorie}</Badge>}
+                </div>
+              </div>
             </div>
-            <div className="col-md-4">
-              <p className="mb-1"><strong>Adresse</strong></p>
-              <p>{kunde.adresse}</p>
-            </div>
-            <div className="col-md-4">
-              <p className="mb-1"><strong>Telefon</strong></p>
-              <p>{kunde.telefon}</p>
-            </div>
-            <div className="col-md-4">
-              <p className="mb-1"><strong>Lieferzeit</strong></p>
-              <p>{kunde.lieferzeit}</p>
-            </div>
-            <div className="col-md-4">
-              <p className="mb-1"><strong>Kundennummer</strong></p>
-              <p>{kunde.kundenNummer || '-'}</p>
-            </div>
-            <div className="col-md-4">
-              <p className="mb-1"><strong>USt-ID</strong></p>
-              <p>{kunde.ustId || '-'}</p>
-            </div>
-            <div className="col-md-4">
-              <p className="mb-1"><strong>Handelsregister-Nr.</strong></p>
-              <p>{kunde.handelsregisterNr || '-'}</p>
-            </div>
-            <div className="col-md-4">
-              <p className="mb-1"><strong>Ansprechpartner</strong></p>
-              <p>{kunde.ansprechpartner || '-'}</p>
-            </div>
-            <div className="col-md-4">
-              <p className="mb-1"><strong>Website</strong></p>
-              <p>{kunde.website || '-'}</p>
-            </div>
-            <div className="col-md-4">
-              <p className="mb-1"><strong>Gewerbedatei</strong></p>
-              <p>
-                {kunde.gewerbeDateiUrl ? (
-                  <a href={kunde.gewerbeDateiUrl} target="_blank" rel="noopener noreferrer">Anzeigen</a>
-                ) : '-'}
-              </p>
-            </div>
-            <div className="col-md-4">
-              <p className="mb-1"><strong>Zusatzdatei</strong></p>
-              <p>
-                {kunde.zusatzDateiUrl ? (
-                  <a href={kunde.zusatzDateiUrl} target="_blank" rel="noopener noreferrer">Anzeigen</a>
-                ) : '-'}
-              </p>
-            </div>
-            <div className="col-md-4">
-              <p className="mb-1"><strong>Genehmigt</strong></p>
-              <p>{kunde.isApproved ? 'Ja' : 'Nein'}</p>
-            </div>
-            <div className="col-md-4">
-              <p className="mb-1"><strong>Letzte Änderung</strong></p>
-              <p>{kunde.updatedAt ? new Date(kunde.updatedAt).toLocaleString('de-DE') : '-'}</p>
-            </div>
-            <div className="col-md-4">
-              <p className="mb-1"><strong>Kategorie</strong></p>
-              <p>{kunde.kategorie || '-'}</p>
-            </div>
-            <div className="col-md-4">
-              <p className="mb-1"><strong>Region</strong></p>
-              <p>{kunde.region || '-'}</p>
+            <div className="d-flex flex-wrap gap-2">
+              <button className="btn btn-outline-secondary" onClick={() => navigate('/kunden')}>
+                <i className="ci-arrow-left me-1"/> Zurück
+              </button>
+              <button
+                className="btn btn-outline-primary"
+                onClick={() => setEditOpen(true)}
+              >
+                <i className="ci-edit me-1"/> Bearbeiten
+              </button>
+              <button
+                className={cx('btn', kunde.isApproved ? 'btn-outline-warning' : 'btn-success')}
+                onClick={() => approveToggle(!kunde.isApproved)}
+                disabled={false}
+              >
+                <i className={cx(kunde.isApproved ? 'ci-lock' : 'ci-unlock', 'me-1')} />
+                {kunde.isApproved ? 'Sperren' : 'Freischalten'}
+              </button>
+              <button className="btn btn-outline-danger" onClick={() => setConfirmOpen(true)}>
+                <i className="ci-trash me-1"/> Löschen
+              </button>
             </div>
           </div>
         </div>
-        <div className="card-footer text-end">
-          <button className="btn btn-outline-secondary" onClick={() => navigate('/kunden')}>
-            <i className="ci-arrow-left me-1"></i> Zurück zur Liste
+      </div>
+
+      {/* Tabs */}
+      <ul className="nav nav-tabs" role="tablist">
+        <li className="nav-item" role="presentation">
+          <button className={cx('nav-link', activeTab === 'overview' && 'active')} onClick={() => setActiveTab('overview')}>
+            <i className="ci-info me-2"/> Übersicht
           </button>
-        </div>
+        </li>
+        <li className="nav-item" role="presentation">
+          <button className={cx('nav-link', activeTab === 'orders' && 'active')} onClick={() => setActiveTab('orders')}>
+            <i className="ci-package me-2"/> Aufträge
+            <span className="badge bg-secondary ms-2">{auftraege.length}</span>
+          </button>
+        </li>
+      </ul>
+
+      <div className="tab-content pt-3">
+        {/* Overview Tab */}
+        {activeTab === 'overview' && (
+          <div className="tab-pane fade show active">
+            <div className="card border-0 shadow-sm">
+              <div className="card-body">
+                <div className="row g-4">
+                  <InfoRow label="Email" value={kunde.email} />
+                  <InfoRow label="Telefon" value={kunde.telefon} />
+                  <InfoRow label="Adresse" value={kunde.adresse} />
+                  <InfoRow label="Lieferzeit" value={kunde.lieferzeit} />
+                  <InfoRow label="USt-ID" value={kunde.ustId} />
+                  <InfoRow label="Handelsregister-Nr." value={kunde.handelsregisterNr} />
+                  <InfoRow label="Ansprechpartner" value={kunde.ansprechpartner} />
+                  <InfoRow label="Website" value={kunde.website ? (<a href={kunde.website} target="_blank" rel="noreferrer">{kunde.website}</a>) : '—'} />
+                  <InfoRow label="Genehmigt" value={kunde.isApproved ? 'Ja' : 'Nein'} />
+                  <InfoRow label="Letzte Änderung" value={kunde.updatedAt ? new Date(kunde.updatedAt).toLocaleString('de-DE') : '—'} />
+                  <InfoRow label="Gewerbedatei" value={kunde.gewerbeDateiUrl ? (<a href={kunde.gewerbeDateiUrl} target="_blank" rel="noreferrer">Anzeigen</a>) : '—'} />
+                  <InfoRow label="Zusatzdatei" value={kunde.zusatzDateiUrl ? (<a href={kunde.zusatzDateiUrl} target="_blank" rel="noreferrer">Anzeigen</a>) : '—'} />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Orders Tab */}
+        {activeTab === 'orders' && (
+          <div className="tab-pane fade show active">
+            {/* Status Pills */}
+            <div className="d-flex flex-wrap gap-2 mb-3">
+              <span className="badge bg-light text-dark border"><i className="ci-clock me-1"/> Offen: {counts.offen}</span>
+              <span className="badge bg-light text-dark border"><i className="ci-gear me-1"/> In Bearbeitung: {counts.ib}</span>
+              <span className="badge bg-light text-dark border"><i className="ci-check me-1"/> Abgeschlossen: {counts.abgeschlossen}</span>
+              <span className="badge bg-light text-dark border"><i className="ci-close-circle me-1"/> Storniert: {counts.storniert}</span>
+            </div>
+
+            {auftraege.length === 0 ? (
+              <div className="alert alert-light border">Keine Aufträge vorhanden.</div>
+            ) : (
+              <div className="list-group list-group-flush">
+                {auftraege.map((a) => (
+                  <Link
+                    key={a.id}
+                    to={`/auftraege/${a.id}`}
+                    className="list-group-item list-group-item-action py-3"
+                  >
+                    <div className="d-flex justify-content-between align-items-start">
+                      <div>
+                        <div className="d-flex align-items-center gap-2">
+                          <strong>Auftrag #{a.id?.slice(-6).toUpperCase()}</strong>
+                          {a.status === 'offen' && <Badge variant="warning">Offen</Badge>}
+                          {a.status === 'in Bearbeitung' && <Badge variant="secondary">In Bearbeitung</Badge>}
+                          {a.status === 'abgeschlossen' && <Badge variant="success">Abgeschlossen</Badge>}
+                          {a.status === 'storniert' && <Badge variant="danger">Storniert</Badge>}
+                        </div>
+                        <div className="text-muted small mt-1">
+                          Erstellt: {a.createdAt ? new Date(a.createdAt).toLocaleDateString('de-DE') : '—'}
+                          {a.lieferdatum && <> · Lieferung: {new Date(a.lieferdatum).toLocaleDateString('de-DE')}</>}
+                        </div>
+                        <div className="text-muted small d-flex flex-wrap gap-3 mt-1">
+                          {a.gewicht != null && <span>Gewicht: {a.gewicht} kg</span>}
+                          {a.preis != null && <span>Wert: {a.preis.toFixed(2)} €</span>}
+                          {a.bemerkungen && <span className="text-truncate" style={{ maxWidth: 240 }} title={a.bemerkungen}><i className="ci-note me-1"/> Bemerkung</span>}
+                        </div>
+                      </div>
+                      <i className="ci-chevron-right text-muted"></i>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Auftragsbereich als Cartzilla Card */}
-      <div className="card shadow">
-        <div className="card-header bg-secondary text-white">
-          <h6 className="mb-0">Aufträge</h6>
-        </div>
-        <div className="card-body">
-          <div className="row">
-            <div className="col-md-6">
-              {renderAuftragsListe('Offene Aufträge', offeneAuftraege)}
-              {renderAuftragsListe('Aufträge in Bearbeitung', inBearbeitungAuftraege)}
-            </div>
-            <div className="col-md-6">
-              {renderAuftragsListe('Abgeschlossene Aufträge', abgeschlosseneAuftraege)}
-              {renderAuftragsListe('Stornierte Aufträge', stornierteAuftraege)}
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Delete Confirm Modal */}
+      {confirmOpen && (
+        <ConfirmModal
+          title="Kunden löschen?"
+          message={<>
+            Möchtest du den Kunden <strong>„{kunde.name}”</strong> wirklich löschen?
+            <div className="text-muted small mt-2">Dieser Vorgang kann nicht rückgängig gemacht werden.</div>
+          </>}
+          confirmText="Ja, löschen"
+          onConfirm={handleDelete}
+          onCancel={() => !confirmBusy && setConfirmOpen(false)}
+          busy={confirmBusy}
+        />
+      )}
+
+      {/* Edit Kunde Modal */}
+      {editOpen && kunde && (
+        <EditKundeModal
+          kunde={kunde}
+          onCancel={() => setEditOpen(false)}
+          onSave={handleSaveEdit}
+        />
+      )}
     </div>
   );
 };

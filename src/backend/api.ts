@@ -9,6 +9,7 @@ import {
   ArtikelPositionResource,
   ZerlegeauftragResource,
   FahrzeugResource,
+  RegionRuleResource,
 } from "../Resources";
 import {
   ErrorFromValidation,
@@ -85,6 +86,46 @@ export async function apiFetch<T>(
   return data as T;
 }
 
+function toQuery(params?: Record<string, any>): string {
+  if (!params) return "";
+  const qs = new URLSearchParams();
+  for (const [key, val] of Object.entries(params)) {
+    if (val === undefined || val === null || val === "") continue;
+    if (Array.isArray(val)) {
+      // repeat key for arrays
+      for (const v of val) qs.append(key, String(v));
+    } else if (typeof val === "boolean") {
+      qs.set(key, val ? "true" : "false");
+    } else {
+      qs.set(key, String(val));
+    }
+  }
+  const s = qs.toString();
+  return s ? `?${s}` : "";
+}
+
+// Baut ?query=... aus einem Objekt. Lässt undefined/null/"" weg.
+// Arrays werden komma-separiert kodiert (serverseitig unterstützen wir beides).
+export function toQueryArtikel(params?: Record<string, any>): string {
+  if (!params) return "";
+  const usp = new URLSearchParams();
+  for (const [key, val] of Object.entries(params)) {
+    if (val === undefined || val === null) continue;
+    if (Array.isArray(val)) {
+      if (val.length === 0) continue;
+      usp.append(key, val.join(","));
+    } else if (typeof val === "boolean" || typeof val === "number") {
+      usp.append(key, String(val));
+    } else if (typeof val === "string") {
+      const v = val.trim();
+      if (v.length === 0) continue;
+      usp.append(key, v);
+    }
+  }
+  const s = usp.toString();
+  return s ? `?${s}` : "";
+}
+
 /**
  * Authentifiziert einen Nutzer (Kunde oder Verkäufer) anhand der übergebenen Daten.
  * Beim Login wird kein Token gesendet.
@@ -102,8 +143,16 @@ export async function login(
 }
 
 /* Kunde-Funktionen */
-export async function getAllKunden(): Promise<KundeResource[]> {
-  return apiFetch<KundeResource[]>("/api/kunde");
+export async function getAllKunden(params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  region?: string;
+  isApproved?: boolean;
+  sortBy?: string; // e.g. "name" or "-createdAt"
+}): Promise<{ items: KundeResource[]; total: number; page: number; limit: number }> {
+  const q = toQuery(params);
+  return apiFetch<{ items: KundeResource[]; total: number; page: number; limit: number }>(`/api/kunde${q}`);
 }
 
 export async function getAllNotApprovedKunden(): Promise<KundeResource[]> {
@@ -130,6 +179,16 @@ export async function updateKunde(
   return apiFetch<KundeResource>(`/api/kunde/${id}`, {
     method: "PUT",
     body: JSON.stringify(data),
+  });
+}
+
+export async function approveKunde(
+  id: string,
+  isApproved: boolean
+): Promise<KundeResource> {
+  return apiFetch<KundeResource>(`/api/kunde/${id}/approve`, {
+    method: "PATCH",
+    body: JSON.stringify({ isApproved }),
   });
 }
 
@@ -177,11 +236,6 @@ export async function deleteMitarbeiter(
   });
 }
 /* Artikel-Funktionen */
-export async function getAllArtikel(): Promise<ArtikelResource[]> {
-  const kundeId = localStorage.getItem("ausgewaehlterKunde");
-  const url = kundeId ? `/api/artikel?kunde=${kundeId}` : "/api/artikel";
-  return apiFetch<ArtikelResource[]>(url);
-}
 
 export async function getAuswahlArtikel(): Promise<ArtikelResource[]> {
   const kundeId = localStorage.getItem("ausgewaehlterKunde");
@@ -199,9 +253,58 @@ export async function getArtikelById(id: string): Promise<ArtikelResource> {
   return apiFetch<ArtikelResource>(url);
 }
 
-export async function getAllArtikelClean(): Promise<ArtikelResource[]> {
-  const url = "/api/artikel/clean";
-  return apiFetch<ArtikelResource[]>(url);
+export async function getAllArtikelClean(params?: {
+  page?: number;
+  limit?: number;
+  kategorie?: string | string[];
+  ausverkauft?: boolean;
+  name?: string;
+  erfassungsModus?: string | string[];
+}): Promise<{
+  items: ArtikelResource[];
+  page: number;
+  limit: number;
+  total: number;
+  pages: number;
+}> {
+  const base = "/api/artikel/clean";   // ⚠️ wichtig: exakt dieser Pfad
+  const q = toQueryArtikel(params);
+  return apiFetch<{
+    items: ArtikelResource[];
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  }>(`${base}${q}`);
+}
+
+/** Optional: GET /api/artikel – identisch, aber mit ?kunde=... */
+export async function getAllArtikel(params?: {
+  page?: number;
+  limit?: number;
+  kategorie?: string | string[];
+  ausverkauft?: boolean;
+  name?: string;
+  erfassungsModus?: string | string[];
+}): Promise<{
+  items: ArtikelResource[];
+  page: number;
+  limit: number;
+  total: number;
+  pages: number;
+}> {
+  const base = "/api/artikel";
+  const queryObj: Record<string, any> = { ...(params || {}) };
+  const kundeId = localStorage.getItem("ausgewaehlterKunde");
+  if (kundeId) queryObj.kunde = kundeId;
+  const q = toQueryArtikel(queryObj);
+  return apiFetch<{
+    items: ArtikelResource[];
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  }>(`${base}${q}`);
 }
 
 export async function getArtikelByIdClean(
@@ -506,6 +609,42 @@ export async function deleteFahrzeug(id: string): Promise<{ message: string }> {
   });
 }
 
+export async function createRegionRule(
+  data: Omit<RegionRuleResource, "id">
+): Promise<RegionRuleResource> {
+  return apiFetch<RegionRuleResource>("/api/region-rule", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getRegionById(id: string): Promise<RegionRuleResource> {
+  return apiFetch<RegionRuleResource>(`/api/region-rule/${id}`);
+}
+
+export async function getAllRegionRules(
+  params?: { q?: string; region?: string; active?: boolean; page?: number; limit?: number; sortBy?: string }
+): Promise<{ items: RegionRuleResource[]; total: number; page: number; limit: number }> {
+  const q = toQuery(params);
+  return apiFetch<{ items: RegionRuleResource[]; total: number; page: number; limit: number }>(`/api/region-rule${q}`);
+}
+
+export async function updateRegionRule(
+  id: string,
+  data: Partial<RegionRuleResource>
+): Promise<RegionRuleResource> {
+  return apiFetch<RegionRuleResource>(`/api/region-rule/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteRegionRule(id: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(`/api/region-rule/${id}`, {
+    method: "DELETE",
+  });
+}
+
 /* Exportiere ein Objekt, das alle Funktionen zusammenfasst */
 export const api = {
   apiFetch,
@@ -529,6 +668,7 @@ export const api = {
   // Kundenpreis
   getKundenpreiseByArtikel,
   updateKundenpreis,
+  approveKunde,
   createKundenpreis,
   deleteKundenpreis,
   createMassKundenpreis,
@@ -571,4 +711,9 @@ export const api = {
   getAllFahrzeuge,
   updateFahrzeug,
   deleteFahrzeug,
+  //Region-Rule
+  getRegionById,
+  getAllRegionRules,
+  updateRegionRule,
+  deleteRegionRule
 };
