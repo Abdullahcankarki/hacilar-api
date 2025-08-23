@@ -57,7 +57,7 @@ const KundenaufpreisEditor: React.FC = () => {
         ]);
         setArticle(artData);
         setKundenpreise(kpData);
-        setCustomers(custData);
+        setCustomers(custData.items);
       } catch (err: any) {
         setError(err.message || 'Fehler beim Laden der Daten.');
       } finally {

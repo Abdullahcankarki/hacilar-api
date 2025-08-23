@@ -1,342 +1,482 @@
-// Verkaeufer.tsx
-import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+// MitarbeiterOverview.tsx – Premium UI (Cartzilla + Bootstrap) with Optimistic Updates & Tag Pills
+import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MitarbeiterResource, MitarbeiterRolle } from '../Resources';
 import { api } from '../backend/api';
 
-const Verkaeufer: React.FC = () => {
-  const [verkaeuferListe, setVerkaeuferListe] = useState<MitarbeiterResource[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string>('');
-  const [showModal, setShowModal] = useState<boolean>(false);
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const navigate = useNavigate();
+const cx = (...c: (string | false | undefined | null)[]) => c.filter(Boolean).join(' ');
 
-  const [kartenAnsicht, setKartenAnsicht] = useState<boolean>(false);
+// ---- Toasts (lightweight) ----
+interface Toast { id: number; kind: 'success'|'error'|'info'; text: string }
+const Toasts: React.FC<{ list: Toast[]; onClose: (id:number)=>void }> = ({ list, onClose }) => (
+  <div className="position-fixed top-0 end-0 p-3" style={{ zIndex: 1080 }}>
+    {list.map(t => (
+      <div key={t.id} className={cx('toast show mb-2', t.kind === 'error' && 'border-danger', t.kind === 'success' && 'border-success')}>
+        <div className="toast-header">
+          <i className={cx('me-2', t.kind==='success'?'ci-check-circle text-success': t.kind==='error'?'ci-close-circle text-danger':'ci-info text-primary')} />
+          <strong className="me-auto">{t.kind === 'success' ? 'Erfolg' : t.kind === 'error' ? 'Fehler' : 'Hinweis'}</strong>
+          <button className="btn-close" onClick={()=>onClose(t.id)} />
+        </div>
+        <div className="toast-body">{t.text}</div>
+      </div>
+    ))}
+  </div>
+);
 
-  const [newVerkaeufer, setNewVerkaeufer] = useState<Omit<MitarbeiterResource, 'id'>>({
-    name: '',
-    password: '',
-    rollen: [],
-    email: '',
-    telefon: '',
-    abteilung: '',
-    aktiv: false,
-    bemerkung: '',
-    eintrittsdatum: ''
+// ---- Confirm Modal ----
+const ConfirmModal: React.FC<{ title?: string; message: React.ReactNode; onConfirm: () => void; onCancel: () => void; busy?: boolean; confirmText?: string; cancelText?: string; }>
+= ({ title = 'Löschen bestätigen', message, onConfirm, onCancel, busy, confirmText = 'Löschen', cancelText = 'Abbrechen' }) => (
+  <div className="modal d-block" tabIndex={-1} role="dialog" style={{ background: 'rgba(30,33,37,.6)' }}>
+    <div className="modal-dialog modal-dialog-centered" role="document">
+      <div className="modal-content">
+        <div className="modal-header">
+          <h5 className="modal-title">{title}</h5>
+          <button type="button" className="btn-close" onClick={onCancel} />
+        </div>
+        <div className="modal-body">
+          <div className="d-flex align-items-start">
+            <i className="ci-trash fs-4 me-3 text-danger" />
+            <div>{message}</div>
+          </div>
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-outline-secondary" onClick={onCancel} disabled={!!busy}>{cancelText}</button>
+          <button className="btn btn-danger" onClick={onConfirm} disabled={!!busy}>
+            {busy && <span className="spinner-border spinner-border-sm me-2" />} {confirmText}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+// ---- Role Pills Selector (chips) ----
+const RolePills: React.FC<{ value: MitarbeiterRolle[]; onChange: (next: MitarbeiterRolle[])=>void; options: MitarbeiterRolle[] }>
+= ({ value, onChange, options }) => {
+  const toggle = (r: MitarbeiterRolle) => {
+    const set = new Set(value);
+    set.has(r) ? set.delete(r) : set.add(r);
+    onChange(Array.from(set));
+  };
+  return (
+    <div className="d-flex flex-wrap gap-2">
+      {options.map(r => (
+        <button
+          key={r}
+          type="button"
+          onClick={()=>toggle(r)}
+          className={cx('btn btn-sm rounded-pill', value.includes(r) ? 'btn-primary' : 'btn-outline-secondary')}
+        >{r}</button>
+      ))}
+    </div>
+  );
+};
+
+// ---- Edit Modal (pure form -> returns payload) ----
+const EditMitarbeiterModal: React.FC<{
+  initial: MitarbeiterResource;
+  onCancel: () => void;
+  onSubmit: (patch: Partial<MitarbeiterResource>) => void;
+  busy?: boolean;
+  availableRoles: MitarbeiterRolle[];
+}> = ({ initial, onCancel, onSubmit, busy, availableRoles }) => {
+  const [form, setForm] = useState<Partial<MitarbeiterResource>>({
+    name: initial.name ?? '',
+    email: initial.email ?? '',
+    telefon: initial.telefon ?? '',
+    abteilung: initial.abteilung ?? '',
+    aktiv: initial.aktiv ?? true,
+    bemerkung: initial.bemerkung ?? '',
+    eintrittsdatum: initial.eintrittsdatum ?? '',
+    rollen: initial.rollen ?? [],
   });
+  return (
+    <div className="modal d-block" tabIndex={-1} role="dialog" style={{ background: 'rgba(30,33,37,.6)' }}>
+      <div className="modal-dialog modal-lg modal-dialog-centered" role="document">
+        <div className="modal-content">
+          <div className="modal-header bg-primary text-white">
+            <h5 className="modal-title">Mitarbeiter bearbeiten</h5>
+            <button type="button" className="btn-close btn-close-white" onClick={onCancel} />
+          </div>
+          <div className="modal-body">
+            <form onSubmit={(e)=>{ e.preventDefault(); onSubmit({
+              name: form.name?.trim(),
+              email: form.email?.trim(),
+              telefon: form.telefon?.trim(),
+              abteilung: form.abteilung?.trim(),
+              aktiv: !!form.aktiv,
+              bemerkung: form.bemerkung?.trim(),
+              eintrittsdatum: form.eintrittsdatum || undefined,
+              rollen: (form.rollen || []) as MitarbeiterRolle[],
+            }); }}>
+              <div className="row g-3">
+                <div className="col-md-6">
+                  <label className="form-label">Name</label>
+                  <input className="form-control" value={form.name || ''} onChange={(e)=>setForm({ ...form, name: e.target.value })} required />
+                </div>
+                <div className="col-md-6">
+                  <label className="form-label">E‑Mail</label>
+                  <input type="email" className="form-control" value={form.email || ''} onChange={(e)=>setForm({ ...form, email: e.target.value })} />
+                </div>
+                <div className="col-md-6">
+                  <label className="form-label">Telefon</label>
+                  <input className="form-control" value={form.telefon || ''} onChange={(e)=>setForm({ ...form, telefon: e.target.value })} />
+                </div>
+                <div className="col-md-6">
+                  <label className="form-label">Abteilung</label>
+                  <input className="form-control" value={form.abteilung || ''} onChange={(e)=>setForm({ ...form, abteilung: e.target.value })} />
+                </div>
+                <div className="col-12">
+                  <label className="form-label">Rollen</label>
+                  <RolePills value={(form.rollen || []) as MitarbeiterRolle[]} onChange={(v)=>setForm({ ...form, rollen: v })} options={availableRoles} />
+                </div>
+                <div className="col-md-6">
+                  <div className="form-check mt-2">
+                    <input className="form-check-input" type="checkbox" id="edit-aktiv" checked={!!form.aktiv} onChange={(e)=>setForm({ ...form, aktiv: e.target.checked })} />
+                    <label className="form-check-label" htmlFor="edit-aktiv">Aktiv</label>
+                  </div>
+                </div>
+                <div className="col-md-6">
+                  <label className="form-label">Eintrittsdatum</label>
+                  <input type="date" className="form-control" value={form.eintrittsdatum || ''} onChange={(e)=>setForm({ ...form, eintrittsdatum: e.target.value })} />
+                </div>
+                <div className="col-12">
+                  <label className="form-label">Bemerkung</label>
+                  <textarea className="form-control" value={form.bemerkung || ''} onChange={(e)=>setForm({ ...form, bemerkung: e.target.value })} />
+                </div>
+              </div>
+              <div className="modal-footer mt-3">
+                <button type="button" className="btn btn-secondary" onClick={onCancel}><i className="ci-close me-2"/>Abbrechen</button>
+                <button type="submit" className="btn btn-success" disabled={!!busy}>{busy && <span className="spinner-border spinner-border-sm me-2"/>} Speichern</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
-  // Verkäufer laden
-  const fetchVerkaeufer = async () => {
+const MitarbeiterOverview: React.FC = () => {
+  const navigate = useNavigate();
+  const [items, setItems] = useState<MitarbeiterResource[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+  const [cardView, setCardView] = useState(false);
+
+  const [showCreate, setShowCreate] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [editItem, setEditItem] = useState<MitarbeiterResource | null>(null);
+  const [confirmItem, setConfirmItem] = useState<MitarbeiterResource | null>(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
+
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const addToast = (kind: Toast['kind'], text: string) => setToasts((l)=>[...l, { id: Date.now()+Math.random(), kind, text }]);
+  const removeToast = (id: number) => setToasts((l)=>l.filter(t=>t.id!==id));
+
+  const availableRoles: MitarbeiterRolle[] = [
+    'admin','verkauf','kommissionierung','kontrolle','buchhaltung','wareneingang','lager','fahrer','zerleger','statistik','kunde','support'
+  ];
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter(v =>
+      (v.name || '').toLowerCase().includes(q) ||
+      (v.email || '').toLowerCase().includes(q) ||
+      (v.abteilung || '').toLowerCase().includes(q)
+    );
+  }, [items, search]);
+
+  const emptyForm: Omit<MitarbeiterResource, 'id'> = { name: '', password: '', rollen: [], email: '', telefon: '', abteilung: '', aktiv: true, bemerkung: '', eintrittsdatum: '' };
+  const [form, setForm] = useState<Omit<MitarbeiterResource, 'id'>>(emptyForm);
+
+  const load = async () => {
+    setLoading(true); setError('');
     try {
       const data = await api.getAllMitarbeiter();
-      setVerkaeuferListe(data);
+      setItems(data);
     } catch (err: any) {
-      setError(err.message || 'Fehler beim Laden der Verkäufer');
+      setError(err?.message || 'Fehler beim Laden der Mitarbeiter');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchVerkaeufer();
-  }, []);
+  useEffect(() => { load(); }, []);
 
-  // Verkäufer erstellen
-  const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
+  // ---- Create (Optimistic) ----
+  const onCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    setCreating(true);
+    const temp: MitarbeiterResource = { ...form, id: `temp-${Date.now()}`, rollen: [...form.rollen] } as any;
+    setItems(prev => [temp, ...prev]); // optimistic insert
     try {
-      const created = await api.createMitarbeiter(newVerkaeufer);
-      setVerkaeuferListe([...verkaeuferListe, created]);
-      setNewVerkaeufer({ name: '', password: '', rollen: [], email: '', telefon: '', abteilung: '', aktiv: false, bemerkung: '', eintrittsdatum: '' });
-      setShowModal(false);
+      const created = await api.createMitarbeiter(form);
+      setItems(prev => prev.map(x => x.id === temp.id ? created : x));
+      setForm(emptyForm);
+      setShowCreate(false);
+      addToast('success', 'Mitarbeiter erstellt');
     } catch (err: any) {
-      setError(err.message || 'Fehler beim Erstellen des Verkäufers');
+      // rollback
+      setItems(prev => prev.filter(x => x.id !== temp.id));
+      addToast('error', err?.message || 'Erstellen fehlgeschlagen');
+    } finally { setCreating(false); }
+  };
+
+  // ---- Edit (Optimistic) ----
+  const handleEditSubmit = async (patch: Partial<MitarbeiterResource>) => {
+    if (!editItem?.id) return;
+    const id = editItem.id;
+    const before = items.find(x => x.id === id);
+    const optimistic: MitarbeiterResource = { ...editItem, ...patch } as MitarbeiterResource;
+    setItems(prev => prev.map(x => x.id === id ? optimistic : x));
+    setEditItem(null);
+    try {
+      const saved = await api.updateMitarbeiter(id, patch);
+      setItems(prev => prev.map(x => x.id === id ? saved : x));
+      addToast('success', 'Änderungen gespeichert');
+    } catch (err: any) {
+      // rollback
+      if (before) setItems(prev => prev.map(x => x.id === id ? before : x));
+      addToast('error', err?.message || 'Speichern fehlgeschlagen');
     }
   };
 
-  // Verkäufer löschen
-  const handleDelete = async (id: string | undefined) => {
-    if (!id) return;
-    if (!window.confirm('Diesen Verkäufer wirklich löschen?')) return;
+  // ---- Delete (Optimistic) ----
+  const requestDelete = (v: MitarbeiterResource) => setConfirmItem(v);
+  const doConfirmDelete = async () => {
+    if (!confirmItem?.id) return;
+    const id = confirmItem.id;
+    setConfirmBusy(true);
+    const backup = items;
+    setItems(prev => prev.filter(x => x.id !== id));
     try {
       await api.deleteMitarbeiter(id);
-      setVerkaeuferListe(verkaeuferListe.filter((v) => v.id !== id));
+      addToast('success', 'Mitarbeiter gelöscht');
+      setConfirmItem(null);
     } catch (err: any) {
-      setError(err.message || 'Fehler beim Löschen des Verkäufers');
-    }
+      setItems(backup); // rollback
+      addToast('error', err?.message || 'Löschen fehlgeschlagen');
+    } finally { setConfirmBusy(false); }
   };
 
-  // Suche & Filter
-  const filteredVerkaeufer = verkaeuferListe.filter((v) =>
-    v.name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  return (
+    <div className="container my-4">
+      <Toasts list={toasts} onClose={removeToast} />
 
-  // Alle verfügbaren Rollen für Checkbox-Liste (angenommen, diese sind bekannt oder aus API)
-  const availableRoles: MitarbeiterRolle[] = [
-    "admin",
-    "verkauf",
-    "kommissionierung",
-    "kontrolle",
-    "buchhaltung",
-    "wareneingang",
-    "lager",
-    "fahrer",
-    "statistik",
-    "kunde",
-    "support"
-  ];
-
-if (loading) return <div className="container text-center my-4"><p>Lädt...</p></div>;
-if (error) return <div className="container my-4"><div className="alert alert-danger">{error}</div></div>;
-
-return (
-  <div className="container my-4">
-    <div className="card shadow-sm">
-      <div className="card-body">
-        <div className="d-flex align-items-center justify-content-between mb-4">
-          <h2 className="h4 mb-0"><i className="ci-users me-2"></i> Mitarbeiterübersicht</h2>
-          <button className="btn btn-success d-inline-flex align-items-center shadow-sm" onClick={() => setShowModal(true)}>
-            <i className="ci-add-user me-2"></i> Neuer Mitarbeiter
-          </button>
-        </div>
-
-        <div className="input-group mb-4 shadow-sm">
-          <span className="input-group-text bg-white border-end-0"><i className="ci-search"></i></span>
-          <input
-            type="text"
-            className="form-control border-start-0"
-            placeholder="Mitarbeiter suchen..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-
-        <div className="d-flex justify-content-end mb-3">
-          <button
-            className="btn btn-outline-secondary btn-sm"
-            onClick={() => setKartenAnsicht(!kartenAnsicht)}
-          >
-            <i className={`ci-view-${kartenAnsicht ? 'list' : 'grid'} me-2`}></i>
-            {kartenAnsicht ? 'Tabellenansicht' : 'Kartenansicht'}
-          </button>
-        </div>
-
-        {!kartenAnsicht ? (
-          <div className="table-responsive">
-            <table className="table table-bordered table-hover table-sm align-middle">
-              <thead className="bg-secondary text-white">
-                <tr>
-                  <th>Name</th>
-                  <th>Rolle</th>
-                  <th>E-Mail</th>
-                  <th>Telefon</th>
-                  <th>Abteilung</th>
-                  <th>Aktiv</th>
-                  <th>Eintrittsdatum</th>
-                  <th>Aktionen</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredVerkaeufer.map((v) => (
-                  <tr
-                    key={v.id}
-                    className="text-nowrap"
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => navigate(`/mitarbeiter/${v.id}`)}
-                  >
-                    <td>{v.name}</td>
-                    <td>{v.rollen?.join(', ')}</td>
-                    <td>{v.email}</td>
-                    <td>{v.telefon}</td>
-                    <td>{v.abteilung}</td>
-                    <td className="text-center">{v.aktiv ? 'Ja' : 'Nein'}</td>
-                    <td>
-                      {v.eintrittsdatum ? new Date(v.eintrittsdatum).toLocaleDateString('de-DE') : ''}
-                    </td>
-                    <td>
-                      <Link
-                        to={`/mitarbeiter/edit/${v.id}`}
-                        className="btn btn-sm btn-outline-primary me-2"
-                        title="Bearbeiten"
-                        onClick={e => e.stopPropagation()}
-                      >
-                        <i className="ci-edit"></i>
-                      </Link>
-                      <button
-                        className="btn btn-sm btn-outline-danger"
-                        title="Löschen"
-                        onClick={e => {
-                          e.stopPropagation();
-                          handleDelete(v.id);
-                        }}
-                      >
-                        <i className="ci-trash"></i>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {/* Header */}
+      <div className="card border-0 shadow-sm mb-3">
+        <div className="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+          <div>
+            <h2 className="h4 mb-0"><i className="ci-users me-2"/>Mitarbeiter</h2>
+            <div className="text-muted small">{items.length} Einträge</div>
           </div>
-        ) : (
-          <div className="row">
-            {filteredVerkaeufer.map((v) => (
-              <div className="col-md-6 col-lg-4 mb-4" key={v.id}>
-                <div className="card h-100 shadow-sm" style={{ cursor: 'pointer' }} onClick={() => navigate(`/mitarbeiter/${v.id}`)}>
-                  <div className="card-body">
-                    <h5 className="card-title">{v.name}</h5>
-                    <p className="card-text mb-1"><strong>Rollen:</strong> {v.rollen?.join(', ')}</p>
-                    <p className="card-text mb-1"><strong>E-Mail:</strong> {v.email}</p>
-                    <p className="card-text mb-1"><strong>Telefon:</strong> {v.telefon}</p>
-                    <p className="card-text mb-1"><strong>Abteilung:</strong> {v.abteilung}</p>
-                    <p className="card-text mb-1"><strong>Aktiv:</strong> {v.aktiv ? 'Ja' : 'Nein'}</p>
-                    <p className="card-text"><strong>Eintritt:</strong> {v.eintrittsdatum ? new Date(v.eintrittsdatum).toLocaleDateString('de-DE') : ''}</p>
+          <div className="d-flex align-items-center gap-2">
+            <div className="btn-group" role="group">
+              <button className={cx('btn btn-sm', cardView ? 'btn-outline-primary' : 'btn-light')} onClick={()=>setCardView(true)}><i className="ci-grid me-2"/>Karten</button>
+              <button className={cx('btn btn-sm', !cardView ? 'btn-outline-primary' : 'btn-light')} onClick={()=>setCardView(false)}><i className="ci-table me-2"/>Tabelle</button>
+            </div>
+            <button className="btn btn-primary" onClick={()=>setShowCreate(true)}><i className="ci-add-user me-2"/>Neu</button>
+          </div>
+        </div>
+      </div>
+
+      {/* Suche */}
+      <div className="card border-0 shadow-sm mb-3">
+        <div className="card-body">
+          <div className="row g-2 align-items-end">
+            <div className="col-lg-8">
+              <label className="form-label">Suche</label>
+              <div className="input-group" style={{ minWidth: 540, maxWidth: 780 }}>
+                <span className="input-group-text bg-white border-end-0"><i className="ci-search"/></span>
+                <input className="form-control border-start-0" placeholder="Name, E‑Mail oder Abteilung…" value={search} onChange={(e)=>setSearch(e.target.value)} />
+                {search && <button className="btn btn-outline-secondary" onClick={()=>setSearch('')}>Leeren</button>}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Error */}
+      {error && <div className="alert alert-danger"><i className="ci-close-circle me-2"/>{error}</div>}
+
+      {/* Content */}
+      {loading ? (
+        <div className="text-center py-5"><div className="spinner-border"/></div>
+      ) : cardView ? (
+        <div className="row">
+          {filtered.map(v => (
+            <div className="col-md-6 col-lg-4 mb-4" key={v.id}>
+              <div className="card h-100 shadow-sm" style={{ cursor: 'pointer' }} onClick={()=>navigate(`/mitarbeiter/${v.id}`)}>
+                <div className="card-body">
+                  <div className="d-flex align-items-start justify-content-between">
+                    <div>
+                      <h5 className="card-title mb-1">{v.name}</h5>
+                      <div className="text-muted small">{v.abteilung || '—'}</div>
+                    </div>
+                    <span className={cx('badge', v.aktiv ? 'bg-success' : 'bg-warning text-dark')}>{v.aktiv ? 'Aktiv' : 'Inaktiv'}</span>
                   </div>
-                  <div className="card-footer bg-light d-flex justify-content-end">
-                    <Link to={`/mitarbeiter/edit/${v.id}`} className="btn btn-sm btn-outline-primary me-2" onClick={e => e.stopPropagation()} title="Bearbeiten">
-                      <i className="ci-edit"></i>
-                    </Link>
-                    <button className="btn btn-sm btn-outline-danger" onClick={e => { e.stopPropagation(); handleDelete(v.id); }} title="Löschen">
-                      <i className="ci-trash"></i>
-                    </button>
+                  <div className="mt-3">
+                    {(v.rollen || []).length ? (
+                      <div className="d-flex flex-wrap gap-1">
+                        {v.rollen!.map(r => <span key={r} className="badge rounded-pill bg-secondary">{r}</span>)}
+                      </div>
+                    ) : <div className="text-muted small">—</div>}
+                    <div className="small mt-2">
+                      <div className="mb-1"><strong>E‑Mail:</strong> {v.email || '—'}</div>
+                      <div className="mb-1"><strong>Telefon:</strong> {v.telefon || '—'}</div>
+                      <div className="mb-1"><strong>Eintritt:</strong> {v.eintrittsdatum ? new Date(v.eintrittsdatum).toLocaleDateString('de-DE') : '—'}</div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Modal: Verkäufer erstellen */}
-        {showModal && (
-          <>
-            <div className="modal show fade" style={{ display: 'block' }} tabIndex={-1}>
-              <div className="modal-dialog modal-dialog-centered">
-                <div className="modal-content">
-                  <div className="modal-header bg-primary text-white">
-                    <h5 className="modal-title">Neuen Mitarbeiter erstellen</h5>
-                    <button type="button" className="btn-close" onClick={() => setShowModal(false)}></button>
-                  </div>
-                  <div className="modal-body">
-                    <form onSubmit={handleCreate}>
-                      <div className="mb-3">
-                        <label className="form-label">Name</label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          value={newVerkaeufer.name}
-                          onChange={(e) => setNewVerkaeufer({ ...newVerkaeufer, name: e.target.value })}
-                          required
-                        />
-                      </div>
-                      <div className="mb-3">
-                        <label className="form-label">Passwort</label>
-                        <input
-                          type="password"
-                          className="form-control"
-                          value={newVerkaeufer.password}
-                          onChange={(e) => setNewVerkaeufer({ ...newVerkaeufer, password: e.target.value })}
-                          required
-                        />
-                      </div>
-                      <div className="mb-3">
-                        <label className="form-label">E-Mail</label>
-                        <input
-                          type="email"
-                          className="form-control"
-                          value={newVerkaeufer.email}
-                          onChange={(e) => setNewVerkaeufer({ ...newVerkaeufer, email: e.target.value })}
-                        />
-                      </div>
-                      <div className="mb-3">
-                        <label className="form-label">Telefon</label>
-                        <input
-                          type="tel"
-                          className="form-control"
-                          value={newVerkaeufer.telefon}
-                          onChange={(e) => setNewVerkaeufer({ ...newVerkaeufer, telefon: e.target.value })}
-                        />
-                      </div>
-                      <div className="mb-3">
-                        <label className="form-label">Abteilung</label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          value={newVerkaeufer.abteilung}
-                          onChange={(e) => setNewVerkaeufer({ ...newVerkaeufer, abteilung: e.target.value })}
-                        />
-                      </div>
-                      <div className="mb-3">
-                        <label className="form-label">Rollen</label>
-                        <div>
-                          {availableRoles.map((role) => (
-                            <div className="form-check form-check-inline" key={role}>
-                              <input
-                                className="form-check-input"
-                                type="checkbox"
-                                id={`role-${role}`}
-                                value={role}
-                                checked={newVerkaeufer.rollen.includes(role)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setNewVerkaeufer({ ...newVerkaeufer, rollen: [...newVerkaeufer.rollen, role] });
-                                  } else {
-                                    setNewVerkaeufer({ ...newVerkaeufer, rollen: newVerkaeufer.rollen.filter(r => r !== role) });
-                                  }
-                                }}
-                              />
-                              <label className="form-check-label" htmlFor={`role-${role}`}>{role}</label>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="mb-3 form-check">
-                        <input
-                          type="checkbox"
-                          className="form-check-input"
-                          id="aktivCheck"
-                          checked={newVerkaeufer.aktiv}
-                          onChange={(e) => setNewVerkaeufer({ ...newVerkaeufer, aktiv: e.target.checked })}
-                        />
-                        <label className="form-check-label" htmlFor="aktivCheck">Aktiv</label>
-                      </div>
-                      <div className="mb-3">
-                        <label className="form-label">Bemerkung</label>
-                        <textarea
-                          className="form-control"
-                          value={newVerkaeufer.bemerkung}
-                          onChange={(e) => setNewVerkaeufer({ ...newVerkaeufer, bemerkung: e.target.value })}
-                        />
-                      </div>
-                      <div className="mb-3">
-                        <label className="form-label">Eintrittsdatum</label>
-                        <input
-                          type="date"
-                          className="form-control"
-                          value={newVerkaeufer.eintrittsdatum}
-                          onChange={(e) => setNewVerkaeufer({ ...newVerkaeufer, eintrittsdatum: e.target.value })}
-                        />
-                      </div>
-                      <div className="modal-footer">
-                        <button type="button" className="btn btn-outline-secondary" onClick={() => setShowModal(false)}>
-                          <i className="ci-arrow-left me-2"></i> Abbrechen
-                        </button>
-                        <button type="submit" className="btn btn-success">
-                          <i className="ci-user me-2"></i> Mitarbeiter erstellen
-                        </button>
-                      </div>
-                    </form>
-                  </div>
+                <div className="card-footer bg-light d-flex justify-content-end gap-2">
+                  <button className="btn btn-sm btn-outline-primary" onClick={(e)=>{ e.stopPropagation(); setEditItem(v); }} title="Bearbeiten"><i className="ci-edit"/></button>
+                  <button className="btn btn-sm btn-outline-danger" onClick={(e)=>{ e.stopPropagation(); requestDelete(v); }} title="Löschen"><i className="ci-trash"/></button>
                 </div>
               </div>
             </div>
-            <div className="modal-backdrop fade show"></div>
-          </>
-        )}
-      </div>
+          ))}
+          {filtered.length === 0 && <div className="col-12 text-center text-muted py-5">Keine Mitarbeiter gefunden.</div>}
+        </div>
+      ) : (
+        <div className="card border-0 shadow-sm">
+          <div className="table-responsive">
+            <table className="table table-hover align-middle mb-0">
+              <thead className="table-light">
+                <tr>
+                  <th>Name</th>
+                  <th>Rollen</th>
+                  <th>E‑Mail</th>
+                  <th>Telefon</th>
+                  <th>Abteilung</th>
+                  <th>Aktiv</th>
+                  <th>Eintritt</th>
+                  <th className="text-end" style={{ width: 180 }}>Aktionen</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(v => (
+                  <tr key={v.id} style={{ cursor: 'pointer' }} onClick={()=>navigate(`/mitarbeiter/${v.id}`)}>
+                    <td>{v.name}</td>
+                    <td>
+                      {(v.rollen||[]).length ? (
+                        <div className="d-flex flex-wrap gap-1">
+                          {v.rollen!.map(r => <span key={r} className="badge rounded-pill bg-secondary">{r}</span>)}
+                        </div>
+                      ) : '—'}
+                    </td>
+                    <td>{v.email}</td>
+                    <td>{v.telefon}</td>
+                    <td>{v.abteilung}</td>
+                    <td>{v.aktiv ? 'Ja' : 'Nein'}</td>
+                    <td>{v.eintrittsdatum ? new Date(v.eintrittsdatum).toLocaleDateString('de-DE') : '—'}</td>
+                    <td className="text-end">
+                      <div className="btn-group">
+                        <button className="btn btn-sm btn-outline-primary" onClick={(e)=>{ e.stopPropagation(); setEditItem(v); }} title="Bearbeiten"><i className="ci-edit me-1"/>Bearbeiten</button>
+                        <button className="btn btn-sm btn-outline-danger" onClick={(e)=>{ e.stopPropagation(); requestDelete(v); }} title="Löschen"><i className="ci-trash me-1"/>Löschen</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {filtered.length === 0 && (
+                  <tr><td colSpan={8} className="py-5 text-center text-muted">Keine Mitarbeiter gefunden.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Create Modal */}
+      {showCreate && (
+        <div className="modal d-block" style={{ background: 'rgba(30,33,37,.6)' }} tabIndex={-1} role="dialog">
+          <div className="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div className="modal-content">
+              <div className="modal-header bg-primary text-white">
+                <h5 className="modal-title">Neuen Mitarbeiter erstellen</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={()=>setShowCreate(false)} />
+              </div>
+              <div className="modal-body">
+                <form onSubmit={onCreate}>
+                  <div className="row g-3">
+                    <div className="col-md-6">
+                      <label className="form-label">Name</label>
+                      <input className="form-control" value={form.name} onChange={(e)=>setForm({ ...form, name: e.target.value })} required />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label">Passwort</label>
+                      <input type="password" className="form-control" value={form.password} onChange={(e)=>setForm({ ...form, password: e.target.value })} required />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label">E‑Mail</label>
+                      <input type="email" className="form-control" value={form.email} onChange={(e)=>setForm({ ...form, email: e.target.value })} />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label">Telefon</label>
+                      <input className="form-control" value={form.telefon} onChange={(e)=>setForm({ ...form, telefon: e.target.value })} />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label">Abteilung</label>
+                      <input className="form-control" value={form.abteilung} onChange={(e)=>setForm({ ...form, abteilung: e.target.value })} />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label">Eintrittsdatum</label>
+                      <input type="date" className="form-control" value={form.eintrittsdatum} onChange={(e)=>setForm({ ...form, eintrittsdatum: e.target.value })} />
+                    </div>
+                    <div className="col-12">
+                      <label className="form-label">Rollen</label>
+                      <RolePills value={form.rollen} onChange={(v)=>setForm({ ...form, rollen: v })} options={availableRoles} />
+                    </div>
+                    <div className="col-12">
+                      <div className="form-check">
+                        <input className="form-check-input" type="checkbox" id="create-aktiv" checked={form.aktiv} onChange={(e)=>setForm({ ...form, aktiv: e.target.checked })} />
+                        <label className="form-check-label" htmlFor="create-aktiv">Aktiv</label>
+                      </div>
+                    </div>
+                    <div className="col-12">
+                      <label className="form-label">Bemerkung</label>
+                      <textarea className="form-control" value={form.bemerkung} onChange={(e)=>setForm({ ...form, bemerkung: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="modal-footer mt-3">
+                    <button type="button" className="btn btn-secondary" onClick={()=>setShowCreate(false)}><i className="ci-close me-2"/>Abbrechen</button>
+                    <button type="submit" className="btn btn-success" disabled={creating}>{creating && <span className="spinner-border spinner-border-sm me-2"/>} Erstellen</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editItem && (
+        <EditMitarbeiterModal
+          initial={editItem}
+          availableRoles={availableRoles}
+          onCancel={()=>setEditItem(null)}
+          onSubmit={handleEditSubmit}
+        />
+      )}
+
+      {/* Delete Confirm Modal */}
+      {confirmItem && (
+        <ConfirmModal
+          title="Mitarbeiter löschen?"
+          message={<>
+            Möchtest du den Mitarbeiter <strong>„{confirmItem.name}”</strong> wirklich löschen?
+            <div className="text-muted small mt-2">Dieser Vorgang kann nicht rückgängig gemacht werden.</div>
+          </>}
+          onConfirm={doConfirmDelete}
+          onCancel={()=>{ if (!confirmBusy) setConfirmItem(null); }}
+          busy={confirmBusy}
+          confirmText="Ja, löschen"
+        />
+      )}
     </div>
-  </div>
-);
+  );
 };
 
-export default Verkaeufer;
+export default MitarbeiterOverview;

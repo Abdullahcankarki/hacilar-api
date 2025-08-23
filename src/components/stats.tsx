@@ -11,7 +11,6 @@ import {
 } from 'chart.js';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend);
@@ -49,19 +48,6 @@ const Statistiken: React.FC = () => {
         });
         doc.save('statistik.pdf');
     };
-
-    const exportExcel = () => {
-        const data = statistik.labels.map((label, i) => ({
-            Zeitraum: label,
-            'Umsatz (€)': statistik.umsatz[i],
-        }));
-        const worksheet = XLSX.utils.json_to_sheet(data);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Statistik');
-        const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-        saveAs(new Blob([excelBuffer]), 'statistik.xlsx');
-    };
-
     const generateLabels = () => {
         if (zeitraum === 'heute') {
             return Array.from({ length: 24 }, (_, i) => `${i} Uhr`);
@@ -80,7 +66,6 @@ const Statistiken: React.FC = () => {
                 <h2 className="mb-0">Statistiken</h2>
                 <div className="btn-group">
                     <button className="btn btn-outline-primary btn-sm" onClick={exportPDF}>PDF Export</button>
-                    <button className="btn btn-outline-secondary btn-sm" onClick={exportExcel}>Excel Export</button>
                 </div>
             </div>
 

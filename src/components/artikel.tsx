@@ -41,7 +41,7 @@ const Artikel: React.FC = () => {
   const fetchArticles = async () => {
     try {
       const data = await api.getAllArtikelClean();
-      setArtikel(data);
+      setArtikel(data.items);
     } catch (err: any) {
       setError(err.message || 'Fehler beim Laden der Artikel');
     } finally {
@@ -53,7 +53,7 @@ const Artikel: React.FC = () => {
   const fetchCustomers = async () => {
     try {
       const data = await api.getAllKunden();
-      setCustomers(data);
+      setCustomers(data.items);
     } catch (err: any) {
       console.error('Fehler beim Laden der Kunden', err);
     }

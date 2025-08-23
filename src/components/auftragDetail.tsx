@@ -46,7 +46,7 @@ const AuftragDetail: React.FC = () => {
                 }
 
                 const artikelData = await api.getAllArtikel(); // API: alle Artikel laden
-                setAlleArtikel(artikelData);
+                setAlleArtikel(artikelData.items);
             } catch (err: any) {
                 setError(err.message || 'Fehler beim Laden der Daten');
             } finally {

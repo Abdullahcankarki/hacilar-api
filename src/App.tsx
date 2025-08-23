@@ -30,6 +30,10 @@ import ZerlegeDetail from './components/zerlegeDetail';
 import KomAuftraege from './components/komAuftraege';
 import KomAuftragDetail from './components/komAuftragDetail';
 import FahrzeugUebersicht from './components/fahrzeug';
+import RegionRuleOverview from './components/RegionRuleOverview';
+import KundenOverview from './components/KundenOverview';
+import MitarbeiterVerwaltung from './components/MitarbeiterOverview';
+import ArtikelOverview from './components/artikelOverview';
 
 
 // 📌 App-Routen
@@ -62,19 +66,20 @@ const AppRoutes: React.FC = () => {
               <Route path="kommissionierung/:id" element={<KomAuftragDetail />} />
               <Route path="zerlege" element={<ZerlegeAuftraege />} />
               <Route path="zerlege/:id" element={<ZerlegeDetail />} />
-              <Route path="artikel" element={<Artikel />} />
+              <Route path="artikel" element={<ArtikelOverview />} />
               <Route path="allArtikel" element={<AllArtikel />} />
               <Route path="artikel/:id" element={<ArtikelDetails />} />
-              <Route path="kunden" element={<Kunden />} />
+              <Route path="kunden" element={<KundenOverview />} />
               <Route path="kunden/:id" element={<KundeDetail />} />
               <Route path="kunden/edit/:id" element={<KundeEdit />} />
               <Route path="kundenaufpreise/:artikelId" element={<KundenaufpreisEditor />} />
               <Route path="profil" element={<Profil />} />
-              <Route path="mitarbeiter" element={<Verkaeufer />} />
+              <Route path="mitarbeiter" element={<MitarbeiterVerwaltung />} />
               <Route path="mitarbeiter/:id" element={<VerkaeuferDetails />} />
               <Route path="mitarbeiter/edit/:id" element={<VerkaeuferEdit />} />
               <Route path="stats" element={<Statistiken />} />
               <Route path="fahrzeug" element={<FahrzeugUebersicht />} />
+              <Route path="region-rule" element={<RegionRuleOverview />} />
               <Route path="*" element={<Navigate to="/home" replace />} />
             </>
           ) : roles.includes('zerleger') ? (
