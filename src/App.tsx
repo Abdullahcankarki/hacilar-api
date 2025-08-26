@@ -34,6 +34,8 @@ import RegionRuleOverview from './components/RegionRuleOverview';
 import KundenOverview from './components/KundenOverview';
 import MitarbeiterVerwaltung from './components/MitarbeiterOverview';
 import ArtikelOverview from './components/artikelOverview';
+import ReihenfolgeVorlageOverview from './components/ReihenfolgeVorlage';
+import { TourManager } from './components/TourManager';
 
 
 // 📌 App-Routen
@@ -80,6 +82,8 @@ const AppRoutes: React.FC = () => {
               <Route path="stats" element={<Statistiken />} />
               <Route path="fahrzeug" element={<FahrzeugUebersicht />} />
               <Route path="region-rule" element={<RegionRuleOverview />} />
+              <Route path="reihenfolge-vorlage" element={<ReihenfolgeVorlageOverview />} />
+              <Route path="tour-manager" element={<TourManager />} />
               <Route path="*" element={<Navigate to="/home" replace />} />
             </>
           ) : roles.includes('zerleger') ? (

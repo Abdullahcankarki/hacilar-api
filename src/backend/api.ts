@@ -10,6 +10,10 @@ import {
   ZerlegeauftragResource,
   FahrzeugResource,
   RegionRuleResource,
+  ReihenfolgeVorlageResource,
+  TourResource,
+  TourStopResource,
+  TourStatus,
 } from "../Resources";
 import {
   ErrorFromValidation,
@@ -122,6 +126,48 @@ export function toQueryArtikel(params?: Record<string, any>): string {
       usp.append(key, v);
     }
   }
+  const s = usp.toString();
+  return s ? `?${s}` : "";
+}
+
+/** Baut Querystring für /api/tour (unterstützt status als string oder Array -> "status[]") */
+function toQueryTour(params?: {
+  dateFrom?: string;
+  dateTo?: string;
+  region?: string;
+  status?: string | string[];
+  fahrzeugId?: string;
+  fahrerId?: string;
+  isStandard?: boolean;
+  q?: string;
+  page?: number;
+  limit?: number;
+  sort?: "datumAsc" | "datumDesc" | "createdDesc";
+}): string {
+  if (!params) return "";
+  const usp = new URLSearchParams();
+
+  const add = (k: string, v: any) => {
+    if (v === undefined || v === null || v === "") return;
+    usp.append(k, String(v));
+  };
+
+  if (params.dateFrom) add("dateFrom", params.dateFrom);
+  if (params.dateTo) add("dateTo", params.dateTo);
+  if (params.region) add("region", params.region);
+  if (Array.isArray(params.status)) {
+    for (const s of params.status) usp.append("status[]", s);
+  } else if (typeof params.status === "string") {
+    add("status", params.status);
+  }
+  if (params.fahrzeugId) add("fahrzeugId", params.fahrzeugId);
+  if (params.fahrerId) add("fahrerId", params.fahrerId);
+  if (typeof params.isStandard === "boolean") add("isStandard", params.isStandard);
+  if (params.q) add("q", params.q);
+  if (params.page) add("page", params.page);
+  if (params.limit) add("limit", params.limit);
+  if (params.sort) add("sort", params.sort);
+
   const s = usp.toString();
   return s ? `?${s}` : "";
 }
@@ -587,10 +633,9 @@ export async function getFahrzeugById(id: string): Promise<FahrzeugResource> {
   return apiFetch<FahrzeugResource>(`/api/fahrzeug/${id}`);
 }
 
-export async function getAllFahrzeuge(
-  params: URLSearchParams
-): Promise<any> {
-  return apiFetch<any>(`/api/fahrzeug?${params.toString()}`);
+export async function getAllFahrzeuge(params?: Record<string, any>): Promise<any> {
+  const q = toQueryArtikel(params);
+  return apiFetch<any>(`/api/fahrzeug${q}`);
 }
 
 export async function updateFahrzeug(
@@ -642,6 +687,226 @@ export async function updateRegionRule(
 export async function deleteRegionRule(id: string): Promise<{ message: string }> {
   return apiFetch<{ message: string }>(`/api/region-rule/${id}`, {
     method: "DELETE",
+  });
+}
+
+
+export async function createReihenfolgeVorlage(
+  data: Omit<ReihenfolgeVorlageResource, "id">
+): Promise<ReihenfolgeVorlageResource> {
+  return apiFetch<ReihenfolgeVorlageResource>("/api/reihenfolge-vorlage", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getReihenfolgeVorlageById(id: string): Promise<ReihenfolgeVorlageResource> {
+  return apiFetch<ReihenfolgeVorlageResource>(`/api/reihenfolge-vorlage/${id}`);
+}
+
+export async function getAllReihenfolgeVorlages(
+  params?: { q?: string; region?: string; active?: boolean; page?: number; limit?: number; sortBy?: string }
+): Promise<{ items: ReihenfolgeVorlageResource[]; total: number; page: number; limit: number }> {
+  const q = toQuery(params);
+  return apiFetch<{ items: ReihenfolgeVorlageResource[]; total: number; page: number; limit: number }>(`/api/reihenfolge-vorlage${q}`);
+}
+
+export async function updateReihenfolgeVorlage(
+  id: string,
+  data: Partial<ReihenfolgeVorlageResource>
+): Promise<ReihenfolgeVorlageResource> {
+  return apiFetch<ReihenfolgeVorlageResource>(`/api/reihenfolge-vorlage/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteReihenfolgeVorlage(id: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(`/api/reihenfolge-vorlage/${id}`, {
+    method: "DELETE",
+  });
+}
+
+/* ------------------------------- Tour-Funktionen ------------------------------- */
+export async function createTour(
+  data: {
+    datum: string;
+    region: string;
+    name?: string;
+    fahrzeugId?: string;
+    fahrerId?: string;
+    maxGewichtKg?: number;
+    status?: TourStatus;
+    reihenfolgeVorlageId?: string;
+    isStandard?: boolean;
+    parentTourId?: string;
+    splitIndex?: number;
+  }
+): Promise<TourResource> {
+  return apiFetch<TourResource>("/api/tour", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getTourById(id: string): Promise<TourResource> {
+  return apiFetch<TourResource>(`/api/tour/${id}`);
+}
+
+/** Liste / Suche mit Server-Pagination */
+export async function getAllTours(params?: {
+  dateFrom?: string;
+  dateTo?: string;
+  region?: string;
+  status?: string | string[]; // passt
+  fahrzeugId?: string;
+  fahrerId?: string;
+  isStandard?: boolean;
+  q?: string;
+  page?: number;
+  limit?: number;
+  sort?: "datumAsc" | "datumDesc" | "createdDesc";
+}): Promise<{ items: TourResource[]; total: number; page: number; limit: number }> {
+  const q = toQueryTour(params); // <— Stelle sicher, dass Arrays als status[]=… serialisiert werden
+  return apiFetch(`/api/tour${q}`);
+}
+
+export async function updateTour(
+  id: string,
+  data: Partial<TourResource>
+): Promise<TourResource> {
+  return apiFetch<TourResource>(`/api/tour/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function archiveTour(id: string): Promise<TourResource> {
+  return apiFetch<TourResource>(`/api/tour/${id}/archive`, {
+    method: "POST",
+  });
+}
+
+export async function unarchiveTour(id: string): Promise<TourResource> {
+  return apiFetch<TourResource>(`/api/tour/${id}/unarchive`, {
+    method: "POST",
+  });
+}
+
+export async function deleteTour(id: string): Promise<void> {
+  await apiFetch<void>(`/api/tour/${id}`, { method: "DELETE" });
+}
+
+/** Achtung: gefährlich – löscht alle Touren */
+export async function deleteAllTours(): Promise<void> {
+  await apiFetch<void>("/api/tour", { method: "DELETE" });
+}
+
+/* ----------------------------- TourStop-Funktionen ----------------------------- */
+export async function createTourStop(
+  data: Omit<TourStopResource, "id" | "updatedAt" | "abgeschlossenAm">
+): Promise<TourStopResource> {
+  return apiFetch<TourStopResource>("/api/tour-stop", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getTourStopById(id: string): Promise<TourStopResource> {
+  return apiFetch<TourStopResource>(`/api/tour-stop/${id}`);
+}
+
+/** Listet Stops, optional gefiltert nach tourId / auftragId / kundeId */
+export async function listTourStops(params?: {
+  tourId?: string;
+  auftragId?: string;
+  kundeId?: string;
+}): Promise<TourStopResource[]> {
+  const q = toQueryArtikel(params as any);
+  return apiFetch<TourStopResource[]>(`/api/tour-stop${q}`);
+}
+
+/** Patch einzelner Felder (position, gewichtKg, status, fehlgrund, signatur..., leergutMitnahme, abgeschlossenAm) */
+export async function updateTourStop(
+  id: string,
+  data: Partial<Pick<TourStopResource,
+    "position" | "gewichtKg" | "status" | "fehlgrund" |
+    "signaturPngBase64" | "signTimestampUtc" | "signedByName" |
+    "leergutMitnahme" | "abgeschlossenAm"
+  >>
+): Promise<TourStopResource> {
+  return apiFetch<TourStopResource>(`/api/tour-stop/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteTourStop(id: string): Promise<void> {
+  await apiFetch<void>(`/api/tour-stop/${id}`, { method: "DELETE" });
+}
+
+/** Achtung: gefährlich – löscht alle TourStops */
+export async function deleteAllTourStops(): Promise<void> {
+  await apiFetch<void>("/api/tour-stop", { method: "DELETE" });
+}
+
+/** Helper: Reihenfolge in einer Tour neu setzen – führt sequentielle PATCH-Requests aus */
+// Robust gegen E11000 bei Unique-Index (tourId, position):
+export async function reorderTourStops(tourId: string, orderedStopIds: string[]): Promise<void> {
+  // defensive guards
+  if (!tourId) return;
+  const desired = (orderedStopIds || []).filter(Boolean);
+
+  // 0) Hole ALLE Stops dieser Tour (wir müssen komplette Tour bewegen, um E11000 zu vermeiden)
+  const allStops = await listTourStops({ tourId });
+  const allIds = allStops.map(s => s.id!).filter(Boolean) as string[];
+  if (!allIds.length) return;
+
+  // 1) Phase (Temp): verschiebe ALLE Stops in einen hohen Bereich, damit 1..N frei ist
+  const TEMP_OFFSET = 1000;
+  let idx = 1;
+  for (const id of allIds) {
+    try {
+      await updateTourStop(id, { position: TEMP_OFFSET + idx });
+    } catch (err: any) {
+      console.warn("Temp move failed for stop", id, err?.message ?? err);
+    }
+    idx++;
+  }
+
+  // 2) Phase (Final-Order): zuerst gewünschte Reihenfolge 1..K setzen
+  let pos = 1;
+  for (const id of desired) {
+    try {
+      await updateTourStop(id, { position: pos });
+    } catch (err: any) {
+      console.warn("Final set (desired) failed for stop", id, err?.message ?? err);
+    }
+    pos++;
+  }
+
+  // 3) Phase (Rest): restliche Stops in ihrer bisherigen Reihenfolge (nach Temp) anhängen
+  const setDesired = new Set(desired);
+  for (const s of allStops) {
+    const id = s.id!;
+    if (setDesired.has(id)) continue;
+    try {
+      await updateTourStop(id, { position: pos });
+    } catch (err: any) {
+      console.warn("Final set (rest) failed for stop", id, err?.message ?? err);
+    }
+    pos++;
+  }
+}
+
+/** Move a TourStop atomar zwischen Touren */
+export async function moveTourStop(
+  stopId: string,
+  data: { toTourId: string; targetIndex?: number }
+): Promise<TourStopResource> {
+  return apiFetch<TourStopResource>(`/api/tour-stop/${stopId}/move`, {
+    method: "POST",
+    body: JSON.stringify(data),
   });
 }
 
@@ -715,5 +980,29 @@ export const api = {
   getRegionById,
   getAllRegionRules,
   updateRegionRule,
-  deleteRegionRule
+  deleteRegionRule,
+  //ReihenfolgeVorlage
+  getReihenfolgeVorlageById,
+  getAllReihenfolgeVorlages,
+  createReihenfolgeVorlage,
+  updateReihenfolgeVorlage,
+  deleteReihenfolgeVorlage,
+  // Tour
+  createTour,
+  getTourById,
+  getAllTours,
+  updateTour,
+  archiveTour,
+  unarchiveTour,
+  deleteTour,
+  deleteAllTours,
+  // TourStop
+  createTourStop,
+  getTourStopById,
+  listTourStops,
+  updateTourStop,
+  deleteTourStop,
+  deleteAllTourStops,
+  reorderTourStops,
+  moveTourStop,
 };

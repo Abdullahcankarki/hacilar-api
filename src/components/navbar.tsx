@@ -130,6 +130,8 @@ const NavBar: React.FC<NavBarProps> = ({
                       <li><NavLink className="dropdown-item" to="/artikel">Artikel</NavLink></li>
                       <li><NavLink className="dropdown-item" to="/fahrzeug">Fahrzeuge</NavLink></li>
                       <li><NavLink className="dropdown-item" to="/region-rule">Region-Regel</NavLink></li>
+                      <li><NavLink className="dropdown-item" to="/reihenfolge-vorlage">Reihenfolge-Vorlagen</NavLink></li>
+                      <li><NavLink className="dropdown-item" to="/tour-manager">Touren</NavLink></li>
                       <li><NavLink className="dropdown-item" to="/stats">Statistiken</NavLink></li>
                     </ul>
                   </li>
