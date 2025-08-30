@@ -36,6 +36,7 @@ import MitarbeiterVerwaltung from './components/MitarbeiterOverview';
 import ArtikelOverview from './components/artikelOverview';
 import ReihenfolgeVorlageOverview from './components/ReihenfolgeVorlage';
 import { TourManager } from './components/TourManager';
+import DriverTour from './components/DriverTour';
 
 
 // 📌 App-Routen
@@ -84,6 +85,7 @@ const AppRoutes: React.FC = () => {
               <Route path="region-rule" element={<RegionRuleOverview />} />
               <Route path="reihenfolge-vorlage" element={<ReihenfolgeVorlageOverview />} />
               <Route path="tour-manager" element={<TourManager />} />
+              <Route path="fahrer" element={<DriverTour />} />
               <Route path="*" element={<Navigate to="/home" replace />} />
             </>
           ) : roles.includes('zerleger') ? (
@@ -115,6 +117,12 @@ const AppRoutes: React.FC = () => {
               <Route path="kommissionierung/:id" element={<KomAuftragDetail />} />
               <Route path="profil" element={<Profil />} />
               <Route path="*" element={<Navigate to="/kommissionierung" replace />} />
+            </>
+          ) : roles.includes('fahrer') ? (
+            <>
+              <Route path="fahrer" element={<DriverTour />} />
+              <Route path="profil" element={<Profil />} />
+              <Route path="*" element={<Navigate to="/fahrer" replace />} />
             </>
           ) : (
             <Route path="*" element={<Navigate to="/login" replace />} />

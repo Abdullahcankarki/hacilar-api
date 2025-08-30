@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Offcanvas, Button, Form, Row, Col, Modal } from 'react-bootstrap';
 import { ArtikelPositionResource, ArtikelResource, RegionRuleResource } from '../Resources';
 import 'flatpickr/dist/flatpickr.min.css';
@@ -93,6 +93,9 @@ const WarenkorbPanel: React.FC<Props> = ({
     const [fetchedRule, setFetchedRule] = useState<RegionRuleResource | null>(null);
     const [ruleLoading, setRuleLoading] = useState(false);
 
+    const dateInputRef = useRef<HTMLInputElement | null>(null);
+    const fpRef = useRef<flatpickr.Instance | null>(null);
+
     useEffect(() => {
         let cancelled = false;
         async function loadRule() {
@@ -133,6 +136,47 @@ const WarenkorbPanel: React.FC<Props> = ({
     }, [fetchedRule, kundeRegion]);
 
     const nextAvail = useMemo(() => nextAllowedDate(new Date(), rule), [rule]);
+
+    useEffect(() => {
+        if (showDateModal && !ruleLoading && !lieferdatum && nextAvail) {
+            const iso = DateTime.fromJSDate(nextAvail).setZone(ZONE).toISODate();
+            if (iso) setLieferdatum(iso);
+        }
+    }, [showDateModal, ruleLoading, nextAvail, lieferdatum]);
+
+    useEffect(() => {
+        if (!showDateModal || ruleLoading) return;
+        const el = dateInputRef.current;
+        if (!el) return;
+
+        // Determine default date: prefer current state, else next available
+        const defaultIso = lieferdatum || (nextAvail ? DateTime.fromJSDate(nextAvail).setZone(ZONE).toISODate() : undefined);
+
+        // (Re)create flatpickr instance
+        if (fpRef.current) {
+            try { fpRef.current.destroy(); } catch {}
+            fpRef.current = null;
+        }
+        fpRef.current = flatpickr(el, {
+            altInput: true,
+            altFormat: 'd.m.Y',
+            dateFormat: 'Y-m-d',
+            locale: German,
+            defaultDate: defaultIso,
+            minDate: 'today',
+            disable: [ (d: Date) => !isDateAllowed(d, rule).ok ],
+            onChange: (selectedDates, dateStr) => setLieferdatum(dateStr)
+        });
+
+        // Sync state -> widget when we already have a date
+        if (defaultIso && fpRef.current) {
+            fpRef.current.setDate(defaultIso, true);
+        }
+
+        return () => {
+            if (fpRef.current) { try { fpRef.current.destroy(); } catch {} fpRef.current = null; }
+        };
+    }, [showDateModal, ruleLoading, rule, nextAvail]);
 
     const berechneGesamtgewicht = (
         item: ArtikelPositionResource,
@@ -302,29 +346,12 @@ const WarenkorbPanel: React.FC<Props> = ({
                     <Form.Label className="form-label">Lieferdatum</Form.Label>
                     <div className="position-relative">
                         <input
-                            ref={(el) => {
-                                if (el && showDateModal && !ruleLoading) {
-                                    // Wenn noch kein Datum gesetzt und wir eine nächste Option haben, vorausfüllen
-                                    const defaultIso = lieferdatum || (nextAvail ? DateTime.fromJSDate(nextAvail).setZone(ZONE).toISODate() : undefined);
-
-                                    flatpickr(el, {
-                                        altInput: true,
-                                        altFormat: 'd.m.Y',
-                                        dateFormat: 'Y-m-d',
-                                        locale: German,
-                                        defaultDate: defaultIso,
-                                        minDate: 'today',
-                                        // IMPORTANT: isDateAllowed treats dates as date-only in Europe/Berlin to avoid TZ day shifts
-                                        disable: [
-                                            (d: Date) => !isDateAllowed(d, rule).ok,
-                                        ],
-                                        onChange: (selectedDates, dateStr) => setLieferdatum(dateStr)
-                                    });
-                                }
-                            }}
+                            ref={dateInputRef}
                             className="form-control date-picker pe-5"
                             type="text"
                             placeholder="Datum wählen"
+                            value={lieferdatum}
+                            onChange={() => { /* value controlled via flatpickr onChange */ }}
                         />
                         <i
                             className="ci-calendar position-absolute top-50 end-0 translate-middle-y me-3"

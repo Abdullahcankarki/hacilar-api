@@ -8,7 +8,7 @@ import { DateRange } from "react-date-range";
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
 
-import { TourResource, TourStopResource, TourStatus, StopStatus } from "../Resources";
+import { TourResource, TourStopResource, TourStatus } from "../Resources";
 import {
     getAllTours,
     createTour,
@@ -16,14 +16,12 @@ import {
     deleteTour,
     listTourStops,
     reorderTourStops,
-    createTourStop,
-    deleteTourStop,
-    updateTourStop,
     getAllFahrzeuge,
     getAllMitarbeiter,
     getAllReihenfolgeVorlages,
     moveTourStop,
 } from "../backend/api";
+import { useNavigate } from "react-router-dom";
 
 
 // ==== Aux types for lookups ====
@@ -114,7 +112,7 @@ const sortTours = (items: TourResource[], key: SortKey, dir: "asc" | "desc") => 
 };
 
 // ==== Sortable Stop Item ====
-const SortableStopItem: React.FC<{ stop: TourStopResource }> = ({ stop }) => {
+const SortableStopItem: React.FC<{ stop: TourStopResource; onClick?: (s: TourStopResource) => void }> = ({ stop, onClick }) => {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: stop.id! });
     const style: React.CSSProperties = {
         transform: CSS.Transform.toString(transform),
@@ -124,7 +122,7 @@ const SortableStopItem: React.FC<{ stop: TourStopResource }> = ({ stop }) => {
     };
     return (
         <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-            <StopItem stop={stop} isDragging={isDragging} />
+            <StopItem stop={stop} isDragging={isDragging} onClick={onClick} />
         </div>
     );
 };
@@ -132,13 +130,16 @@ const SortableStopItem: React.FC<{ stop: TourStopResource }> = ({ stop }) => {
 const StopItem: React.FC<{
     stop: TourStopResource;
     isDragging?: boolean;
-}> = ({ stop, isDragging }) => (
+    onClick?: (s: TourStopResource) => void;
+}> = ({ stop, isDragging, onClick }) => (
     <div
         className={cx(
             "card mb-2 border-0 shadow-sm",
-            isDragging && "opacity-75"
+            isDragging && "opacity-75",
+            "stop-clickable"
         )}
-        style={{ cursor: "grab" }}
+        style={{ cursor: onClick ? "pointer" : "grab" }}
+        onClick={() => onClick && onClick(stop)}
     >
         <div className="card-body d-flex align-items-center justify-content-between">
             <div className="d-flex align-items-center gap-3">
@@ -158,16 +159,40 @@ const StopItem: React.FC<{
     </div>
 );
 
+// ==== PendingDeletionCountdown ====
+
+const PendingDeletionCountdown: React.FC<{ until: number }> = ({ until }) => {
+    const [secondsLeft, setSecondsLeft] = useState(Math.max(0, Math.ceil((until - Date.now()) / 1000)));
+    const navigate = useNavigate();
+    useEffect(() => {
+        const timer = setInterval(() => {
+            const s = Math.max(0, Math.ceil((until - Date.now()) / 1000));
+            setSecondsLeft(s);
+
+            if (s <= 0) {
+                clearInterval(timer);
+                // Nach Ablauf → Refresh
+                navigate(0);
+            }
+        }, 1000);
+        return () => clearInterval(timer);
+    }, [until, navigate]);
+    if (secondsLeft <= 0) return null;
+    return <span className="badge bg-danger-subtle text-danger ms-2">Löschen in {secondsLeft}s</span>;
+};
+
 // ==== Tour Card with Stops ====
 const TourColumn: React.FC<{
-    tour: TourResource;
+    tour: TourResource & { pendingDeletionUntil?: number };
     fahrzeuge: Record<string, Fahrzeug>;
     fahrer: Record<string, Mitarbeiter>;
     vorlagen: Record<string, ReihenfolgeVorlage>;
     stops: TourStopResource[];
+    pendingUntil?: number;
     onEdit: (t: TourResource) => void;
     onDelete: (t: TourResource) => void;
-}> = ({ tour, fahrzeuge, fahrer, vorlagen, stops, onEdit, onDelete }) => {
+    onOpenStopDetails: (s: TourStopResource) => void;
+}> = ({ tour, fahrzeuge, fahrer, vorlagen, stops, pendingUntil, onEdit, onDelete, onOpenStopDetails }) => {
     const fahrzeugName = tour.fahrzeugId ? fahrzeuge[tour.fahrzeugId]?.name : undefined;
     const fahrerName = tour.fahrerId ? fahrer[tour.fahrerId]?.name : undefined;
     const vorlageName = tour.reihenfolgeVorlageId ? vorlagen[tour.reihenfolgeVorlageId]?.name : undefined;
@@ -184,6 +209,7 @@ const TourColumn: React.FC<{
                             <h5 className="mb-0">{tour.name || `Tour ${tour.region}`}</h5>
                             {tour.isStandard && <span className="badge text-bg-primary">Standard</span>}
                             {tour.overCapacityFlag && <span className="badge text-bg-danger">Überkapazität</span>}
+                            {pendingUntil && <PendingDeletionCountdown until={pendingUntil} />}
                         </div>
                         <div className="text-muted small">
                             {fmtDate(tour.datum)} · {formatRegion(tour.region, 'capitalized')} ·
@@ -207,7 +233,7 @@ const TourColumn: React.FC<{
                 <div className="card-body">
                     <SortableContext items={stops.map(s => s.id!)} strategy={verticalListSortingStrategy}>
                         {stops.map((s) => (
-                            <SortableStopItem key={s.id} stop={s} />
+                            <SortableStopItem key={s.id} stop={s} onClick={onOpenStopDetails} />
                         ))}
                         {!stops.length && (
                             <div className="text-muted small">Keine Stopps.</div>
@@ -344,99 +370,99 @@ const TourModal: React.FC<{
                                             }));
                                         }}
                                     >
-                                    <option value="">—</option>
-                                    {fahrzeuge.map((f) => (
-                                        <option key={f.id} value={f.id}>{renderFahrzeugLabel(f)}</option>
-                                    ))}
-                                </select>
-                                {form.fahrzeugId && (
-                                    <div className="form-text">
-                                        Max. Gewicht: {fahrzeuge.find(f => f.id === form.fahrzeugId)?.maxGewichtKg ?? "—"} kg
-                                    </div>
-                                )}
-                            </div>
+                                        <option value="">—</option>
+                                        {fahrzeuge.map((f) => (
+                                            <option key={f.id} value={f.id}>{renderFahrzeugLabel(f)}</option>
+                                        ))}
+                                    </select>
+                                    {form.fahrzeugId && (
+                                        <div className="form-text">
+                                            Max. Gewicht: {fahrzeuge.find(f => f.id === form.fahrzeugId)?.maxGewichtKg ?? "—"} kg
+                                        </div>
+                                    )}
+                                </div>
 
-                            <div className="col-md-6">
-                                <label className="form-label">Fahrer (nur Rolle „fahrer“)</label>
-                                <select
-                                    className="form-select"
-                                    value={form.fahrerId ?? ""}
-                                    onChange={(e) => setForm({ ...form, fahrerId: e.target.value || undefined })}
-                                >
-                                    <option value="">—</option>
-                                    {fahrer.map((m) => (
-                                        <option key={m.id} value={m.id}>{m.name}</option>
-                                    ))}
-                                </select>
-                            </div>
+                                <div className="col-md-6">
+                                    <label className="form-label">Fahrer (nur Rolle „fahrer“)</label>
+                                    <select
+                                        className="form-select"
+                                        value={form.fahrerId ?? ""}
+                                        onChange={(e) => setForm({ ...form, fahrerId: e.target.value || undefined })}
+                                    >
+                                        <option value="">—</option>
+                                        {fahrer.map((m) => (
+                                            <option key={m.id} value={m.id}>{m.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
 
-                            <div className="col-md-6">
-                                <label className="form-label">Reihenfolgevorlage</label>
-                                <select
-                                    className="form-select"
-                                    value={form.reihenfolgeVorlageId ?? ""}
-                                    onChange={(e) => setForm({ ...form, reihenfolgeVorlageId: e.target.value || undefined })}
-                                >
-                                    <option value="">—</option>
-                                    {vorlagen.map((v) => (
-                                        <option key={v.id} value={v.id}>{v.name}</option>
-                                    ))}
-                                </select>
-                            </div>
+                                <div className="col-md-6">
+                                    <label className="form-label">Reihenfolgevorlage</label>
+                                    <select
+                                        className="form-select"
+                                        value={form.reihenfolgeVorlageId ?? ""}
+                                        onChange={(e) => setForm({ ...form, reihenfolgeVorlageId: e.target.value || undefined })}
+                                    >
+                                        <option value="">—</option>
+                                        {vorlagen.map((v) => (
+                                            <option key={v.id} value={v.id}>{v.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
 
-                            <div className="col-md-3">
-                                <label className="form-label">Max. Gewicht (kg)</label>
-                                <input
-                                    type="number"
-                                    min={0}
-                                    className="form-control"
-                                    placeholder="vom Fzg. übernehmen"
-                                    value={form.maxGewichtKg ?? ""}
-                                    onChange={(e) => setForm({ ...form, maxGewichtKg: e.target.value ? Number(e.target.value) : undefined })}
-                                />
-                            </div>
-
-                            <div className="col-md-3">
-                                <label className="form-label">Status</label>
-                                <select
-                                    className="form-select"
-                                    value={form.status ?? "geplant"}
-                                    onChange={(e) => setForm({ ...form, status: e.target.value as TourStatus })}
-                                >
-                                    <option value="geplant">geplant</option>
-                                    <option value="laufend">laufend</option>
-                                    <option value="abgeschlossen">abgeschlossen</option>
-                                    <option value="archiviert">archiviert</option>
-                                </select>
-                            </div>
-
-                            <div className="col-12">
-                                <div className="form-check">
+                                <div className="col-md-3">
+                                    <label className="form-label">Max. Gewicht (kg)</label>
                                     <input
-                                        className="form-check-input"
-                                        type="checkbox"
-                                        id="isStandard"
-                                        checked={!!form.isStandard}
-                                        onChange={(e) => setForm({ ...form, isStandard: e.target.checked })}
+                                        type="number"
+                                        min={0}
+                                        className="form-control"
+                                        placeholder="vom Fzg. übernehmen"
+                                        value={form.maxGewichtKg ?? ""}
+                                        onChange={(e) => setForm({ ...form, maxGewichtKg: e.target.value ? Number(e.target.value) : undefined })}
                                     />
-                                    <label htmlFor="isStandard" className="form-check-label">Standardtour</label>
+                                </div>
+
+                                <div className="col-md-3">
+                                    <label className="form-label">Status</label>
+                                    <select
+                                        className="form-select"
+                                        value={form.status ?? "geplant"}
+                                        onChange={(e) => setForm({ ...form, status: e.target.value as TourStatus })}
+                                    >
+                                        <option value="geplant">geplant</option>
+                                        <option value="laufend">laufend</option>
+                                        <option value="abgeschlossen">abgeschlossen</option>
+                                        <option value="archiviert">archiviert</option>
+                                    </select>
+                                </div>
+
+                                <div className="col-12">
+                                    <div className="form-check">
+                                        <input
+                                            className="form-check-input"
+                                            type="checkbox"
+                                            id="isStandard"
+                                            checked={!!form.isStandard}
+                                            onChange={(e) => setForm({ ...form, isStandard: e.target.checked })}
+                                        />
+                                        <label htmlFor="isStandard" className="form-check-label">Standardtour</label>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                </div>
 
-                <div className="modal-footer">
-                    <button type="button" className="btn btn-outline-secondary" onClick={onClose}>Abbrechen</button>
-                    <button type="submit" className="btn btn-primary" disabled={submitting}>
-                        {submitting ? "Speichern…" : "Speichern"}
-                    </button>
+                        <div className="modal-footer">
+                            <button type="button" className="btn btn-outline-secondary" onClick={onClose}>Abbrechen</button>
+                            <button type="submit" className="btn btn-primary" disabled={submitting}>
+                                {submitting ? "Speichern…" : "Speichern"}
+                            </button>
+                        </div>
+                    </form>
                 </div>
-            </form>
-        </div>
             </div >
-    {/* Backdrop removed */ }
+            {/* Backdrop removed */}
         </div >,
-    document.body
+        document.body
     );
 };
 
@@ -474,14 +500,138 @@ const ConfirmModal: React.FC<{ show: boolean; onClose: () => void; onConfirm: ()
     );
 };
 
+// ==== Stop Details Modal ====
+const StopDetailsModal: React.FC<{
+  show: boolean;
+  stop: TourStopResource | null;
+  onClose: () => void;
+}> = ({ show, stop, onClose }) => {
+  useEffect(() => { document.body.style.overflow = show ? "hidden" : ""; }, [show]);
+  if (!show || !stop) return null;
+  const ts = stop.signTimestampUtc ? dayjs(stop.signTimestampUtc).format("DD.MM.YYYY HH:mm") : "—";
+  const doneAt = stop.abgeschlossenAm ? dayjs(stop.abgeschlossenAm).format("DD.MM.YYYY HH:mm") : "—";
+  const sigSrc = stop.signaturPngBase64 ? (
+    stop.signaturPngBase64.startsWith("data:") ? stop.signaturPngBase64 : `data:image/png;base64,${stop.signaturPngBase64}`
+  ) : null;
+
+  return createPortal(
+    <div className="modal fade show d-block" tabIndex={-1} role="dialog" aria-modal="true" style={{ zIndex: 1055 }}>
+      <div className="modal-dialog modal-lg modal-dialog-centered" role="document">
+        <div className="modal-content border-0 shadow-lg">
+          <div className="modal-header">
+            <h5 className="modal-title">Stop-Details</h5>
+            <button type="button" className="btn-close" onClick={onClose} aria-label="Schließen" />
+          </div>
+          <div className="modal-body">
+            <div className="row g-3">
+              <div className="col-12">
+                <div className="d-flex align-items-center justify-content-between">
+                  <div>
+                    <div className="fw-semibold">{stop.kundeName ?? `Kunde #${stop.kundeId}`}</div>
+                    <div className="text-muted small">Position: {stop.position}</div>
+                  </div>
+                  <div className="d-flex align-items-center gap-2">
+                    <span className={`badge text-bg-${stopStatusVariant(stop.status)}`}>{stopStatusLabel(stop.status)}</span>
+                    <span className="badge text-bg-light d-flex align-items-center gap-1">
+                      <i className="ci-scale" aria-hidden />
+                      {Number(stop.gewichtKg ?? 0).toFixed(1)} kg
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="col-md-6">
+                <div className="card border-0 shadow-sm h-100">
+                  <div className="card-body">
+                    <div className="fw-semibold mb-2">Zustellnachweis</div>
+                    <div className="mb-1 small text-muted">Name</div>
+                    <div className="mb-2">{stop.signedByName || "—"}</div>
+                    <div className="mb-1 small text-muted">Unterschrift</div>
+                    {sigSrc ? (
+                      <div className="border rounded p-2 bg-white">
+                        <img src={sigSrc} alt="Signatur" style={{ maxWidth: "100%", height: "auto" }} />
+                      </div>
+                    ) : (
+                      <div className="text-muted">—</div>
+                    )}
+                    <div className="mt-2 small text-muted">Zeitstempel</div>
+                    <div>{ts}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="col-md-6">
+                <div className="card border-0 shadow-sm h-100">
+                  <div className="card-body">
+                    <div className="fw-semibold mb-2">Leergut</div>
+                    {Array.isArray(stop.leergutMitnahme) && stop.leergutMitnahme.length ? (
+                      <div className="table-responsive">
+                        <table className="table table-sm align-middle">
+                          <thead>
+                            <tr>
+                              <th style={{ width: "50%" }}>Art</th>
+                              <th>Anzahl</th>
+                              <th>Gewicht (kg)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {stop.leergutMitnahme.map((r, i) => (
+                              <tr key={i}>
+                                <td>{r.art || "—"}</td>
+                                <td>{r.anzahl ?? "—"}</td>
+                                <td>{r.gewichtKg ?? "—"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="text-muted">—</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="col-12">
+                <div className="card border-0 shadow-sm">
+                  <div className="card-body">
+                    <div className="fw-semibold mb-2">Status & Zeiten</div>
+                    <div className="row small g-2">
+                      <div className="col-sm-6">
+                        <div className="text-muted">Abgeschlossen am</div>
+                        <div>{doneAt}</div>
+                      </div>
+                      <div className="col-sm-6">
+                        <div className="text-muted">Fehlgrund</div>
+                        <div>{stop.fehlgrund?.code ? `${stop.fehlgrund.code}${stop.fehlgrund.text ? ": " + stop.fehlgrund.text : ""}` : "—"}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="modal-footer">
+            <button className="btn btn-outline-secondary" onClick={onClose}>Schließen</button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+};
+
 // ==== Main Manager ====
 export const TourManager: React.FC = () => {
-    const [tours, setTours] = useState<TourResource[]>([]);
+    const [tours, setTours] = useState<(TourResource & { pendingDeletionUntil?: number })[]>([]);
     const [stopsByTour, setStopsByTour] = useState<Record<string, TourStopResource[]>>({});
     const [fahrzeuge, setFahrzeuge] = useState<Fahrzeug[]>([]);
     const [fahrer, setFahrer] = useState<Mitarbeiter[]>([]);
     const [vorlagen, setVorlagen] = useState<ReihenfolgeVorlage[]>([]);
     const [toast, setToast] = useState<ToastT | null>(null);
+    const [showStopDetails, setShowStopDetails] = useState(false);
+    const [selectedStop, setSelectedStop] = useState<TourStopResource | null>(null);
+    const openStopDetails = (s: TourStopResource) => { setSelectedStop(s); setShowStopDetails(true); };
 
     const [sortKey, setSortKey] = useState<SortKey>("datum");
     const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -499,6 +649,8 @@ export const TourManager: React.FC = () => {
     const [page, setPage] = useState<number>(1);
     const [limit, setLimit] = useState<number>(20);
     const [total, setTotal] = useState<number>(0);
+    // Persist pending deletion countdowns across reloads
+    const [pendingDeletion, setPendingDeletion] = useState<Record<string, number>>({});
     const [showFilterModal, setShowFilterModal] = useState(false);
     const [availableRegions, setAvailableRegions] = useState<string[]>([]);
 
@@ -628,7 +780,12 @@ export const TourManager: React.FC = () => {
             setTotal(t.length);
         }
 
-        setTours(sortTours(t, sortKey, sortDir));
+        // Merge active local countdowns so they survive reloads
+        const withPending = t.map(tt => {
+            const until = pendingDeletion[tt.id!];
+            return (until && until > Date.now()) ? { ...tt, pendingDeletionUntil: until } : tt;
+        });
+        setTours(sortTours(withPending, sortKey, sortDir));
         setFahrzeuge(fItems);
         setFahrer(mItems.filter(x => Array.isArray(x.rollen) && x.rollen.includes("fahrer")));
         setVorlagen(vItems);
@@ -649,6 +806,17 @@ export const TourManager: React.FC = () => {
             dict[id] = [...stops].sort((a, b) => a.position - b.position);
         }
         setStopsByTour(dict);
+        // Cleanup pendingDeletion entries: remove expired or refilled tours
+        setPendingDeletion(prev => {
+            const next: Record<string, number> = { ...prev };
+            for (const tourId of Object.keys(next)) {
+                const until = next[tourId];
+                const expired = !until || until <= Date.now();
+                const refilled = (dict[tourId]?.length ?? 0) > 0; // tour has stops again
+                if (expired || refilled) delete next[tourId];
+            }
+            return next;
+        });
     };
 
     useEffect(() => { load().catch(() => setToast({ type: "danger", msg: "Fehler beim Laden" })); }, []);
@@ -798,9 +966,8 @@ export const TourManager: React.FC = () => {
                 await load();
                 setToast({ type: "danger", msg: "Neuordnung fehlgeschlagen." });
             }
-            // REPLACE: nur der else-Block (Move across tours)
         } else {
-            // Nutze *Kopien*, nicht die State-Arrays direkt
+            // Move across tours
             const fromListOrig = stopsByTour[fromTourId] ?? [];
             const toListOrig = stopsByTour[toTourId] ?? [];
             const fromList = [...fromListOrig];
@@ -821,6 +988,19 @@ export const TourManager: React.FC = () => {
             ].map((s, i) => ({ ...s, position: i + 1 }));
 
             setStopsByTour({ ...stopsByTour, [fromTourId]: newFrom, [toTourId]: newToVirtual });
+
+            // Prüfe ob fromTour jetzt leer ist → pendingDeletionUntil setzen
+            if (newFrom.length === 0) {
+                const until = Date.now() + 5000;
+                setPendingDeletion(prev => ({ ...prev, [fromTourId]: until }));
+                setTours(prevTours =>
+                    prevTours.map(t =>
+                        t.id === fromTourId
+                            ? { ...t, pendingDeletionUntil: until }
+                            : t
+                    )
+                );
+            }
 
             try {
                 // Atomarer Move über die neue Backend-Route
@@ -1100,8 +1280,10 @@ export const TourManager: React.FC = () => {
                                     fahrer={fahrerMap}
                                     vorlagen={vorlagenMap}
                                     stops={stopsByTour[tour.id!] ?? []}
+                                    pendingUntil={pendingDeletion[tour.id!]}
                                     onEdit={(t) => setEditing(t)}
                                     onDelete={(t) => setDeleting(t)}
+                                    onOpenStopDetails={openStopDetails}
                                 />
                             </div>
                         </div>
@@ -1154,7 +1336,11 @@ export const TourManager: React.FC = () => {
                 body={`Möchten Sie die Tour "${deleting?.name ?? deleting?.region}" wirklich löschen?`}
                 onConfirm={() => handleDelete(deleting!.id!)}
             />
-
+            <StopDetailsModal
+                show={showStopDetails}
+                stop={selectedStop}
+                onClose={() => { setShowStopDetails(false); setSelectedStop(null); }}
+            />
             <Toast toast={toast} onClose={() => setToast(null)} />
         </div>
     );
