@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import dayjs from "dayjs";
 import SignaturePad from "signature_pad";
 import cx from "classnames";
 import { DateTime } from "luxon";
@@ -17,7 +18,12 @@ import { getAllTours, updateTour, listTourStops, updateTourStop, getFahrzeugById
 
 // ======= Hilfsfunktionen =======
 const ZONE = "Europe/Berlin";
-const todayBerlinISO = () => DateTime.now().setZone(ZONE).toISODate()!;
+// Gleiche Datumslogik wie im TourManager: hart auf YYYY-MM-DD formatieren
+const DATE_FMT_IN = "YYYY-MM-DD";
+const toYmd = (d: any) => {
+    const p = dayjs(d);
+    return p.isValid() ? p.format(DATE_FMT_IN) : "";
+};
 
 function googleMapsUrlFromAddress(address?: string) {
     if (!address) return undefined;
@@ -32,35 +38,36 @@ function formatKg(v?: number) {
 function formatDateDisplay(input?: string | Date) {
     if (!input) return "-";
     const opts = { zone: ZONE } as const;
-    let dt: DateTime;
 
-    // If a real Date object was passed
-    if (input instanceof Date) {
-        dt = DateTime.fromJSDate(input, opts);
+    // 1) Striktes Backend-Format YYYY-MM-DD (Europe/Berlin)
+    if (typeof input === "string") {
+        let dt = DateTime.fromFormat(input, "yyyy-LL-dd", opts);
         if (dt.isValid) return dt.setLocale("de").toFormat("ccc'.' dd'.' LLL'.'");
-    } else {
-        // Try ISO first
+
+        // 2) ISO (falls Backend in einigen Fällen ISO mit Zeit liefert)
         dt = DateTime.fromISO(input, opts);
-        if (!dt.isValid) {
-            // Try German dd.MM.yyyy
-            dt = DateTime.fromFormat(input, "dd.LL.yyyy", opts);
-        }
-        if (!dt.isValid) {
-            // Try compact yyyymmdd
-            dt = DateTime.fromFormat(input, "yyyyLLdd", opts);
-        }
-        if (!dt.isValid) {
-            // Try native Date parse of JS date strings (e.g., Thu Aug 28 2025 ...)
-            const jsDate = new Date(input);
-            if (!Number.isNaN(jsDate.getTime())) {
-                dt = DateTime.fromJSDate(jsDate, opts);
-            }
-        }
         if (dt.isValid) return dt.setLocale("de").toFormat("ccc'.' dd'.' LLL'.'");
+
+        // 3) Deutsches Format dd.MM.yyyy (Alt-/Manuelle Eingaben)
+        dt = DateTime.fromFormat(input, "dd.LL.yyyy", opts);
+        if (dt.isValid) return dt.setLocale("de").toFormat("ccc'.' dd'.' LLL'.'");
+
+        // 4) Kompakt yyyyMMdd
+        dt = DateTime.fromFormat(input, "yyyyLLdd", opts);
+        if (dt.isValid) return dt.setLocale("de").toFormat("ccc'.' dd'.' LLL'.'");
+
+        // 5) Fallback: JS-Date-String
+        const js = new Date(input);
+        if (!Number.isNaN(js.valueOf())) {
+            const p = DateTime.fromJSDate(js, opts);
+            if (p.isValid) return p.setLocale("de").toFormat("ccc'.' dd'.' LLL'.'");
+        }
+        return "-";
     }
 
-    // Fallback: show a safe placeholder instead of an ugly JS date string
-    return "-";
+    // Date-Objekt
+    const dt = DateTime.fromJSDate(input, opts);
+    return dt.isValid ? dt.setLocale("de").toFormat("ccc'.' dd'.' LLL'.'") : "-";
 }
 
 // ======= Leergut Types (UI) =======
@@ -128,7 +135,11 @@ export default function DriverTour() {
 
     const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
 
-    const dateISO = useMemo(todayBerlinISO, []);
+    // Heutiges Datum im gleichen Format wie im TourManager
+    const dateISO = useMemo(() => dayjs().format(DATE_FMT_IN), []);
+    // UTC/Rand-Fix: wir fragen einen gepufferten Bereich [gestern..morgen] ab und filtern clientseitig exakt auf heute
+    const dateFromBuffered = useMemo(() => dayjs().subtract(1, "day").format(DATE_FMT_IN), []);
+    const dateToBuffered = useMemo(() => dayjs().add(1, "day").format(DATE_FMT_IN), []);
 
     // Initial: Tour+Stops laden
     useEffect(() => {
@@ -137,28 +148,46 @@ export default function DriverTour() {
             try {
                 setLoading(true);
                 setError(null);
-                const list = await getAllTours({ fahrerId: driverId, dateFrom: dateISO, dateTo: dateISO, limit: 1 });
-                const t = (list.items && list.items[0]) || null;
+                // Hole alle Touren für einen gepufferten Zeitraum und filtere dann exakt auf heute
+                const list = await getAllTours({
+                    dateFrom: dateFromBuffered,
+                    dateTo: dateToBuffered,
+                    page: 1,
+                    limit: 100,
+                    sort: "datumAsc",
+                });
+                const allRaw = Array.isArray(list) ? list : (list?.items ?? []);
+                // 1) Auf eingeloggten Fahrer filtern
+                const byDriver = (driverId ? allRaw.filter((x: any) => String(x.fahrerId) === String(driverId)) : allRaw) as TourResource[];
+                // 2) Exakt 'heute' in Europe/Istanbul treffen, auch wenn Backend als JS-Date-String liefert
+                const todayYmd = dateISO;
+                const items = byDriver.filter((x) => toYmd((x as any).datum) === todayYmd);
+                // 3) Bevorzuge laufend > geplant > abgeschlossen
+                const laufend = items.find(x => x.status === "laufend");
+                const geplant = items.find(x => x.status === "geplant");
+                const abgeschlossen = items.find(x => x.status === "abgeschlossen");
+                const t = laufend || geplant || abgeschlossen || items[0] || null;
                 setTour(t);
+
                 // Fahrzeug (Kennzeichen) laden
                 setFahrzeug(null);
                 if (t?.fahrzeugId) {
                     try {
-                        if (typeof getFahrzeugById === "function") {
-                            const fz = await getFahrzeugById(t.fahrzeugId);
-                            setFahrzeug(fz || null);
-                        } else {
-                            const res = await fetch(`/api/fahrzeug/${t.fahrzeugId}`);
-                            if (res.ok) setFahrzeug(await res.json());
-                        }
+                        const fz = await getFahrzeugById(t.fahrzeugId);
+                        setFahrzeug(fz || null);
                     } catch {}
                 }
+
                 if (t?.id) {
                     const s = await listTourStops({ tourId: t.id });
                     s.sort((a, b) => a.position - b.position);
                     setStops(s);
                     const isRunning = t?.status === "laufend";
                     setActiveStop(isRunning ? findNextOpenStop(s) : null);
+                } else {
+                    // Keine geeignete (nicht-abgeschlossene) Tour gefunden
+                    setStops([]);
+                    setActiveStop(null);
                 }
             } catch (e: any) {
                 setError(e.message || "Fehler beim Laden");
@@ -166,7 +195,7 @@ export default function DriverTour() {
                 setLoading(false);
             }
         })();
-    }, [driverId, dateISO]);
+    }, [driverId, dateISO, dateFromBuffered, dateToBuffered]);
 
     // SignaturePad initialisieren
     useEffect(() => {
@@ -264,14 +293,6 @@ export default function DriverTour() {
                     .map((x) => ({ art: x.art || "Unbekannt", anzahl: Number(x.anzahl || 0), gewichtKg: x.gewichtKg ? Number(x.gewichtKg) : undefined })) || [],
         };
 
-        // Debug: Signatur prüfen
-        if (!isFailed && signatureDataUrl) {
-            try {
-                const sizeKb = Math.round((signatureDataUrl.length * 3 / 4) / 1024);
-                // eslint-disable-next-line no-console
-                console.debug("Signature size ~KB:", sizeKb, "prefix:", signatureDataUrl.substring(0, 30));
-            } catch {}
-        }
         try {
             const updated = await updateTourStop(activeStop.id, { ...payload, signTimestampUtc: new Date().toISOString() });
             setStops((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
@@ -293,6 +314,7 @@ export default function DriverTour() {
         try {
             const updated = await updateTour(tour.id, { status: "abgeschlossen" as TourStatus });
             setTour(updated);
+            setActiveStop(null);
             setToast({ type: "success", msg: "Tour abgeschlossen" });
         } catch (e: any) {
             setToast({ type: "danger", msg: e.message || "Fehler beim Tour-Abschluss" });
@@ -348,6 +370,20 @@ export default function DriverTour() {
                     <div className="card-body text-center py-5">
                         <h2 className="h4 mb-2">Heute ({formatDateDisplay(dateISO)}) ist dir keine Tour zugewiesen.</h2>
                         <p className="text-muted mb-0">Bitte später erneut prüfen oder den Disponenten kontaktieren.</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Early return for completed tours (see instructions)
+    if (tour.status === "abgeschlossen") {
+        return (
+            <div className="container py-4">
+                <div className="card border-0 shadow-sm">
+                    <div className="card-body text-center py-5">
+                        <h2 className="h4 mb-2">Heute ({formatDateDisplay(dateISO)})</h2>
+                        <p className="text-muted mb-0">Du hast alle deine Touren für heute abgeschlossen 🎉</p>
                     </div>
                 </div>
             </div>
@@ -461,7 +497,7 @@ export default function DriverTour() {
                                         Status: {activeStop.status}
                                     </span>
                                     {currentAddress && (
-                                        <a className="btn btn-outline-secondary btn-sm" href={googleMapsUrlFromAddress(currentAddress)} target="_blank" rel="noreferrer">
+                                        <a className="btn btn-outline-secondary btn-sm" href={mapsUrl} target="_blank" rel="noreferrer">
                                             <i className="ci-navigation me-2" />
                                             Navigation starten
                                         </a>

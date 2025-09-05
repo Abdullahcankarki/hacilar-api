@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../providers/Authcontext';
-import { Button, Form, Table, Alert, Spinner } from 'react-bootstrap';
+import { Button, Form, Table, Alert, Spinner, Tooltip, OverlayTrigger } from 'react-bootstrap';
 import { ArtikelPositionResource, ArtikelResource } from '../Resources';
 import { api } from '../backend/api';
 import { FaPen } from 'react-icons/fa';
@@ -195,13 +195,18 @@ const AuftragPositionenTabelle: React.FC<Props> = ({
 
     return (
         <div>
-            <div className="d-flex align-items-center justify-content-between border-bottom pb-2 mb-4">
-                <h2 className="h4 mb-0">Artikelpositionen</h2>
+            <div className="card shadow-sm border-0 mb-4">
+              <div className="card-body d-flex align-items-center justify-content-between py-3">
+                <div>
+                  <h2 className="h5 mb-1">Artikelpositionen</h2>
+                  <div className="text-muted small">{positions.length} Positionen in diesem Auftrag</div>
+                </div>
                 {!isKunde && (
-                    <Button variant="outline-success" className="print-hidden" onClick={handleAdd}>
-                        + Neue Position
-                    </Button>
+                  <Button variant="primary" className="print-hidden" onClick={handleAdd}>
+                    <i className="ci-add me-2"></i> Neue Position
+                  </Button>
                 )}
+              </div>
             </div>
 
             {/* Fehleranzeige */}
@@ -211,26 +216,39 @@ const AuftragPositionenTabelle: React.FC<Props> = ({
                 </Alert>
             )}
 
+            <style>{`
+              .editable-cell { position: relative; padding-right: .75rem; }
+              .editable-cell .edit-icon { opacity: 0; transition: opacity .2s ease; }
+              td:hover .editable-cell .edit-icon { opacity: .6; }
+              td:hover .editable-cell { box-shadow: inset 0 0 0 9999px rgba(0,0,0,.02); }
+              /* Soft brand badge using Minzgrün (#3edbb7) */
+              .badge-soft-brand { 
+                background: rgba(62, 219, 183, 0.15);
+                color: #0a6b5a;
+                border: 1px solid rgba(62, 219, 183, 0.35);
+              }
+            `}</style>
             <div className="card shadow-sm mb-4">
-                <div className="card-body p-3">
-                    <Table bordered hover responsive className="table-sm align-middle text-nowrap">
-                        <thead>
-                            <tr>
-                                {!isKunde && <th className="d-none d-md-table-cell">Bemerkung</th>}
-                                <th>Artikel</th>
-                                <th className={!isKunde ? "" : "d-none"}>Menge</th>
-                                <th className={!isKunde ? "" : "d-none"}>Einheit</th>
-                                {!isKunde && <th className="d-none d-md-table-cell">Zerlegung</th>}
-                                {!isKunde && <th className="d-none d-lg-table-cell">Zerlege-Bemerkung</th>}
-                                <th className="d-none d-sm-table-cell">Einzelpreis (€)</th>
-                                <th className="d-none d-sm-table-cell">Gewicht (kg)</th>
-                                <th className="d-none d-lg-table-cell print-hidden">Gesamtpreis (€)</th>
-                                {!isKunde && <th className="print-hidden">Aktionen</th>}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {positions.map((pos, index) => (
-                                <tr key={index}>
+                <div className="card-body p-0">
+                    <div className="table-responsive" style={{ maxHeight: '60vh' }}>
+                        <Table bordered hover className="table-sm align-middle table-striped mb-0">
+                            <thead className="position-sticky top-0 bg-body-tertiary" style={{ zIndex: 1 }}>
+                                <tr>
+                                    {!isKunde && <th className="d-none d-md-table-cell">Bemerkung</th>}
+                                    <th>Artikel</th>
+                                    <th className={!isKunde ? "" : "d-none"}>Menge</th>
+                                    <th className={!isKunde ? "" : "d-none"}>Einheit</th>
+                                    {!isKunde && <th className="d-none d-md-table-cell">Zerlegung</th>}
+                                    {!isKunde && <th className="d-none d-lg-table-cell">Zerlege-Bemerkung</th>}
+                                    <th className="d-none d-sm-table-cell">Einzelpreis (€)</th>
+                                    <th className="d-none d-sm-table-cell">Gewicht (kg)</th>
+                                    <th className="d-none d-lg-table-cell print-hidden">Gesamtpreis (€)</th>
+                                    {!isKunde && <th className="print-hidden">Aktionen</th>}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {positions.map((pos, index) => (
+                                    <tr key={index}>
                                     {/* Bemerkung */}
                                     {!isKunde && (
                                         <td className="d-none d-md-table-cell" onClick={() => startEdit(index, 'bemerkung')}>
@@ -393,28 +411,31 @@ const AuftragPositionenTabelle: React.FC<Props> = ({
                                     )}
                                     {/* Einzelpreis */}
                                     <td className="d-none d-sm-table-cell">
-                                        {(pos.einzelpreis ?? 0).toFixed(2)} €
+                                        <span className="badge badge-soft-brand fw-semibold">{(pos.einzelpreis ?? 0).toFixed(2)} €</span>
                                     </td>
                                     {/* Gewicht */}
                                     <td className="d-none d-sm-table-cell">
-                                        {(pos.gesamtgewicht ?? 0).toFixed(2)} kg
+                                        <span className="badge badge-soft-brand fw-semibold">{(pos.gesamtgewicht ?? 0).toFixed(2)} kg</span>
                                     </td>
                                     {/* Gesamtpreis */}
                                     <td className="d-none d-lg-table-cell print-hidden">
-                                        {(pos.gesamtpreis ?? 0).toFixed(2)} €
+                                        <span className="badge badge-soft-brand fw-semibold">{(pos.gesamtpreis ?? 0).toFixed(2)} €</span>
                                     </td>
                                     {/* Aktionen */}
                                     {!isKunde && (
                                         <td className="print-hidden">
-                                            <Button variant="danger" size="sm" title="Löschen" onClick={() => handleDelete(index)}>
+                                            <OverlayTrigger placement="left" overlay={<Tooltip id={`del-${index}`}>Position löschen</Tooltip>}>
+                                              <Button variant="danger" size="sm" onClick={() => handleDelete(index)}>
                                                 <i className="ci-trash"></i>
-                                            </Button>
+                                              </Button>
+                                            </OverlayTrigger>
                                         </td>
                                     )}
                                 </tr>
                             ))}
-                        </tbody>
-                    </Table>
+                            </tbody>
+                        </Table>
+                    </div>
                 </div>
             </div>
             {!isKunde && positions.length > 0 && (

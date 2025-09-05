@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from 'react-router-dom';
 import { FahrzeugResource } from "../Resources";
 import { getAllFahrzeuge, createFahrzeug, updateFahrzeug, deleteFahrzeug } from "../backend/api";
 
@@ -71,6 +72,7 @@ const ConfirmModal: React.FC<{
 };
 
 export default function FahrzeugUebersicht() {
+    const navigate = useNavigate();
     const [items, setItems] = useState<FahrzeugResource[]>([]);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
@@ -278,6 +280,9 @@ export default function FahrzeugUebersicht() {
                             nur aktive
                         </label>
                     </div>
+                    <button className="btn btn-outline-primary rounded-3" onClick={() => navigate('/fleet')}>
+                        <i className="ci-navigation me-2" /> Live-Map
+                    </button>
                     <button className="btn btn-dark rounded-3" onClick={openCreate}>
                         <i className="ci-plus me-2" /> Neues Fahrzeug
                     </button>

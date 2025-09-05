@@ -39,7 +39,7 @@ export type KundeResource = {
   ustId?: string;
   handelsregisterNr?: string;
   ansprechpartner?: string;
-  lieferzeit: string;
+  lieferzeit?: string;
   region?: string;
   kategorie?: string;
   website?: string;

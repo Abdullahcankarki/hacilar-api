@@ -22,6 +22,7 @@ import { Layout } from './components/layout';
 import "./App.css"
 import './Cartzilla/assets/css/theme.min.css';
 import './Cartzilla/assets/icons/cartzilla-icons.min.css';
+import 'leaflet/dist/leaflet.css'
 import ArtikelDetails from './components/artikelDetails';
 import AllArtikel from './components/allArtikel';
 import RegisterForm from './components/register';
@@ -37,6 +38,13 @@ import ArtikelOverview from './components/artikelOverview';
 import ReihenfolgeVorlageOverview from './components/ReihenfolgeVorlage';
 import { TourManager } from './components/TourManager';
 import DriverTour from './components/DriverTour';
+import AuftraegeOverview from './components/auftragOverview';
+import AuftraegeBoard from './components/AuftragBoard';
+import Login2Form from './components/login2';
+import FleetPage from './components/Fleetpage';
+import SupportHelp from './components/SupportHelp';
+import ForgotPassword from './components/forgot-password';
+import ResetPassword from './components/reset-password';
 
 
 // 📌 App-Routen
@@ -51,8 +59,11 @@ const AppRoutes: React.FC = () => {
   return (
     <Routes>
       {/* Login immer erreichbar */}
-      <Route path="/login" element={<LoginForm />} />
+      <Route path="/login" element={<Login2Form />} />
       <Route path="/register" element={<RegisterForm />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/support" element={<SupportHelp />} />
 
       {/* Nicht eingeloggt → alles auf Login umleiten */}
       {!user && <Route path="*" element={<Navigate to="/login" replace />} />}
@@ -63,9 +74,9 @@ const AppRoutes: React.FC = () => {
           {roles.includes('admin') ? (
             <>
               <Route path="home" element={<Dashboard />} />
-              <Route path="auftraege" element={<Auftraege />} />
+              <Route path="auftraege" element={<AuftraegeOverview />} />
               <Route path="auftraege/:id" element={<AuftragDetail />} />
-              <Route path="kommissionierung" element={<KomAuftraege />} />
+              <Route path="kommissionierung" element={<AuftraegeBoard />} />
               <Route path="kommissionierung/:id" element={<KomAuftragDetail />} />
               <Route path="zerlege" element={<ZerlegeAuftraege />} />
               <Route path="zerlege/:id" element={<ZerlegeDetail />} />
@@ -86,6 +97,7 @@ const AppRoutes: React.FC = () => {
               <Route path="reihenfolge-vorlage" element={<ReihenfolgeVorlageOverview />} />
               <Route path="tour-manager" element={<TourManager />} />
               <Route path="fahrer" element={<DriverTour />} />
+              <Route path="fleet" element={<FleetPage />} />
               <Route path="*" element={<Navigate to="/home" replace />} />
             </>
           ) : roles.includes('zerleger') ? (
@@ -106,14 +118,14 @@ const AppRoutes: React.FC = () => {
             </>
           ) : roles.includes('kommissionierung') ? (
             <>
-              <Route path="kommissionierung" element={<KomAuftraege />} />
+              <Route path="kommissionierung" element={<AuftraegeBoard />} />
               <Route path="kommissionierung/:id" element={<KomAuftragDetail />} />
               <Route path="profil" element={<Profil />} />
               <Route path="*" element={<Navigate to="/kommissionierung" replace />} />
             </>
           ) : roles.includes('kontrolle') ? (
             <>
-              <Route path="kommissionierung" element={<KomAuftraege />} />
+              <Route path="kommissionierung" element={<AuftraegeBoard />} />
               <Route path="kommissionierung/:id" element={<KomAuftragDetail />} />
               <Route path="profil" element={<Profil />} />
               <Route path="*" element={<Navigate to="/kommissionierung" replace />} />

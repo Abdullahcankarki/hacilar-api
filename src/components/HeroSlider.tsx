@@ -1,99 +1,139 @@
-import React from 'react';
-import { Swiper, SwiperSlide } from 'swiper/react';
-import { Pagination, Autoplay, EffectFade } from 'swiper/modules';
-import 'swiper/css';
-import 'swiper/css/pagination';
-import 'swiper/css/effect-fade';
+import { useEffect, useRef } from "react";
+import "bootstrap/dist/css/bootstrap.min.css";
+import Carousel from "bootstrap/js/dist/carousel";
 
-// Cartzilla-Bilder korrekt importieren
-import slide1 from '../assets/Banner1.png';
-import slide2 from '../assets/Banner2.png';
-import slide3 from '../assets/Banner3.png';
+// Assets (du hast die Dateien im assets-Ordner)
+import banner1 from "../assets/Banner1.png";
+import banner2 from "../assets/Banner2.png";
+import banner3 from "../assets/Banner3.png";
 
-const HeroSlider: React.FC = () => {
+/**
+ * HeroSlider – Premium, mobil-optimierter Cartzilla-/Bootstrap-Slider
+ * - Fade-Transition
+ * - Vollflächige Bilder via object-fit
+ * - Lesbarer Text dank Gradient-Overlay
+ * - Mobile-first Typografie & Layout
+ */
+export default function HeroSlider() {
+  const carouselRef = useRef<HTMLDivElement | null>(null);
+  const carouselInstanceRef = useRef<Carousel | null>(null);
+
+  useEffect(() => {
+    if (!carouselRef.current) return;
+    const instance = new Carousel(carouselRef.current, {
+      interval: 5500,
+      ride: "carousel",
+      touch: true,
+      wrap: true,
+      pause: false,
+      keyboard: true,
+    });
+    carouselInstanceRef.current = instance;
+    return () => instance.dispose();
+  }, []);
+
   return (
-    <section className="position-relative">
-      <Swiper
-        modules={[Pagination, Autoplay, EffectFade]}
-        effect="fade"
-        loop
-        speed={400}
-        pagination={{ clickable: true }}
-        autoplay={{ delay: 5500, disableOnInteraction: false }}
-        className="position-absolute top-0 start-0 w-100 h-100"
-      >
-        {/* Slide 1 */}
-        <SwiperSlide className="position-relative">
-          <img
-            src={slide1}
-            alt="Fleisch Banner 1"
-            className="position-absolute top-0 start-0 w-100 h-100 object-fit-cover rtl-flip"
-          />
-          <div className="d-flex align-items-center w-100 h-100 position-relative z-2">
-            <div className="container mt-lg-n4">
-              <div className="row">
-                <div className="col-9 col-sm-8 col-md-7 col-lg-6">
-                  <h2 className="display-4 pb-2 pb-md-3 pb-lg-4 text-white">
-                    Qualität, die auf der Zunge zergeht
-                  </h2>
+    <section className="container-fluid px-0">
+      <style>{`
+  :root{--brand:#3edbb7}
+  .hero-wrap{position:relative}
+  /* Responsive, oben fokussiert, ohne schwarze Ränder */
+  .hero-slide{width:100%;height:60vh;min-height:320px;max-height:78vh;overflow:hidden}
+  @media (max-width:1200px){.hero-slide{height:52vh}}
+  @media (max-width:992px){.hero-slide{height:46vh}}
+  @media (max-width:768px){.hero-slide{height:42vh;min-height:300px}}
+  @media (max-width:576px){.hero-slide{height:38vh;min-height:280px}}
+
+  .hero-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .hero-img.img1{object-position:center 65%}
+  .hero-img.img3{object-position:center 35%}
+  .hero-img.img2{object-position:center 25%}
+  .hero-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.45) 0%,rgba(0,0,0,.18) 35%,rgba(0,0,0,.55) 100%)}
+  .hero-caption{position:absolute;inset:0;display:flex;align-items:flex-end;padding:clamp(16px,4vw,48px)}
+  @media (min-width:768px){.hero-caption{align-items:center}}
+
+  /* Dezente CTA */
+  .btn-cta{border:2px solid rgba(255,255,255,.92);color:#fff;background:transparent}
+  .btn-cta:hover{background:#fff;color:#111}
+
+  /* Individuelle Pfeile */
+  .hero-nav{position:absolute;inset:0;pointer-events:none}
+  .hero-nav .nav-btn{pointer-events:auto;position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:999px;border:1px solid rgba(255,255,255,.35);background:rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center}
+  .hero-nav .nav-btn svg{width:20px;height:20px;fill:#fff}
+  .hero-nav .prev{left:12px}
+  .hero-nav .next{right:12px}
+  .hero-nav .nav-btn:hover{background:rgba(0,0,0,.5)}
+  @media (max-width:575.98px){.hero-nav{display:none}}
+
+  /* Indikatoren dezent */
+  .carousel-indicators [data-bs-target]{width:8px;height:8px;border-radius:50%}
+`}</style>
+
+      <div className="hero-wrap">
+        <div
+          id="heroCarousel"
+          className="carousel slide carousel-fade position-relative"
+          data-bs-ride="carousel"
+          ref={carouselRef}
+        >
+          {/* Indicators */}
+          <div className="carousel-indicators mb-1 mb-md-3">
+            <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="0" className="active" aria-current="true" aria-label="Slide 1" />
+            <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="1" aria-label="Slide 2" />
+            <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="2" aria-label="Slide 3" />
+          </div>
+
+          <div className="carousel-inner">
+            {/* Slide 1 */}
+            <div className="carousel-item active">
+              <div className="hero-slide position-relative w-100">
+                <img src={banner1} alt="Schafe auf grüner Weide" className="hero-img img1" loading="eager" />
+                <div className="hero-overlay" />
+                <div className="hero-caption text-center text-md-start">
+                  <div className="container">
+                    <span className="badge rounded-pill badge-brand">Hacilar – Qualität</span>
+                    <h2 className="display-6 display-md-5 fw-bold mt-3 text-white">Natürliche Weiden. Reine Qualität.</h2>
+                    <p className="lead mb-4 text-white-50">Aus verantwortungsvoller Haltung – der echte Geschmack der Natur.</p>
+                    <a href="#produkte" className="btn btn-lg btn-cta rounded-pill">Jetzt entdecken</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Slide 2 */}
+            <div className="carousel-item">
+              <div className="hero-slide position-relative w-100">
+                <img src={banner2} alt="Kind spielt mit Hühnern" className="hero-img img2" loading="lazy" />
+                <div className="hero-overlay" />
+                <div className="hero-caption text-center text-md-start">
+                  <div className="container">
+                    <span className="badge rounded-pill badge-brand">Frisch vom Hof</span>
+                    <h2 className="display-6 display-md-5 fw-bold mt-3 text-white">Glückliche Tiere. Gutes Gewissen.</h2>
+                    <p className="lead mb-4 text-white-50">Natürlich aufgezogen – für Vertrauen bei jeder Zutat.</p>
+                    <a href="#werte" className="btn btn-lg btn-cta rounded-pill">Unsere Werte</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Slide 3 */}
+            <div className="carousel-item">
+              <div className="hero-slide position-relative w-100">
+                <img src={banner3} alt="Bauer mit frischem Steak" className="hero-img img3" loading="lazy" />
+                <div className="hero-overlay" />
+                <div className="hero-caption text-center text-md-start">
+                  <div className="container">
+                    <span className="badge rounded-pill badge-brand">Regional & Ehrlich</span>
+                    <h2 className="display-6 display-md-5 fw-bold mt-3 text-white">Frisch geschnitten. Meisterhaft veredelt.</h2>
+                    <p className="lead mb-4 text-white-50">Handwerkstradition trifft höchste Ansprüche – direkt zu dir.</p>
+                    <a href="#shop" className="btn btn-lg btn-cta rounded-pill">Zum Shop</a>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </SwiperSlide>
-
-        {/* Slide 2 */}
-        <SwiperSlide className="position-relative">
-          <img
-            src={slide2}
-            alt="Fleisch Banner 2"
-            className="position-absolute top-0 start-0 w-100 h-100 object-fit-cover rtl-flip"
-          />
-          <div className="d-flex align-items-center w-100 h-100 position-relative z-2">
-            <div className="container mt-lg-n4">
-              <div className="row">
-                <div className="col-12 col-sm-10 col-md-7 col-lg-6">
-                  <h2 className="display-4 pb-2 pb-md-3 pb-lg-4 text-white">
-                    Vom Hof auf den Teller – 100 % frisch
-                  </h2>
-                </div>
-              </div>
-            </div>
-          </div>
-        </SwiperSlide>
-
-        {/* Slide 3 */}
-        <SwiperSlide className="position-relative">
-          <img
-            src={slide3}
-            alt="Fleisch Banner 3"
-            className="position-absolute top-0 start-0 w-100 h-100 object-fit-cover rtl-flip"
-          />
-          <div className="d-flex align-items-center w-100 h-100 position-relative z-2">
-            <div className="container mt-lg-n4">
-              <div className="row">
-                <div className="col-9 col-sm-8 col-md-7 col-lg-6">
-                  <h2 className="display-4 pb-2 pb-md-3 pb-lg-4 text-white">
-                    Fleischgenuss – wie er sein soll
-                  </h2>
-                </div>
-              </div>
-            </div>
-          </div>
-        </SwiperSlide>
-
-        {/* Slider Pagination */}
-        <div className="swiper-pagination pb-sm-2" />
-      </Swiper>
-
-      {/* Responsive Spacing */}
-      <div className="d-md-none" style={{ height: '380px' }} />
-      <div className="d-none d-md-block d-lg-none" style={{ height: '420px' }} />
-      <div className="d-none d-lg-block d-xl-none" style={{ height: '500px' }} />
-      <div className="d-none d-xl-block d-xxl-none" style={{ height: '560px' }} />
-      <div className="d-none d-xxl-block" style={{ height: '624px' }} />
+        </div>
+      </div>
     </section>
   );
-};
-
-export default HeroSlider;
+}

@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import HeroSlider from './HeroSlider';
 import ArtikelListe from './artikelListe';
 import {
@@ -33,6 +34,8 @@ const Dashboard: React.FC = () => {
   const [sortOption, setSortOption] = useState('nameAsc');
   const [ladeFehler, setLadeFehler] = useState<string | null>(null);
 
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -44,6 +47,30 @@ const Dashboard: React.FC = () => {
     };
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        if (debouncedSearch && debouncedSearch.length >= 2) {
+          // Suche global über alle Artikel
+          const res = await getAllArtikel({ q: debouncedSearch, limit: 500, sortBy: 'nameAsc' } as any);
+          const items = (res as any)?.items ?? res ?? [];
+          setArticles(items);
+        } else {
+          // Fallback: kuratierte Auswahl
+          const data = await getAuswahlArtikel();
+          setArticles(data);
+        }
+      } catch (error) {
+        setLadeFehler('Fehler beim Laden der Artikel. Bitte versuche es später erneut.');
+      }
+    })();
+  }, [debouncedSearch]);
 
   const handleAddToCart = (position: ArtikelPositionResource) => {
     setCart((prevCart) => {
@@ -60,35 +87,37 @@ const Dashboard: React.FC = () => {
     });
   };
 
-  const filteredAndSorted = articles
-    .filter((a) =>
-      a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      a.artikelNummer.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    .sort((a, b) => {
-      switch (sortOption) {
-        case 'nameAsc': return a.name.localeCompare(b.name);
-        case 'nameDesc': return b.name.localeCompare(a.name);
-        case 'preisAsc': return a.preis - b.preis;
-        case 'preisDesc': return b.preis - a.preis;
-        default: return 0;
-      }
-    });
-
   return (
     <>
       <HeroSlider />
 
-        {ladeFehler && (
-          <div className="alert alert-danger text-center mb-4" role="alert">
-            {ladeFehler}
+
+      {ladeFehler && createPortal(
+        <div className="toast-container position-fixed bottom-0 end-0 p-3"
+             style={{ zIndex: 2000, pointerEvents: 'none' }}>
+          <div
+            className="toast align-items-center text-bg-danger border-0 show"
+            role="alert"
+            aria-live="assertive"
+            aria-atomic="true"
+            style={{ pointerEvents: 'auto' }}
+          >
+            <div className="d-flex">
+              <div className="toast-body">{ladeFehler}</div>
+              <button type="button"
+                      className="btn-close btn-close-white me-2 m-auto"
+                      aria-label="Close"
+                      onClick={() => setLadeFehler(null)} />
+            </div>
           </div>
-        )}
+        </div>,
+        document.body
+      )}
 
         <AngebotsSlider />
 
         <ArtikelListe
-          articles={filteredAndSorted}
+          articles={articles}
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
           sortOption={sortOption}

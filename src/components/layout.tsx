@@ -1,36 +1,54 @@
 import { Outlet } from 'react-router-dom';
 import NavBar from './navbar';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import WarenkorbModal from './warenkorb';
 import { ArtikelPositionResource, AuftragResource, KundeResource, ArtikelResource } from '../Resources';
-import { createArtikelPosition, createAuftrag, getAllKunden, getAllArtikel, setGlobalAusgewaehlterKunde, updateAuftrag } from '../backend/api';
+import { createArtikelPosition, createAuftrag, getAllKunden, getAllArtikel, updateAuftrag } from '../backend/api';
 import { useAuth } from '../providers/Authcontext';
-import { Alert } from 'react-bootstrap';
+import { createPortal } from 'react-dom';
 
 export const Layout: React.FC = () => {
   const [showCart, setShowCart] = useState(false);
-  const [cart, setCart] = useState<ArtikelPositionResource[]>([]);
   const [kunden, setKunden] = useState<KundeResource[]>([]);
-  const [cartGeladen, setCartGeladen] = useState(false);
   const [articles, setArticles] = useState<ArtikelResource[]>([]);
   const { user, ausgewaehlterKunde, setAusgewaehlterKunde } = useAuth();
-  const [lokalAusgewaehlterKunde, setLokalAusgewaehlterKunde] = useState<string | null>(null);
-  const [meldung, setMeldung] = useState<{ text: string; variant: 'success' | 'danger' } | null>(null);
+  // Persistenter Warenkorb + Toasts + Submit-Loading
+  const [toast, setToast] = useState<{ type: 'success' | 'danger' | 'info'; msg: string } | null>(null);
+  const [submitLoading, setSubmitLoading] = useState(false);
 
-  useEffect(() => {
-    if (!user) return;
+  // Persisted Cart Hook
+  function usePersistedCart(key = 'warenkorb') {
+    const [cart, setCart] = useState<ArtikelPositionResource[]>([]);
+    const [ready, setReady] = useState(false);
 
-    const kundenId =
-      user.role.includes('admin') || user.role.includes('verkauf') ? lokalAusgewaehlterKunde : user.id;
+    useEffect(() => {
+      try {
+        const raw = localStorage.getItem(key);
+        const parsed = raw ? JSON.parse(raw) : [];
+        setCart(Array.isArray(parsed) ? parsed : []);
+      } catch {
+        setCart([]);
+      } finally {
+        setReady(true);
+      }
+    }, [key]);
 
-    setAusgewaehlterKunde(kundenId ?? null);
-  }, [user, lokalAusgewaehlterKunde]);
+    useEffect(() => {
+      if (ready) {
+        localStorage.setItem(key, JSON.stringify(cart));
+      }
+    }, [cart, ready, key]);
+
+    return { cart, setCart, ready };
+  }
+
+  const { cart, setCart, ready: cartGeladen } = usePersistedCart();
 
   // aktuell gewählter Kunde und seine Region ableiten
   const kundeId = useMemo(() => {
     if (!user) return null;
-    return user.role.includes('kunde') ? user.id : lokalAusgewaehlterKunde;
-  }, [user, lokalAusgewaehlterKunde]);
+    return user.role.includes('kunde') ? user.id : ausgewaehlterKunde;
+  }, [user, ausgewaehlterKunde]);
 
   const kundeRegion = useMemo(() => {
     if (!kundeId) return null;
@@ -40,89 +58,66 @@ export const Layout: React.FC = () => {
 
   // Kundenliste laden für Admin oder Verkäufer
   useEffect(() => {
-    const fetchKunden = async () => {
+    if (!user) return;
+    const isAdminOrVerkauf = user.role.includes('admin') || user.role.includes('verkauf');
+    if (!isAdminOrVerkauf) return;
+
+    let cancelled = false;
+    (async () => {
       try {
         const res = await getAllKunden();
-        setKunden(res.items);
-      } catch (err) {
-        console.error('Fehler beim Laden der Kunden:', err);
+        if (!cancelled) setKunden(res.items ?? []);
+      } catch {
+        if (!cancelled) setKunden([]);
       }
-    };
-      fetchKunden();
+    })();
+    return () => { cancelled = true; };
   }, [user]);
 
   // Artikel laden
   useEffect(() => {
-    const fetchArticles = async () => {
+    let cancelled = false;
+    (async () => {
       try {
         const res = await getAllArtikel();
-        setArticles(res.items);
-      } catch (err) {
-        console.error('Fehler beim Laden der Artikel:', err);
+        if (!cancelled) setArticles(res.items ?? []);
+      } catch {
+        if (!cancelled) setArticles([]);
       }
-    };
-
-    fetchArticles();
+    })();
+    return () => { cancelled = true; };
   }, []);
 
-  // Warenkorb aus LocalStorage laden
-  useEffect(() => {
-    try {
-      const gespeicherterWarenkorb = localStorage.getItem('warenkorb');
-      if (gespeicherterWarenkorb) {
-        const parsed = JSON.parse(gespeicherterWarenkorb);
-        if (Array.isArray(parsed)) {
-          setCart(parsed);
-          setCartGeladen(true);
-        } else {
-          console.warn('Warenkorb-Daten ungültig:', parsed);
-        }
-      } else {
-        setCartGeladen(true);
-      }
-    } catch (err) {
-      console.error('Fehler beim Parsen des Warenkorbs:', err);
-      setCartGeladen(true);
-    }
-  }, []);
+  const handleEinheitChange = useCallback((index: number, neueEinheit: ArtikelPositionResource['einheit']) => {
+    setCart((prev) => prev.map((item, i) => (i === index ? { ...item, einheit: neueEinheit } : item)));
+  }, [setCart]);
 
-  // Warenkorb in LocalStorage speichern
-  useEffect(() => {
-    if (cartGeladen) {
-      localStorage.setItem('warenkorb', JSON.stringify(cart));
-    }
-  }, [cart, cartGeladen]);
-
-  const handleEinheitChange = (
-    index: number,
-    neueEinheit: ArtikelPositionResource['einheit']
-  ) => {
-    setCart((prev) =>
-      prev.map((item, i) =>
-        i === index ? { ...item, einheit: neueEinheit } : item
-      )
-    );
-  };
-
-  const handleRemoveFromCart = (index: number) => {
+  const handleRemoveFromCart = useCallback((index: number) => {
     setCart((prev) => prev.filter((_, i) => i !== index));
-  };
+  }, [setCart]);
 
-  const handleQuantityChange = (index: number, menge: number) => {
+  const handleQuantityChange = useCallback((index: number, menge: number) => {
     if (menge < 1) return;
-    setCart((prev) =>
-      prev.map((item, i) =>
-        i === index ? { ...item, menge } : item
-      )
-    );
-  };
+    setCart((prev) => prev.map((item, i) => (i === index ? { ...item, menge } : item)));
+  }, [setCart]);
 
-  const handleSubmit = async (lieferdatum: string, bemerkung: string) => {
+  const handleSubmit = useCallback(async (lieferdatum: string, bemerkung: string) => {
+    if (submitLoading) return;
     if (!kundeId) {
-      setMeldung({ text: 'Bitte einen Kunden auswählen.', variant: 'danger' });
+      setToast({ type: 'danger', msg: 'Bitte einen Kunden auswählen.' });
+      return;
+    }
+    if (!cartGeladen) return;
+    if (!cart.length) {
+      setToast({ type: 'danger', msg: 'Warenkorb ist leer.' });
+      return;
+    }
+    if (!lieferdatum) {
+      setToast({ type: 'danger', msg: 'Bitte ein Lieferdatum wählen.' });
       return;
     }
 
+    setSubmitLoading(true);
     try {
       // Auftrag zuerst erstellen mit leerer Positionsliste
       const auftragDraft: Omit<AuftragResource, 'id' | 'createdAt' | 'updatedAt'> = {
@@ -134,6 +129,7 @@ export const Layout: React.FC = () => {
 
       const gespeicherterAuftrag = await createAuftrag(auftragDraft);
       const auftragId = gespeicherterAuftrag.id;
+      const auftragsnummer = (gespeicherterAuftrag as any).auftragsnummer;
 
       // Positionen einzeln mit auftragId erstellen
       const gespeichertePositionen = await Promise.all(
@@ -157,22 +153,26 @@ export const Layout: React.FC = () => {
       // Auftrag mit Artikelpositionen aktualisieren
       await updateAuftrag(auftragId, { artikelPosition: artikelPositionIds, lieferdatum: lieferdatum });
 
-      setMeldung({ text: 'Bestellung wurde übermittelt!', variant: 'success' });
+      setToast({ type: 'success', msg: `Bestellung übermittelt. Auftragsnummer: ${auftragsnummer || auftragId}` });
       setCart([]);
       setShowCart(false);
       localStorage.removeItem('warenkorb');
-    } catch (error) {
-      setMeldung({ text: 'Fehler beim Übermitteln der Bestellung', variant: 'danger' });
-      console.error(error);
+    } catch (error: any) {
+      setToast({ type: 'danger', msg: error?.message || 'Fehler beim Übermitteln der Bestellung' });
+    } finally {
+      setSubmitLoading(false);
     }
-  };
+  }, [submitLoading, kundeId, cartGeladen, cart, setCart]);
 
-  useEffect(() => {
-    if (meldung) {
-      const timer = setTimeout(() => setMeldung(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [meldung]);
+  const outletCtx = useMemo(() => ({
+    cart,
+    setCart,
+    showCart,
+    setShowCart,
+    kunden,
+    ausgewaehlterKunde,
+    setAusgewaehlterKunde
+  }), [cart, showCart, kunden, ausgewaehlterKunde, setAusgewaehlterKunde]);
 
   return (
     <>
@@ -180,30 +180,32 @@ export const Layout: React.FC = () => {
         onCartClick={() => setShowCart(true)}
         cartLength={cart.length}
         kunden={kunden}
-        ausgewaehlterKunde={lokalAusgewaehlterKunde}
-        setAusgewaehlterKunde={setLokalAusgewaehlterKunde}
+        ausgewaehlterKunde={ausgewaehlterKunde}
+        setAusgewaehlterKunde={setAusgewaehlterKunde}
       />
-      {meldung && (
-        <div className="container mt-3">
-          <Alert
-            variant={meldung.variant}
-            onClose={() => setMeldung(null)}
-            dismissible
+      {toast && createPortal(
+        <div className="toast-container position-fixed bottom-0 end-0 p-3"
+             style={{ zIndex: 2000, pointerEvents: 'none' }}>
+          <div
+            className={
+              "toast align-items-center text-bg-" + (toast.type === "success" ? "success" : toast.type === "danger" ? "danger" : "info")
+              + " border-0 show"
+            }
+            role="alert"
+            aria-live="assertive"
+            aria-atomic="true"
+            style={{ pointerEvents: 'auto' }}
           >
-            {meldung.text}
-          </Alert>
-        </div>
+            <div className="d-flex">
+              <div className="toast-body">{toast.msg}</div>
+              <button type="button" className="btn-close btn-close-white me-2 m-auto" onClick={() => setToast(null)} aria-label="Close" />
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
-      <Outlet context={{
-        cart,
-        setCart,
-        showCart,
-        setShowCart,
-        kunden,
-        ausgewaehlterKunde: lokalAusgewaehlterKunde,
-        setAusgewaehlterKunde: setLokalAusgewaehlterKunde
-      }} />
+      <Outlet context={outletCtx} />
 
       <WarenkorbModal
         show={showCart}
@@ -215,6 +217,7 @@ export const Layout: React.FC = () => {
         onEinheitChange={handleEinheitChange}
         articles={articles}
         kundeRegion={kundeRegion}
+        submitLoading={submitLoading}
       />
     </>
   );

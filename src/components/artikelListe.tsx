@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Row, Col, Form, InputGroup } from 'react-bootstrap';
+import { Form } from 'react-bootstrap';
 import { ArtikelResource, ArtikelPositionResource } from '../Resources';
 import RenderCard from './renderCard';
 import { getAuftragLetzte, getAuftragLetzteArtikel } from '../backend/api';
 import { useAuth } from '../providers/Authcontext';
 import { getKundenFavoriten } from '../backend/api';
 import { Link } from 'react-router-dom';
+import ArtikelCard from './artikelCard';
 
 type Props = {
     articles: ArtikelResource[];
@@ -30,21 +31,22 @@ const ArtikelListe: React.FC<Props> = ({
     const [vakuum, setVakuum] = useState<{ [id: string]: boolean }>({});
     const [bemerkungen, setBemerkungen] = useState<{ [id: string]: string }>({});
     const [letzteArtikel, setLetzteArtikel] = useState<string[]>([]);
-    const [auftragLadeStatus, setAuftragLadeStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+    const [lastState, setLastState] = useState<'idle' | 'loading' | 'ready' | 'error'>('loading');
     const [letzterAuftrag, setLetzterAuftrag] = useState<ArtikelPositionResource[]>([]);
     const [favoriten, setFavoriten] = useState<string[]>([]);
+    const [activeKat, setActiveKat] = useState<string | null>(null);
 
     useEffect(() => {
-        const fetchLetzterAuftrag = async () => {
+        (async () => {
             try {
                 const { artikelPositionen } = await getAuftragLetzte();
                 setLetzterAuftrag(artikelPositionen);
-                setAuftragLadeStatus('ready');
+                setLetzteArtikel(artikelPositionen.map(p => p.artikel!).filter(Boolean));
+                setLastState('ready');
             } catch (e) {
-                setAuftragLadeStatus('error');
+                setLastState('error');
             }
-        };
-        fetchLetzterAuftrag();
+        })();
     }, []);
 
     const { user } = useAuth();
@@ -75,58 +77,96 @@ const ArtikelListe: React.FC<Props> = ({
         }
     }, [user]);
 
-    useEffect(() => {
-        const fetchletzteArtikel = async () => {
-            try {
-                const ids = await getAuftragLetzteArtikel(); // string[]
-                setLetzteArtikel(ids);
-                setAuftragLadeStatus('ready');
-            } catch (e) {
-                setAuftragLadeStatus('error');
-            }
-        };
-        fetchletzteArtikel();
-    }, []);
+    // Removed effect that fetched letzteArtikel separately
 
-    const kategorien = useMemo(() => {
-        const set = new Set<string>();
-        articles.forEach(article => {
-            if (
-                article.kategorie &&
-                article.name.toLowerCase().includes(searchTerm.toLowerCase())
-            ) {
-                set.add(article.kategorie);
-            }
-        });
-        return Array.from(set).sort();
-    }, [articles, searchTerm]);
+    const artikelById = useMemo(() => {
+        const m = new Map<string, ArtikelResource>();
+        for (const a of articles) if (a.id) m.set(a.id, a);
+        return m;
+    }, [articles]);
+
+    const normSearch = useMemo(() => searchTerm.trim().toLocaleLowerCase('de-DE'), [searchTerm]);
+
+    const filtered = useMemo(() => {
+        const arr = articles.filter(a => a.name.toLocaleLowerCase('de-DE').includes(normSearch));
+        switch (sortOption) {
+            case 'nameAsc':
+                arr.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+                break;
+            case 'nameDesc':
+                arr.sort((a, b) => b.name.localeCompare(a.name, 'de'));
+                break;
+            case 'preisAsc':
+                arr.sort((a, b) => (a.preis ?? 0) - (b.preis ?? 0));
+                break;
+            case 'preisDesc':
+                arr.sort((a, b) => (b.preis ?? 0) - (a.preis ?? 0));
+                break;
+        }
+        return arr;
+    }, [articles, normSearch, sortOption]);
 
     const groupedArticles = useMemo(() => {
         const grouped: { [key: string]: ArtikelResource[] } = {};
-        articles
-            .filter(article =>
-                article.name.toLowerCase().includes(searchTerm.toLowerCase())
-            )
-            .forEach(article => {
-                const kat = article.kategorie || 'Andere';
-                if (!grouped[kat]) grouped[kat] = [];
-                grouped[kat].push(article);
-            });
+        filtered.forEach(article => {
+            const kat = article.kategorie || 'Andere';
+            if (!grouped[kat]) grouped[kat] = [];
+            grouped[kat].push(article);
+        });
         return grouped;
-    }, [articles, searchTerm]);
+    }, [filtered]);
+
+    const kategorien = useMemo(() => Object.keys(groupedArticles).sort((a, b) => a.localeCompare(b, 'de')), [groupedArticles]);
+
+    useEffect(() => {
+        const catIds = kategorien.map(k => k.replace(/\s+/g, '-'));
+        const extraIds: string[] = ['letzter-auftrag'];
+        if (favoriten.length > 0) extraIds.unshift('favoriten');
+        const ids = [...extraIds, ...catIds];
+
+        const getSections = () => ids
+            .map(id => document.getElementById(id))
+            .filter(Boolean) as HTMLElement[];
+
+        let sections = getSections();
+
+        const OFFSET = 110; // match scrollMarginTop
+
+        const onScroll = () => {
+            if (sections.length === 0) {
+                sections = getSections();
+                if (sections.length === 0) return;
+            }
+            let current: string | null = ids[0] || null;
+            for (const sec of sections) {
+                if (sec.getBoundingClientRect().top - OFFSET <= 0) {
+                    current = sec.id;
+                }
+            }
+            setActiveKat(current);
+        };
+
+        onScroll();
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
+    }, [kategorien, favoriten.length]);
 
     return (
         <>
-            <h1 className="h3 container pb-2 pb-md-3 pb-lg-4">Shop catalog</h1>
+            <h1 className="display-6 fw-semibold container pb-2 pb-md-3 pb-lg-4">Produkte</h1>
 
 
             <section className="container pb-5 mb-2 mb-sm-3 mb-lg-4 mb-xl-5">
                 <div className="row">
                     {/* Sidebar */}
                     <aside className="col-lg-3">
-                        <div className="offcanvas-lg offcanvas-start pe-lg-4" id="filterSidebar">
+                        <div
+                            className="offcanvas-lg offcanvas-start pe-lg-4 sticky-lg-top"
+                            id="filterSidebar"
+                            style={{ top: 'calc(72px + 1rem)', maxHeight: 'calc(100vh - (72px + 1rem))', overflowY: 'auto' }}
+                        >
                             <div className="offcanvas-header py-3">
-                                <h5 className="offcanvas-title">Filter products</h5>
+                                <h5 className="offcanvas-title">Kategorien</h5>
                                 <button
                                     type="button"
                                     className="btn-close"
@@ -137,57 +177,72 @@ const ArtikelListe: React.FC<Props> = ({
                             </div>
                             <div className="offcanvas-body flex-column pt-2 py-lg-0">
                                 <div className="d-flex flex-column gap-3">
-                                    {kategorien.map((kategorie, i) => (
-                                        <a
-                                            key={i}
-                                            href={`#${kategorie.replace(/\s+/g, '-')}`}
-                                            className="d-flex align-items-center text-decoration-none text-body"
-                                        >
-                                            <span
-                                                className="d-flex align-items-center justify-content-center bg-body-secondary rounded-circle me-3"
-                                                style={{ width: '56px', height: '56px' }}
+                                    {kategorien.map((kategorie, i) => {
+                                        const id = kategorie.replace(/\s+/g, '-');
+                                        const isActive = activeKat === id;
+                                        return (
+                                            <a
+                                                key={i}
+                                                href={`#${id}`}
+                                                className={`d-flex align-items-center text-decoration-none rounded-3 px-2 py-2 ${isActive ? 'bg-body-tertiary text-dark' : 'text-body'}`}
+                                                aria-current={isActive ? 'true' : undefined}
                                             >
-                                                <span className="fs-4">
-                                                    {kategorie === 'Geflügel' && '🐔'}
-                                                    {kategorie === 'Kalb' && '🐄'}
-                                                    {kategorie === 'Lamm' && '🐑'}
-                                                    {kategorie === 'Pute' && '🦃'}
-                                                    {kategorie === 'Rind' && '🐄'}
-                                                    {kategorie === 'Schaf' && '🐏'}
-                                                    {!['Geflügel', 'Kalb', 'Lamm', 'Pute', 'Rind', 'Schaf'].includes(kategorie) && '📦'}
+                                                <span
+                                                    className="d-flex align-items-center justify-content-center bg-body-secondary rounded-circle me-3"
+                                                    style={{ width: '56px', height: '56px' }}
+                                                >
+                                                    <span className="fs-4">
+                                                        {kategorie === 'Geflügel' && '🐔'}
+                                                        {kategorie === 'Kalb' && '🐄'}
+                                                        {kategorie === 'Lamm' && '🐑'}
+                                                        {kategorie === 'Pute' && '🦃'}
+                                                        {kategorie === 'Rind' && '🐄'}
+                                                        {kategorie === 'Schaf' && '🐏'}
+                                                        {!['Geflügel', 'Kalb', 'Lamm', 'Pute', 'Rind', 'Schaf'].includes(kategorie) && '📦'}
+                                                    </span>
                                                 </span>
-                                            </span>
-                                            <span className="fs-sm">{kategorie}</span>
-                                        </a>
-                                    ))}
+                                                <span className="fs-sm fw-semibold">{kategorie}</span>
+                                            </a>
+                                        );
+                                    })}
 
-                                    {favoriten.length > 0 && (
-                                        <a
-                                            href="#favoriten"
-                                            className="d-flex align-items-center text-decoration-none text-body"
-                                        >
-                                            <span
-                                                className="d-flex align-items-center justify-content-center bg-warning rounded-circle me-3"
-                                                style={{ width: '56px', height: '56px' }}
+                                    {favoriten.length > 0 && (() => {
+                                        const isActive = activeKat === 'favoriten';
+                                        return (
+                                            <a
+                                                href="#favoriten"
+                                                className={`d-flex align-items-center text-decoration-none rounded-3 px-2 py-2 ${isActive ? 'bg-body-tertiary text-dark' : 'text-body'}`}
+                                                aria-current={isActive ? 'true' : undefined}
                                             >
-                                                <i className="ci-star-filled"></i>
-                                            </span>
-                                            <span className="fs-sm">Favoriten</span>
-                                        </a>
-                                    )}
+                                                <span
+                                                    className="d-flex align-items-center justify-content-center bg-warning rounded-circle me-3"
+                                                    style={{ width: '56px', height: '56px' }}
+                                                >
+                                                    <i className="ci-star-filled"></i>
+                                                </span>
+                                                <span className="fs-sm">Favoriten</span>
+                                            </a>
+                                        );
+                                    })()}
 
-                                    <a
-                                        href="#letzter-auftrag"
-                                        className="d-flex align-items-center text-decoration-none text-body"
-                                    >
-                                        <span
-                                            className="d-flex align-items-center justify-content-center bg-primary rounded-circle me-3 text-white fw-bold"
-                                            style={{ width: '56px', height: '56px' }}
-                                        >
-                                            <i className="ci-package"></i>
-                                        </span>
-                                        <span className="fs-sm">Letzter Auftrag</span>
-                                    </a>
+                                    {(() => {
+                                        const isActive = activeKat === 'letzter-auftrag';
+                                        return (
+                                            <a
+                                                href="#letzter-auftrag"
+                                                className={`d-flex align-items-center text-decoration-none rounded-3 px-2 py-2 ${isActive ? 'bg-body-tertiary text-dark' : 'text-body'}`}
+                                                aria-current={isActive ? 'true' : undefined}
+                                            >
+                                                <span
+                                                    className="d-flex align-items-center justify-content-center bg-primary rounded-circle me-3 text-white fw-bold"
+                                                    style={{ width: '56px', height: '56px' }}
+                                                >
+                                                    <i className="ci-package"></i>
+                                                </span>
+                                                <span className="fs-sm">Letzter Auftrag</span>
+                                            </a>
+                                        );
+                                    })()}
                                 </div>
                             </div>
                         </div>
@@ -195,55 +250,73 @@ const ArtikelListe: React.FC<Props> = ({
 
                     {/* Hauptbereich */}
                     <div className="col-lg-9">
-                        {/* Suche + Sortierung */}
-                        {/* Sucheingabe */}
-                        <div className="position-relative w-100 d-none d-md-block me-3 me-xl-4 mb-4">
-                            <input
-                                type="search"
-                                className="form-control form-control-lg rounded-pill"
-                                placeholder="Produkte suchen"
-                                aria-label="Search"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                            <button
-                                type="button"
-                                className="btn btn-icon btn-ghost fs-lg btn-secondary text-bo border-0 position-absolute top-0 end-0 rounded-circle mt-1 me-1"
-                                aria-label="Search button"
-                            >
-                                <i className="ci-search"></i>
-                            </button>
-                        </div>
-                        {/* Sortierung und gefundene Artikelanzahl */}
-                        <div className="d-sm-flex align-items-center justify-content-between mb-4">
-                            <div className="fs-sm text-body-emphasis text-nowrap mb-2 mb-sm-0">
-                                {articles.length} Artikel gefunden
-                            </div>
-                            <div className="d-flex align-items-center text-nowrap">
-                                <label className="form-label fw-semibold mb-0 me-2">Sortieren nach:</label>
-                                <div style={{ width: 200 }}>
-                                    <Form.Select
-                                        className="rounded-pill"
-                                        value={sortOption}
-                                        onChange={(e) => setSortOption(e.target.value)}
+                        {/* Suche + Sortierung (in Card) */}
+                        <div className="card border-0 shadow-sm rounded-4 p-3 p-md-4 mb-4 toolbar-sticky">
+                            <div className="row g-3 align-items-center">
+                                {/* Mobile: Filter öffnen */}
+                                <div className="col-12 d-md-none order-3">
+                                    <button
+                                        className="btn btn-outline-secondary w-100 rounded-pill"
+                                        type="button"
+                                        data-bs-toggle="offcanvas"
+                                        data-bs-target="#filterSidebar"
+                                        aria-controls="filterSidebar"
                                     >
-                                        <option value="nameAsc">Name (A–Z)</option>
-                                        <option value="nameDesc">Name (Z–A)</option>
-                                        <option value="preisAsc">Preis aufsteigend</option>
-                                        <option value="preisDesc">Preis absteigend</option>
-                                    </Form.Select>
+                                        <i className="ci-filter me-2"></i>Filter öffnen
+                                    </button>
+                                </div>
+
+                                {/* Suche */}
+                                <div className="col-12 col-md">
+                                    <div className="position-relative">
+                                        <input
+                                            type="search"
+                                            className="form-control form-control-lg rounded-pill ps-5"
+                                            placeholder="Produkte suchen"
+                                            aria-label="Search"
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                        />
+                                        <i className="ci-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
+                                    </div>
+                                </div>
+
+                                {/* Sortierung */}
+                                <div className="col-12 col-md-auto">
+                                    <div className="d-flex align-items-center gap-2">
+                                        <label className="form-label fw-semibold mb-0 d-none d-sm-inline">Sortieren:</label>
+                                        <Form.Select
+                                            className="rounded-pill"
+                                            value={sortOption}
+                                            onChange={(e) => setSortOption(e.target.value)}
+                                            style={{ minWidth: 220 }}
+                                        >
+                                            <option value="nameAsc">Name (A–Z)</option>
+                                            <option value="nameDesc">Name (Z–A)</option>
+                                            <option value="preisAsc">Preis aufsteigend</option>
+                                            <option value="preisDesc">Preis absteigend</option>
+                                        </Form.Select>
+                                    </div>
+                                </div>
+
+                                {/* Trefferanzahl */}
+                                <div className="col-12 col-md-auto text-muted small order-4 order-md-0">
+                                    {filtered.length} Artikel gefunden{(articles as any)?.loadingAll ? ' … (Suche in allen Artikeln)' : ''}
                                 </div>
                             </div>
                         </div>
-
-
                         {/* Favoriten */}
                         {favoriten.length > 0 && (
                             <>
-                                <h5 id="favoriten" className="mb-3">⭐ Favoriten</h5>
+                                <div className="d-flex align-items-center justify-content-between mb-3" id="favoriten" style={{ scrollMarginTop: '110px' }}>
+                                    <h5 className="mb-0">⭐ Favoriten</h5>
+                                    <span className="badge bg-warning-subtle text-warning-emphasis">
+                                        {articles.filter(a => favoriten.includes(a.id!)).length}
+                                    </span>
+                                </div>
                                 <div className="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-3 row-cols-xl-4 g-4">
                                     {articles.filter(a => favoriten.includes(a.id!)).map(article => (
-                                        <RenderCard
+                                        <ArtikelCard
                                             key={article.id}
                                             article={article}
                                             favoriten={favoriten}
@@ -265,18 +338,26 @@ const ArtikelListe: React.FC<Props> = ({
                                     ))}
                                 </div>
                                 <br />
+                                <hr className="my-4 opacity-25" />
                             </>
                         )}
 
                         {/* Letzter Auftrag */}
-                        <div className="mb-5" id="letzter-auftrag">
-                            <h5 className="mb-3">📦 Letzter Auftrag</h5>
+                        <div className="mb-5" id="letzter-auftrag" style={{ scrollMarginTop: '110px' }}>
+                            <div className="d-flex align-items-center justify-content-between mb-3">
+                                <h5 className="mb-0">📦 Letzter Auftrag</h5>
+                                {letzteArtikel.length > 0 && (
+                                    <span className="badge bg-primary-subtle text-primary-emphasis">
+                                        {letzteArtikel.length}
+                                    </span>
+                                )}
+                            </div>
 
-                            {auftragLadeStatus === 'loading' && (
+                            {lastState === 'loading' && (
                                 <div className="text-muted">⏳ Wird geladen...</div>
                             )}
 
-                            {auftragLadeStatus === 'error' && (
+                            {lastState === 'error' && (
                                 <div className="d-flex justify-content-between align-items-center bg-danger text-white rounded px-3 py-2 mb-3">
                                     <span className="m-0">Fehler beim Laden des letzten Auftrags.</span>
                                     <button
@@ -288,21 +369,21 @@ const ArtikelListe: React.FC<Props> = ({
                                 </div>
                             )}
 
-                            {auftragLadeStatus === 'ready' && letzteArtikel.length === 0 && (
+                            {lastState === 'ready' && letzteArtikel.length === 0 && (
                                 <div className="text-muted">Kein letzter Auftrag gefunden.</div>
                             )}
 
-                            {auftragLadeStatus === 'ready' && letzteArtikel.length > 0 && (
+                            {lastState === 'ready' && letzteArtikel.length > 0 && (
                                 <>
                                     <div className="d-flex justify-content-between align-items-center mb-3">
                                         <span className="text-muted">{letzteArtikel.length} Artikel im letzten Auftrag</span>
                                         <button
                                             className="btn btn-sm btn-primary"
                                             onClick={() => {
-                                                const neuePositionen: ArtikelPositionResource[] = letzterAuftrag.map(pos => ({
+                                                const neu: ArtikelPositionResource[] = letzterAuftrag.map(pos => ({
                                                     artikel: pos.artikel!,
                                                     artikelName: pos.artikelName || '',
-                                                    menge: pos.menge || 0,
+                                                    menge: pos.menge || 1,
                                                     einheit: pos.einheit || 'kg',
                                                     einzelpreis: pos.einzelpreis || 0,
                                                     zerlegung: pos.zerlegung || false,
@@ -310,7 +391,17 @@ const ArtikelListe: React.FC<Props> = ({
                                                     bemerkung: pos.bemerkung || '',
                                                 }));
 
-                                                setCart([...cart, ...neuePositionen]);
+                                                const merged = (() => {
+                                                    const map = new Map<string, ArtikelPositionResource>();
+                                                    const keyOf = (p: ArtikelPositionResource) => `${p.artikel}|${p.einheit}|${p.zerlegung ? '1' : '0'}|${p.vakuum ? '1' : '0'}`;
+                                                    for (const p of [...cart, ...neu]) {
+                                                        const k = keyOf(p);
+                                                        const ex = map.get(k);
+                                                        map.set(k, ex ? { ...ex, menge: (ex.menge || 0) + (p.menge || 0) } : p);
+                                                    }
+                                                    return Array.from(map.values());
+                                                })();
+                                                setCart(merged);
                                             }}
                                         >
                                             Letzten Auftrag übernehmen
@@ -318,12 +409,12 @@ const ArtikelListe: React.FC<Props> = ({
                                     </div>
 
                                     <div className="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-3 row-cols-xl-4 g-4">
-                                        {letzteArtikel.map((artikelId, index) => {
-                                            const article = articles.find(a => a.id === artikelId);
+                                        {letzteArtikel.map((artikelId) => {
+                                            const article = artikelById.get(artikelId);
                                             if (!article) return null;
                                             return (
-                                                <RenderCard
-                                                    key={`${artikelId}-${index}`}
+                                                <ArtikelCard
+                                                    key={artikelId}
                                                     article={article}
                                                     favoriten={favoriten}
                                                     setFavoriten={setFavoriten}
@@ -346,16 +437,22 @@ const ArtikelListe: React.FC<Props> = ({
                                     </div>
                                 </>
                             )}
+                            <hr className="my-5 opacity-25" />
                         </div>
 
                         {/* Artikel nach Kategorie */}
                         {kategorien.map(kat => (
-                            <div key={kat} className="mb-5" id={kat.replace(/\s+/g, '-')}>
+                            <div
+                                key={kat}
+                                className="mb-5"
+                                id={kat.replace(/\s+/g, '-')}
+                                style={{ scrollMarginTop: '110px' }}
+                            >
                                 <h5 className="mb-3">{kat}</h5>
                                 {/* <!-- Grid --> */}
                                 <div className="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-3 row-cols-xl-4 g-4">
                                     {groupedArticles[kat].map(article => (
-                                        <RenderCard
+                                        <ArtikelCard
                                             key={article.id}
                                             article={article}
                                             favoriten={favoriten}
@@ -382,11 +479,28 @@ const ArtikelListe: React.FC<Props> = ({
                                         <i className="ci-chevron-right fs-base ms-1"></i>
                                     </Link>
                                 </div>
+                                <hr className="my-5 opacity-25" />
                             </div>
                         ))}
                     </div>
                 </div>
             </section>
+            <style>
+                {`
+  /* Sidebar: smoother hover */
+  #filterSidebar .offcanvas-body a { transition: background-color .15s ease; }
+  #filterSidebar .offcanvas-body a:hover { background-color: var(--bs-body-tertiary); }
+
+  /* Einheitliche Scroll-Margins für Abschnittsanker */
+  [style*='scrollMarginTop'] { scroll-margin-top: 110px !important; }
+  
+  /* Sticky toolbar (unter der Navbar) */
+.toolbar-sticky { position: sticky; top: calc(72px + .75rem); z-index: 1020; }
+@media (max-width: 991.98px) {
+  .toolbar-sticky { top: calc(85px + .5rem); }
+}
+`}
+            </style>
         </>
     );
 };

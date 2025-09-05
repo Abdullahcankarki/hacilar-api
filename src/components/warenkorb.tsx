@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useId } from 'react';
 import { Offcanvas, Button, Form, Row, Col, Modal } from 'react-bootstrap';
 import { ArtikelPositionResource, ArtikelResource, RegionRuleResource } from '../Resources';
 import 'flatpickr/dist/flatpickr.min.css';
@@ -73,6 +73,7 @@ type Props = {
     onEinheitChange: (index: number, einheit: ArtikelPositionResource['einheit']) => void;
     onRemove: (index: number) => void;
     onSubmit: (lieferdatum: string, bemerkung: string) => void;
+    submitLoading?: boolean;
 };
 
 const WarenkorbPanel: React.FC<Props> = ({
@@ -84,14 +85,15 @@ const WarenkorbPanel: React.FC<Props> = ({
     onQuantityChange,
     onEinheitChange,
     onRemove,
-    onSubmit
+    onSubmit,
+    submitLoading
 }) => {
     const [lieferdatum, setLieferdatum] = useState('');
     const [showDateModal, setShowDateModal] = useState(false);
-    const [showFehlerAlert, setShowFehlerAlert] = useState(false);
     const [bemerkung, setBemerkung] = useState('');
     const [fetchedRule, setFetchedRule] = useState<RegionRuleResource | null>(null);
     const [ruleLoading, setRuleLoading] = useState(false);
+    const [dateError, setDateError] = useState<string | null>(null);
 
     const dateInputRef = useRef<HTMLInputElement | null>(null);
     const fpRef = useRef<flatpickr.Instance | null>(null);
@@ -137,12 +139,25 @@ const WarenkorbPanel: React.FC<Props> = ({
 
     const nextAvail = useMemo(() => nextAllowedDate(new Date(), rule), [rule]);
 
+    const artikelById = useMemo(() => {
+        const m = new Map<string, ArtikelResource>();
+        for (const a of articles) m.set(a.id, a);
+        return m;
+    }, [articles]);
+
+    const fmtEUR = useMemo(() => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }), []);
+
     useEffect(() => {
         if (showDateModal && !ruleLoading && !lieferdatum && nextAvail) {
             const iso = DateTime.fromJSDate(nextAvail).setZone(ZONE).toISODate();
             if (iso) setLieferdatum(iso);
         }
+        if (showDateModal) setDateError(null);
     }, [showDateModal, ruleLoading, nextAvail, lieferdatum]);
+
+    useEffect(() => {
+        if (dateError) setDateError(null);
+    }, [lieferdatum]);
 
     useEffect(() => {
         if (!showDateModal || ruleLoading) return;
@@ -206,7 +221,7 @@ const WarenkorbPanel: React.FC<Props> = ({
     };
 
     const gesamtpreis = cart.reduce((sum, item) => {
-        const artikel = articles.find(a => a.id === item.artikel);
+        const artikel = artikelById.get(item.artikel);
         return sum + berechneGesamtpreis(item, artikel);
     }, 0);
 
@@ -215,26 +230,28 @@ const WarenkorbPanel: React.FC<Props> = ({
     };
 
     const handleBestellungAbsenden = () => {
+        // Grundvalidierung
         if (!lieferdatum) {
-            setShowFehlerAlert(true);
-            setTimeout(() => setShowFehlerAlert(false), 3000);
+            setDateError('Bitte ein gültiges Lieferdatum wählen.');
             return;
         }
         if (ruleLoading) {
-            setShowFehlerAlert(true);
-            setTimeout(() => setShowFehlerAlert(false), 3000);
+            setDateError('Lieferregel wird noch geladen. Bitte einen Moment.');
             return;
         }
         // Regel-Validierung
         const parsed = DateTime.fromISO(lieferdatum, { zone: ZONE });
-        if (!parsed.isValid || !isDateAllowed(parsed.toJSDate(), rule).ok) {
-            setShowFehlerAlert(true);
-            setTimeout(() => setShowFehlerAlert(false), 3000);
+        const allowed = parsed.isValid && isDateAllowed(parsed.toJSDate(), rule).ok;
+        if (!allowed) {
+            setDateError('Dieses Datum ist nicht erlaubt. Bitte anderes Datum wählen.');
             return;
         }
+        setDateError(null);
         setShowDateModal(false);
         onSubmit(lieferdatum, bemerkung);
     };
+
+    const lieferId = useId();
 
     return (
         <>
@@ -251,7 +268,7 @@ const WarenkorbPanel: React.FC<Props> = ({
                     {/* Body */}
                     <div className="offcanvas-body d-flex flex-column gap-4 pt-2">
                         {cart.map((item, index) => {
-                            const artikel = articles.find(a => a.id === item.artikel);
+                            const artikel = artikelById.get(item.artikel);
                             const gesamtgewicht = berechneGesamtgewicht(item, artikel);
                             return (
                                 <div className="d-flex align-items-center" key={index}>
@@ -262,13 +279,14 @@ const WarenkorbPanel: React.FC<Props> = ({
                                             </span>
                                         </h5>
                                         <div className="h6 pb-1 mb-2">
-                                            {item.einzelpreis?.toFixed(2)} € – {gesamtgewicht.toFixed(2)} kg
+                                            {fmtEUR.format(item.einzelpreis ?? 0)} – {gesamtgewicht.toFixed(2)} kg
                                         </div>
                                         <div className="d-flex align-items-center justify-content-between gap-2 flex-wrap">
                                             <div className="count-input rounded-2 d-flex align-items-center">
                                                 <button
                                                     type="button"
                                                     className="btn btn-icon btn-sm"
+                                                    disabled={item.menge! <= 1}
                                                     onClick={() => onQuantityChange(index, Math.max(1, item.menge! - 1))}
                                                 >
                                                     <i className="ci-minus" />
@@ -314,38 +332,41 @@ const WarenkorbPanel: React.FC<Props> = ({
 
                     {/* Footer */}
                     <div className="offcanvas-header flex-column align-items-start">
-                        {/* <div className="d-flex align-items-center justify-content-between w-100 mb-3 mb-md-4">
+                        <div className="d-flex align-items-center justify-content-between w-100 mb-3 mb-md-4">
                             <span className="text-light-emphasis">Gesamtsumme:</span>
-                            <span className="h6 mb-0">{gesamtpreis.toFixed(2)} €</span>
-                        </div> */}
+                            <span className="h6 mb-0">{fmtEUR.format(gesamtpreis)}</span>
+                        </div>
                         <div className="d-flex w-100 gap-3">
                             <button className="btn btn-lg btn-secondary w-100" onClick={onHide}>
                                 Schließen
                             </button>
-                            <button className="btn btn-lg btn-primary w-100" onClick={() => setShowDateModal(true)}>
+                            <button className="btn btn-lg btn-primary w-100" disabled={!cart.length} onClick={() => setShowDateModal(true)}>
                                 Bestellen
                             </button>
                         </div>
                     </div>
                 </div>
             )}
-            {showFehlerAlert && (
-                <div className="position-fixed top-0 start-50 translate-middle-x mt-3 z-index-9999" style={{ zIndex: 1056 }}>
-                    <div className="alert alert-warning alert-dismissible fade show shadow" role="alert">
-                        Bitte wähle ein Lieferdatum!
-                    </div>
-                </div>
-            )}
 
             {/* Lieferdatum Modal */}
-            <Modal show={showDateModal} onHide={() => setShowDateModal(false)}>
+            <Modal
+                show={showDateModal}
+                onHide={() => setShowDateModal(false)}
+                onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleBestellungAbsenden();
+                    }
+                }}
+            >
                 <Modal.Header closeButton>
                     <Modal.Title>Lieferdatum</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
-                    <Form.Label className="form-label">Lieferdatum</Form.Label>
+                    <Form.Label htmlFor={lieferId} className="form-label">Lieferdatum</Form.Label>
                     <div className="position-relative">
                         <input
+                            id={lieferId}
                             ref={dateInputRef}
                             className="form-control date-picker pe-5"
                             type="text"
@@ -358,6 +379,7 @@ const WarenkorbPanel: React.FC<Props> = ({
                             style={{ pointerEvents: 'none' }}
                         />
                     </div>
+                    {dateError && <div className="invalid-feedback d-block">{dateError}</div>}
                     <div className="small text-muted mt-2">
                         {nextAvail
                             ? <>Nächster verfügbarer Termin: <strong>{DateTime.fromJSDate(nextAvail).setZone(ZONE).toFormat('dd.MM.yyyy')}</strong></>
@@ -384,8 +406,19 @@ const WarenkorbPanel: React.FC<Props> = ({
                     <Button variant="secondary" onClick={() => setShowDateModal(false)}>
                         Abbrechen
                     </Button>
-                    <Button variant="primary" onClick={handleBestellungAbsenden}>
-                        Bestellen
+                    <Button
+                        variant="primary"
+                        onClick={handleBestellungAbsenden}
+                        disabled={!!dateError || !lieferdatum || ruleLoading || submitLoading}
+                    >
+                        {submitLoading ? (
+                            <>
+                                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                Senden…
+                            </>
+                        ) : (
+                            'Bestellen'
+                        )}
                     </Button>
                 </Modal.Footer>
             </Modal>

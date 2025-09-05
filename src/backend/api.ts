@@ -434,8 +434,41 @@ export async function deleteKundenpreis(
 }
 
 /* Auftrag-Funktionen */
-export async function getAllAuftraege(): Promise<AuftragResource[]> {
-  return apiFetch<AuftragResource[]>("/api/auftrag");
+export async function getAllAuftraege(params?: {
+  page?: number;
+  limit?: number;
+  // Filters
+  status?: "offen" | "in Bearbeitung" | "abgeschlossen" | "storniert";
+  statusIn?: Array<"offen" | "in Bearbeitung" | "abgeschlossen" | "storniert">;
+  kunde?: string;
+  auftragsnummer?: string;
+  q?: string;
+  lieferdatumVon?: string;
+  lieferdatumBis?: string;
+  createdVon?: string;
+  createdBis?: string;
+  updatedVon?: string;
+  updatedBis?: string;
+  kommissioniertStatus?: "offen" | "gestartet" | "fertig";
+  kontrolliertStatus?: "offen" | "geprüft";
+  bearbeiter?: string;
+  kommissioniertVon?: string;
+  kontrolliertVon?: string;
+  hasTour?: boolean;
+  // Sorting
+  sort?:
+    | "createdAtDesc" | "createdAtAsc"
+    | "updatedAtDesc" | "updatedAtAsc"
+    | "lieferdatumAsc" | "lieferdatumDesc"
+    | "auftragsnummerAsc" | "auftragsnummerDesc";
+}): Promise<AuftragResource[]> {
+  const qObj: Record<string, any> = { ...(params || {}) };
+  // Backend erwartet statusIn als kommagetrennte Liste – sichere das hier ab
+  if (Array.isArray(qObj.statusIn)) {
+    qObj.statusIn = qObj.statusIn.join(",");
+  }
+  const q = toQuery(qObj);
+  return apiFetch<AuftragResource[]>(`/api/auftrag${q}`);
 }
 
 export async function getAuftragByCutomerId(
@@ -803,6 +836,31 @@ export async function deleteAllTours(): Promise<void> {
 }
 
 /* ----------------------------- TourStop-Funktionen ----------------------------- */
+
+/** Kompakter Typ für Kundenstopps inkl. Koordinaten (vom Backend geliefert) */
+export type TourCustomerStopDTO = {
+  tourId: string;
+  stopId: string;
+  kundeId: string;
+  kundeName?: string;
+  kundeAdress?: string;
+  position: number;
+  lat?: number;
+  lng?: number;
+};
+
+/**
+ * GET /api/tourstops/customers/by-date
+ * Optional: date (YYYY-MM-DD, Europe/Berlin), fahrerId, region
+ */
+export async function getCustomerStopsByDate(params?: {
+  date?: string;
+  fahrerId?: string;
+  region?: string;
+}): Promise<TourCustomerStopDTO[]> {
+  const q = toQuery({ date: params?.date, fahrerId: params?.fahrerId, region: params?.region });
+  return apiFetch<TourCustomerStopDTO[]>(`/api/tour-stop/customers/by-date${q}`);
+}
 export async function createTourStop(
   data: Omit<TourStopResource, "id" | "updatedAt" | "abgeschlossenAm">
 ): Promise<TourStopResource> {
@@ -1000,6 +1058,7 @@ export const api = {
   createTourStop,
   getTourStopById,
   listTourStops,
+  getCustomerStopsByDate,
   updateTourStop,
   deleteTourStop,
   deleteAllTourStops,

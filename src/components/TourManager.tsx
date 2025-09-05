@@ -21,7 +21,11 @@ import {
     getAllReihenfolgeVorlages,
     moveTourStop,
 } from "../backend/api";
+
 import { useNavigate } from "react-router-dom";
+
+// Backend liefert datum als ISO-Datum (YYYY-MM-DD) in Europe/Berlin-Logik
+const DATE_FMT_IN = "YYYY-MM-DD";
 
 
 // ==== Aux types for lookups ====
@@ -34,7 +38,22 @@ const renderFahrzeugLabel = (f?: Fahrzeug) =>
 
 
 // ==== Utility ====
-const fmtDate = (d: string | number | Date) => dayjs(d).format("DD.MM.YYYY");
+const fmtDate = (d: string | number | Date) => {
+    // 1) bevorzugt: striktes Backend-Format YYYY-MM-DD
+    if (typeof d === "string") {
+        const p = dayjs(d, DATE_FMT_IN, true);
+        if (p.isValid()) return p.format("DD.MM.YYYY");
+        // 2) Fallback: JS-Date-String (z. B. "Sun Aug 31 2025 01:00:00 GMT+0300 (GMT+03:00)")
+        const js = new Date(d as string);
+        if (!Number.isNaN(js.valueOf())) {
+            const p3 = dayjs(js);
+            if (p3.isValid()) return p3.format("DD.MM.YYYY");
+        }
+    }
+    // 3) Zahl/Date → direkt formatieren
+    const p2 = dayjs(d);
+    return p2.isValid() ? p2.format("DD.MM.YYYY") : "—";
+};
 const statusBadge = (s: TourStatus) =>
     ({ geplant: "secondary", laufend: "info", abgeschlossen: "success", archiviert: "dark" }[s] || "secondary");
 
@@ -65,9 +84,13 @@ function cx(...classes: (string | undefined | false)[]) { return classes.filter(
 
 // Normalize values for UI & API
 const toDateInput = (v: any): string => {
-    if (!v) return dayjs().format("YYYY-MM-DD");
+    if (!v) return dayjs().format(DATE_FMT_IN);
+    if (typeof v === "string") {
+        const p = dayjs(v, DATE_FMT_IN, true);
+        if (p.isValid()) return p.format(DATE_FMT_IN);
+    }
     const d = dayjs(v);
-    return d.isValid() ? d.format("YYYY-MM-DD") : dayjs().format("YYYY-MM-DD");
+    return d.isValid() ? d.format(DATE_FMT_IN) : dayjs().format(DATE_FMT_IN);
 };
 // mode: 'upper' = FULL CAPS, 'capitalized' = Only first letter upper
 const formatRegion = (s: string, mode: 'upper' | 'capitalized' = 'capitalized') => {
@@ -102,10 +125,22 @@ const Toast: React.FC<{ toast: ToastT | null; onClose: () => void }> = ({ toast,
 
 // ==== Sort helpers ====
 type SortKey = "datum" | "region" | "status";
+const parseDatumMs = (d: any): number => {
+    // strict YYYY-MM-DD first
+    if (typeof d === "string") {
+        const p = dayjs(d, DATE_FMT_IN, true);
+        if (p.isValid()) return p.valueOf();
+        const js = new Date(d);
+        if (!Number.isNaN(js.valueOf())) return dayjs(js).valueOf();
+    }
+    const p2 = dayjs(d);
+    return p2.isValid() ? p2.valueOf() : Number.NEGATIVE_INFINITY;
+};
+
 const sortTours = (items: TourResource[], key: SortKey, dir: "asc" | "desc") => {
     const sorted = [...items].sort((a, b) => {
-        const va = key === "datum" ? new Date(a.datum).getTime() : (a[key] as any) ?? "";
-        const vb = key === "datum" ? new Date(b.datum).getTime() : (b[key] as any) ?? "";
+        const va = key === "datum" ? parseDatumMs(a.datum) : ((a as any)[key] ?? "");
+        const vb = key === "datum" ? parseDatumMs(b.datum) : ((b as any)[key] ?? "");
         return va < vb ? -1 : va > vb ? 1 : 0;
     });
     return dir === "asc" ? sorted : sorted.reverse();
@@ -212,11 +247,14 @@ const TourColumn: React.FC<{
                             {pendingUntil && <PendingDeletionCountdown until={pendingUntil} />}
                         </div>
                         <div className="text-muted small">
-                            {fmtDate(tour.datum)} · {formatRegion(tour.region, 'capitalized')} ·
-                            {" "}{fahrzeugLabel ? `Fzg: ${fahrzeugLabel}` : "Fzg: —"} ·
-                            {" "}{fahrerName ? `Fahrer: ${fahrerName}` : "Fahrer: —"}
-                            {tour.maxGewichtKg ? ` · Max ${tour.maxGewichtKg} kg` : ""}
-                            {" "}· Belegt {tour.belegtesGewichtKg?.toFixed?.(1) ?? 0} kg
+                            {fmtDate(tour.datum)} · {formatRegion(tour.region || "", 'capitalized')} ·
+                            {" "}Fzg: {fahrzeugLabel || "—"} ·
+                            {" "}Fahrer: {fahrerName || "—"}
+                            {typeof tour.maxGewichtKg === "number" && !Number.isNaN(tour.maxGewichtKg) ? ` · Max ${Number(tour.maxGewichtKg).toFixed(0)} kg` : ""}
+                            {" "}· Belegt {(() => {
+                                const n = Number((tour as any).belegtesGewichtKg);
+                                return Number.isFinite(n) ? n.toFixed(1) : "0.0";
+                            })()} kg
                             {vorlageName ? ` · Vorlage: ${vorlageName}` : ""}
                         </div>
                     </div>
@@ -256,7 +294,7 @@ const TourModal: React.FC<{
     vorlagen: ReihenfolgeVorlage[];
 }> = ({ show, onClose, onSubmit, initial, fahrzeuge, fahrer, vorlagen }) => {
     const [form, setForm] = useState<Partial<TourResource>>({
-        datum: toDateInput(initial?.datum ?? dayjs().format("YYYY-MM-DD")),
+        datum: toDateInput(initial?.datum ?? dayjs().format(DATE_FMT_IN)),
         region: initial?.region ?? "",
         name: initial?.name ?? "",
         fahrzeugId: initial?.fahrzeugId,
@@ -271,7 +309,7 @@ const TourModal: React.FC<{
     useEffect(() => {
         if (show) {
             const base: Partial<TourResource> = {
-                datum: toDateInput(initial?.datum ?? dayjs().format("YYYY-MM-DD")),
+                datum: toDateInput(initial?.datum ?? dayjs().format(DATE_FMT_IN)),
                 region: initial?.region ?? "",
                 name: initial?.name ?? "",
                 fahrzeugId: initial?.fahrzeugId,
@@ -636,6 +674,9 @@ export const TourManager: React.FC = () => {
     const [sortKey, setSortKey] = useState<SortKey>("datum");
     const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
     const [q, setQ] = useState("");
+    // Error and loading state for loading tours
+    const [loadError, setLoadError] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState<boolean>(false);
 
     // Advanced filters (mirror backend listTours params)
     const [dateFrom, setDateFrom] = useState<string>("");
@@ -710,17 +751,17 @@ export const TourManager: React.FC = () => {
 
     // Date presets
     const setToday = () => {
-        const d = dayjs().format("YYYY-MM-DD");
+        const d = dayjs().format(DATE_FMT_IN);
         setPage(1); setDateFrom(d); setDateTo(d);
     };
     const setThisWeek = () => {
-        const start = dayjs().startOf("week").format("YYYY-MM-DD");
-        const end = dayjs().endOf("week").format("YYYY-MM-DD");
+        const start = dayjs().startOf("week").format(DATE_FMT_IN);
+        const end = dayjs().endOf("week").format(DATE_FMT_IN);
         setPage(1); setDateFrom(start); setDateTo(end);
     };
     const setThisMonth = () => {
-        const start = dayjs().startOf("month").format("YYYY-MM-DD");
-        const end = dayjs().endOf("month").format("YYYY-MM-DD");
+        const start = dayjs().startOf("month").format(DATE_FMT_IN);
+        const end = dayjs().endOf("month").format(DATE_FMT_IN);
         setPage(1); setDateFrom(start); setDateTo(end);
     };
 
@@ -743,80 +784,82 @@ export const TourManager: React.FC = () => {
     const [activeStop, setActiveStop] = useState<TourStopResource | null>(null);
 
     const load = async () => {
-        const params: any = {
-            // dates only if set
-            dateFrom: dateFrom || undefined,
-            dateTo: dateTo || undefined,
-            region: region || undefined,
-            status: statusSel.length ? statusSel : undefined,
-            fahrzeugId: fahrzeugIdFilter || undefined,
-            fahrerId: fahrerIdFilter || undefined,
-            isStandard: isStandardFilter === "" ? undefined : isStandardFilter,
-            q: q || undefined,
-            page,
-            limit,
-            sort: sortServer,
-        };
+        setIsLoading(true);
+        setLoadError(null);
+        try {
+            const params: any = {
+                dateFrom: dateFrom || undefined,
+                dateTo: dateTo || undefined,
+                region: region || undefined,
+                status: statusSel.length ? statusSel : undefined,
+                fahrzeugId: fahrzeugIdFilter || undefined,
+                fahrerId: fahrerIdFilter || undefined,
+                isStandard: isStandardFilter === "" ? undefined : isStandardFilter,
+                q: q || undefined,
+                page,
+                limit,
+                sort: sortServer,
+            };
 
-        const [toursResp, f, m, v] = await Promise.all([
-            getAllTours(params),
-            getAllFahrzeuge(),
-            getAllMitarbeiter(),
-            getAllReihenfolgeVorlages(),
-        ]);
 
-        // handle both array and paginated {items: []} responses for all
-        const t = (Array.isArray(toursResp) ? toursResp : (toursResp.items ?? [])) as TourResource[];
-        const fItems = (Array.isArray(f) ? f : (f.items ?? [])) as Fahrzeug[];
-        const mItems = (Array.isArray(m) ? m : ((m as any).items ?? [])) as Mitarbeiter[];
-        const vItems = (Array.isArray(v) ? v : (v.items ?? [])) as ReihenfolgeVorlage[];
+            const [toursResp, f, m, v] = await Promise.all([
+                getAllTours(params).catch((err: any) => { throw new Error(err?.message || "getAllTours failed"); }),
+                getAllFahrzeuge().catch((err: any) => { throw new Error("Fahrzeuge: " + (err?.message || "failed")); }),
+                getAllMitarbeiter().catch((err: any) => { throw new Error("Mitarbeiter: " + (err?.message || "failed")); }),
+                getAllReihenfolgeVorlages().catch((err: any) => { throw new Error("Vorlagen: " + (err?.message || "failed")); }),
+            ]);
 
-        // pagination info if provided
-        if (!Array.isArray(toursResp)) {
-            setTotal((toursResp as any).total ?? t.length);
-            setPage((toursResp as any).page ?? page);
-            setLimit((toursResp as any).limit ?? limit);
-        } else {
-            setTotal(t.length);
-        }
+            const t = (Array.isArray(toursResp) ? toursResp : (toursResp.items ?? [])) as TourResource[];
+            const fItems = (Array.isArray(f) ? f : (f.items ?? [])) as Fahrzeug[];
+            const mItems = (Array.isArray(m) ? m : ((m as any).items ?? [])) as Mitarbeiter[];
+            const vItems = (Array.isArray(v) ? v : (v.items ?? [])) as ReihenfolgeVorlage[];
 
-        // Merge active local countdowns so they survive reloads
-        const withPending = t.map(tt => {
-            const until = pendingDeletion[tt.id!];
-            return (until && until > Date.now()) ? { ...tt, pendingDeletionUntil: until } : tt;
-        });
-        setTours(sortTours(withPending, sortKey, sortDir));
-        setFahrzeuge(fItems);
-        setFahrer(mItems.filter(x => Array.isArray(x.rollen) && x.rollen.includes("fahrer")));
-        setVorlagen(vItems);
-        // Regions ableiten (eindeutig, sortiert)
-        const regions = Array.from(
-            new Set(
-                t.map(x => formatRegion((x.region || ''), 'capitalized')).filter(Boolean)
-            )
-        ).sort((a, b) => a.localeCompare(b));
-        setAvailableRegions(regions);
-
-        // load stops for each tour
-        const entries = await Promise.all(
-            t.map(async (tour) => [tour.id!, await listTourStops({ tourId: tour.id! })] as const)
-        );
-        const dict: Record<string, TourStopResource[]> = {};
-        for (const [id, stops] of entries) {
-            dict[id] = [...stops].sort((a, b) => a.position - b.position);
-        }
-        setStopsByTour(dict);
-        // Cleanup pendingDeletion entries: remove expired or refilled tours
-        setPendingDeletion(prev => {
-            const next: Record<string, number> = { ...prev };
-            for (const tourId of Object.keys(next)) {
-                const until = next[tourId];
-                const expired = !until || until <= Date.now();
-                const refilled = (dict[tourId]?.length ?? 0) > 0; // tour has stops again
-                if (expired || refilled) delete next[tourId];
+            if (!Array.isArray(toursResp)) {
+                setTotal((toursResp as any).total ?? t.length);
+                setPage((toursResp as any).page ?? page);
+                setLimit((toursResp as any).limit ?? limit);
+            } else {
+                setTotal(t.length);
             }
-            return next;
-        });
+
+            const withPending = t.map(tt => {
+                const until = pendingDeletion[tt.id!];
+                return (until && until > Date.now()) ? { ...tt, pendingDeletionUntil: until } : tt;
+            });
+            setTours(sortTours(withPending, sortKey, sortDir));
+            setFahrzeuge(fItems);
+            setFahrer(mItems.filter(x => Array.isArray(x.rollen) && x.rollen.includes("fahrer")));
+            setVorlagen(vItems);
+
+            const regions = Array.from(new Set(t.map(x => formatRegion((x.region || ''), 'capitalized')).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+            setAvailableRegions(regions);
+
+            const entries = await Promise.all(
+                t.map(async (tour) => [tour.id!, await listTourStops({ tourId: tour.id! })] as const)
+            );
+            const dict: Record<string, TourStopResource[]> = {};
+            for (const [id, stops] of entries) {
+                dict[id] = [...stops].sort((a, b) => a.position - b.position);
+            }
+            setStopsByTour(dict);
+
+            setPendingDeletion(prev => {
+                const next: Record<string, number> = { ...prev };
+                for (const tourId of Object.keys(next)) {
+                    const until = next[tourId];
+                    const expired = !until || until <= Date.now();
+                    const refilled = (dict[tourId]?.length ?? 0) > 0;
+                    if (expired || refilled) delete next[tourId];
+                }
+                return next;
+            });
+        } catch (err: any) {
+            const msg = String(err?.message || err || "Unbekannter Fehler beim Laden");
+            setLoadError(msg);
+            setToast({ type: "danger", msg: msg });
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     useEffect(() => { load().catch(() => setToast({ type: "danger", msg: "Fehler beim Laden" })); }, []);
@@ -1020,7 +1063,7 @@ export const TourManager: React.FC = () => {
             <div className="d-flex align-items-center justify-content-between mb-3">
                 <div>
                     <h2 className="h4 mb-1">Tourenverwaltung</h2>
-                    <div className="text-muted small">{tours.length} Touren gesamt</div>
+                    <div className="text-muted small">{tours.length} Touren gesamt · Sichtbar: {filteredTours.length}</div>
                 </div>
                 <div className="d-flex gap-2">
                     <button className="btn btn-primary" onClick={() => setShowCreate(true)}>
@@ -1029,13 +1072,21 @@ export const TourManager: React.FC = () => {
                 </div>
             </div>
 
+            {/* Error / Empty / Loader states */}
+            {loadError && (
+                <div className="alert alert-danger" role="alert">
+                    <div className="fw-semibold mb-1">Fehler beim Laden</div>
+                    <div className="small">{loadError}</div>
+                </div>
+            )}
+
             {/* Filters / Sorting */}
             <div className="card shadow-sm border-0 mb-3">
                 {/* Filters Toolbar */}
                 <div className="d-flex align-items-center justify-content-between mb-3">
-                    <div className="text-muted small d-flex flex-wrap gap-2">
-                        {dateFrom && <span className="badge text-bg-light">Von {dayjs(dateFrom).format("DD.MM.YYYY")}</span>}
-                        {dateTo && <span className="badge text-bg-light">Bis {dayjs(dateTo).format("DD.MM.YYYY")}</span>}
+            <div className="text-muted small d-flex flex-wrap gap-2">
+                {dateFrom && <span className="badge text-bg-light">Von {dayjs(dateFrom, DATE_FMT_IN).format("DD.MM.YYYY")}</span>}
+                {dateTo && <span className="badge text-bg-light">Bis {dayjs(dateTo, DATE_FMT_IN).format("DD.MM.YYYY")}</span>}
                         {region && <span className="badge text-bg-light">Region: {region}</span>}
                         {!!statusSel.length && <span className="badge text-bg-light">Status: {statusSel.join(", ")}</span>}
                         {fahrzeugIdFilter && <span className="badge text-bg-light">Fahrzeug</span>}
@@ -1096,7 +1147,7 @@ export const TourManager: React.FC = () => {
                                                                 }}
                                                             >
                                                                 <i className="ci-calendar" />
-                                                                {dateFrom ? dayjs(dateFrom).format("DD.MM.YYYY") : "Start"} – {dateTo ? dayjs(dateTo).format("DD.MM.YYYY") : "Ende"}
+                                                                {dateFrom ? dayjs(dateFrom, DATE_FMT_IN).format("DD.MM.YYYY") : "Start"} – {dateTo ? dayjs(dateTo, DATE_FMT_IN).format("DD.MM.YYYY") : "Ende"}
                                                             </button>
 
                                                             {showRange && rangePos && createPortal(
@@ -1122,8 +1173,8 @@ export const TourManager: React.FC = () => {
                                                                     <DateRange
                                                                         onChange={(ranges: any) => {
                                                                             const sel = ranges.selection || ranges[0] || ranges;
-                                                                            const s = dayjs(sel.startDate).format("YYYY-MM-DD");
-                                                                            const e = dayjs(sel.endDate).format("YYYY-MM-DD");
+                                                                            const s = dayjs(sel.startDate).format(DATE_FMT_IN);
+                                                                            const e = dayjs(sel.endDate).format(DATE_FMT_IN);
                                                                             setPage(1);
                                                                             setDateFrom(s);
                                                                             setDateTo(e);
@@ -1131,8 +1182,8 @@ export const TourManager: React.FC = () => {
                                                                         moveRangeOnFirstSelection={false}
                                                                         editableDateInputs
                                                                         ranges={[{
-                                                                            startDate: dateFrom ? new Date(dateFrom) : (dateTo ? new Date(dateTo) : new Date()),
-                                                                            endDate: dateTo ? new Date(dateTo) : (dateFrom ? new Date(dateFrom) : new Date()),
+                                                                            startDate: dateFrom ? dayjs(dateFrom, DATE_FMT_IN, true).toDate() : (dateTo ? dayjs(dateTo, DATE_FMT_IN, true).toDate() : new Date()),
+                                                                            endDate: dateTo ? dayjs(dateTo, DATE_FMT_IN, true).toDate() : (dateFrom ? dayjs(dateFrom, DATE_FMT_IN, true).toDate() : new Date()),
                                                                             key: "selection",
                                                                         }]}
                                                                         months={monthsCount}
@@ -1152,12 +1203,12 @@ export const TourManager: React.FC = () => {
                                                     </div>
 
                                                     <div className="col-12 d-flex flex-wrap gap-2 mt-2">
-                                                        <button className="btn btn-outline-secondary" onClick={() => { const d = dayjs(); setPage(1); setDateFrom(d.format("YYYY-MM-DD")); setDateTo(d.format("YYYY-MM-DD")); }}>Heute</button>
-                                                        <button className="btn btn-outline-secondary" onClick={() => { const d = dayjs().add(1, "day"); setPage(1); setDateFrom(d.format("YYYY-MM-DD")); setDateTo(d.format("YYYY-MM-DD")); }}>Morgen</button>
-                                                        <button className="btn btn-outline-secondary" onClick={() => { const s = dayjs().startOf("week"), e = dayjs().endOf("week"); setPage(1); setDateFrom(s.format("YYYY-MM-DD")); setDateTo(e.format("YYYY-MM-DD")); }}>Diese Woche</button>
-                                                        <button className="btn btn-outline-secondary" onClick={() => { const s = dayjs().add(1, "week").startOf("week"), e = dayjs().add(1, "week").endOf("week"); setPage(1); setDateFrom(s.format("YYYY-MM-DD")); setDateTo(e.format("YYYY-MM-DD")); }}>Nächste Woche</button>
-                                                        <button className="btn btn-outline-secondary" onClick={() => { const s = dayjs().startOf("month"), e = dayjs().endOf("month"); setPage(1); setDateFrom(s.format("YYYY-MM-DD")); setDateTo(e.format("YYYY-MM-DD")); }}>Dieser Monat</button>
-                                                        <button className="btn btn-outline-secondary" onClick={() => { const s = dayjs().add(1, "month").startOf("month"), e = dayjs().add(1, "month").endOf("month"); setPage(1); setDateFrom(s.format("YYYY-MM-DD")); setDateTo(e.format("YYYY-MM-DD")); }}>Nächster Monat</button>
+                                                        <button className="btn btn-outline-secondary" onClick={() => { const d = dayjs(); setPage(1); setDateFrom(d.format(DATE_FMT_IN)); setDateTo(d.format(DATE_FMT_IN)); }}>Heute</button>
+                                                        <button className="btn btn-outline-secondary" onClick={() => { const d = dayjs().add(1, "day"); setPage(1); setDateFrom(d.format(DATE_FMT_IN)); setDateTo(d.format(DATE_FMT_IN)); }}>Morgen</button>
+                                                        <button className="btn btn-outline-secondary" onClick={() => { const s = dayjs().startOf("week"), e = dayjs().endOf("week"); setPage(1); setDateFrom(s.format(DATE_FMT_IN)); setDateTo(e.format(DATE_FMT_IN)); }}>Diese Woche</button>
+                                                        <button className="btn btn-outline-secondary" onClick={() => { const s = dayjs().add(1, "week").startOf("week"), e = dayjs().add(1, "week").endOf("week"); setPage(1); setDateFrom(s.format(DATE_FMT_IN)); setDateTo(e.format(DATE_FMT_IN)); }}>Nächste Woche</button>
+                                                        <button className="btn btn-outline-secondary" onClick={() => { const s = dayjs().startOf("month"), e = dayjs().endOf("month"); setPage(1); setDateFrom(s.format(DATE_FMT_IN)); setDateTo(e.format(DATE_FMT_IN)); }}>Dieser Monat</button>
+                                                        <button className="btn btn-outline-secondary" onClick={() => { const s = dayjs().add(1, "month").startOf("month"), e = dayjs().add(1, "month").endOf("month"); setPage(1); setDateFrom(s.format(DATE_FMT_IN)); setDateTo(e.format(DATE_FMT_IN)); }}>Nächster Monat</button>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1267,6 +1318,23 @@ export const TourManager: React.FC = () => {
                 )}
 
             </div>
+
+            {/* Loader */}
+            {isLoading && (
+                <div className="text-center my-4">
+                    <div className="spinner-border" role="status" aria-hidden="true" />
+                </div>
+            )}
+
+            {/* Empty state */}
+            {!isLoading && filteredTours.length === 0 && (
+                <div className="card border-0 shadow-sm mb-3">
+                    <div className="card-body text-center py-5">
+                        <h3 className="h5 mb-2">Keine Touren gefunden</h3>
+                        <p className="text-muted mb-0">Passe die Filter an oder erstelle eine neue Tour.</p>
+                    </div>
+                </div>
+            )}
 
             {/* Board */}
             <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
