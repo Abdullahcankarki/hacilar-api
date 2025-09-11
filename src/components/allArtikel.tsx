@@ -59,6 +59,7 @@ const AllArtikel: React.FC = () => {
       }
     });
   };
+  //TEST
 
   const filteredAndSorted = articles
     .filter((a) =>
