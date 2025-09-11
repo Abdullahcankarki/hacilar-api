@@ -25,6 +25,8 @@ const toYmd = (d: any) => {
     return p.isValid() ? p.format(DATE_FMT_IN) : "";
 };
 
+const todayBerlinISO = () => DateTime.now().setZone(ZONE).toISODate()!;
+
 function googleMapsUrlFromAddress(address?: string) {
     if (!address) return undefined;
     return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}&travelmode=driving`;
@@ -74,7 +76,34 @@ function formatDateDisplay(input?: string | Date) {
 type LeergutRow = { art: string; anzahl: number; gewichtKg?: number };
 
 // Beispiel-Auswahlliste – du kannst sie serverseitig liefern lassen
-const LEERGUT_OPTIONS = ["EU-Palette", "Kiste", "E2", "Karton", "Tauschpalette", "Sonstiges"];
+const LEERGUT_OPTIONS = [
+    'korb',
+    'e2',
+    'e1',
+    'h1',
+    'e6',
+    'big box',
+    'karton',
+    'euro palette',
+    'einwegpalette',
+    'haken',
+    'tüten',
+];
+
+function autoGewichtKgForLeergutArt(art?: string): number | null {
+    if (!art) return null;
+    const a = art.toString().trim().toLowerCase();
+    if (a === 'korb') return 1.5;
+    if (a === 'e2') return 2;
+    if (a === 'e1') return 1.5;
+    if (a === 'h1') return 18;
+    if (a === 'e6') return 1.5;
+    if (a === 'big box') return 34.5;
+    if (a === 'haken') return 1.3;
+    if (a === 'tüten') return 0;
+    // 'karton', 'euro palette', 'einwegpalette' → manuell
+    return null;
+}
 
 // Einfaches Bootstrap-Modal ohne jQuery
 function Modal({
@@ -136,7 +165,7 @@ export default function DriverTour() {
     const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
 
     // Heutiges Datum im gleichen Format wie im TourManager
-    const dateISO = useMemo(() => dayjs().format(DATE_FMT_IN), []);
+    const dateISO = useMemo(todayBerlinISO, []);
     // UTC/Rand-Fix: wir fragen einen gepufferten Bereich [gestern..morgen] ab und filtern clientseitig exakt auf heute
     const dateFromBuffered = useMemo(() => dayjs().subtract(1, "day").format(DATE_FMT_IN), []);
     const dateToBuffered = useMemo(() => dayjs().add(1, "day").format(DATE_FMT_IN), []);
@@ -150,23 +179,19 @@ export default function DriverTour() {
                 setError(null);
                 // Hole alle Touren für einen gepufferten Zeitraum und filtere dann exakt auf heute
                 const list = await getAllTours({
-                    dateFrom: dateFromBuffered,
-                    dateTo: dateToBuffered,
-                    page: 1,
-                    limit: 100,
-                    sort: "datumAsc",
+                    fahrerId: driverId,
+                    dateFrom: dateISO,
+                    dateTo: dateISO,
                 });
                 const allRaw = Array.isArray(list) ? list : (list?.items ?? []);
-                // 1) Auf eingeloggten Fahrer filtern
-                const byDriver = (driverId ? allRaw.filter((x: any) => String(x.fahrerId) === String(driverId)) : allRaw) as TourResource[];
                 // 2) Exakt 'heute' in Europe/Istanbul treffen, auch wenn Backend als JS-Date-String liefert
                 const todayYmd = dateISO;
-                const items = byDriver.filter((x) => toYmd((x as any).datum) === todayYmd);
+                const items = allRaw.filter((x) => toYmd((x as any).datum) === todayYmd);
                 // 3) Bevorzuge laufend > geplant > abgeschlossen
                 const laufend = items.find(x => x.status === "laufend");
                 const geplant = items.find(x => x.status === "geplant");
                 const abgeschlossen = items.find(x => x.status === "abgeschlossen");
-                const t = laufend || geplant || abgeschlossen || items[0] || null;
+                const t = geplant || laufend || abgeschlossen || items[0] || null;
                 setTour(t);
 
                 // Fahrzeug (Kennzeichen) laden
@@ -175,7 +200,7 @@ export default function DriverTour() {
                     try {
                         const fz = await getFahrzeugById(t.fahrzeugId);
                         setFahrzeug(fz || null);
-                    } catch {}
+                    } catch { }
                 }
 
                 if (t?.id) {
@@ -683,7 +708,22 @@ export default function DriverTour() {
                         >
                             Zurücksetzen
                         </button>
-                        <button type="button" className="btn btn-primary" onClick={() => setShowLeergutModal(false)}>
+                        <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={() => {
+                                // Mappe Gewicht je Reihe nach Art, falls nicht manuell gesetzt
+                                setLeergut((prev) => prev.map((row) => {
+                                    const auto = autoGewichtKgForLeergutArt(row.art);
+                                    // Nur überschreiben, wenn (a) Auto-Wert vorhanden und (b) kein manuell gesetztes Gewicht
+                                    if (auto !== null && (row.gewichtKg === undefined || row.gewichtKg === null || row.gewichtKg === 0)) {
+                                        return { ...row, gewichtKg: auto };
+                                    }
+                                    return row;
+                                }));
+                                setShowLeergutModal(false);
+                            }}
+                        >
                             Speichern
                         </button>
                     </>

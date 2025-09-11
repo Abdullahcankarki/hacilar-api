@@ -89,7 +89,6 @@ const AllArtikel: React.FC = () => {
           cart={cart}
           setCart={setCart}
         />
-
     </>
   );
 };

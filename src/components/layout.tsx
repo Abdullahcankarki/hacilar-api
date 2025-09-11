@@ -3,7 +3,7 @@ import NavBar from './navbar';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import WarenkorbModal from './warenkorb';
 import { ArtikelPositionResource, AuftragResource, KundeResource, ArtikelResource } from '../Resources';
-import { createArtikelPosition, createAuftrag, getAllKunden, getAllArtikel, updateAuftrag } from '../backend/api';
+import { createArtikelPosition, createAuftrag, getAllKunden, getAllArtikel, updateAuftrag, getKundeById } from '../backend/api';
 import { useAuth } from '../providers/Authcontext';
 import { createPortal } from 'react-dom';
 
@@ -11,7 +11,9 @@ export const Layout: React.FC = () => {
   const [showCart, setShowCart] = useState(false);
   const [kunden, setKunden] = useState<KundeResource[]>([]);
   const [articles, setArticles] = useState<ArtikelResource[]>([]);
+  const [kundeRegionFromProfile, setKundeRegionFromProfile] = useState<string | null>(null);
   const { user, ausgewaehlterKunde, setAusgewaehlterKunde } = useAuth();
+
   // Persistenter Warenkorb + Toasts + Submit-Loading
   const [toast, setToast] = useState<{ type: 'success' | 'danger' | 'info'; msg: string } | null>(null);
   const [submitLoading, setSubmitLoading] = useState(false);
@@ -47,19 +49,23 @@ export const Layout: React.FC = () => {
   // aktuell gewählter Kunde und seine Region ableiten
   const kundeId = useMemo(() => {
     if (!user) return null;
-    return user.role.includes('kunde') ? user.id : ausgewaehlterKunde;
+    const role = Array.isArray((user as any).role) ? (user as any).role : [];
+    const result = role.includes('kunde') ? user.id : ausgewaehlterKunde;
+    return result;
   }, [user, ausgewaehlterKunde]);
 
   const kundeRegion = useMemo(() => {
-    if (!kundeId) return null;
+    if (!kundeId) { return null; }
     const k = kunden.find((x) => x.id === kundeId);
-    return k?.region ?? null;
+    const region = k?.region ?? null;
+    return region;
   }, [kunden, kundeId]);
 
   // Kundenliste laden für Admin oder Verkäufer
   useEffect(() => {
     if (!user) return;
-    const isAdminOrVerkauf = user.role.includes('admin') || user.role.includes('verkauf');
+    const role = Array.isArray((user as any).role) ? (user as any).role : [];
+    const isAdminOrVerkauf = role.includes('admin') || role.includes('verkauf');
     if (!isAdminOrVerkauf) return;
 
     let cancelled = false;
@@ -73,6 +79,30 @@ export const Layout: React.FC = () => {
     })();
     return () => { cancelled = true; };
   }, [user]);
+
+  // Fallback: Wenn ein Kunde eingeloggt ist und keine Kundenliste geladen wird,
+  // hole die Region direkt aus seinem Profil
+  useEffect(() => {
+    const run = async () => {
+      if (!user) return;
+      const role = Array.isArray((user as any).role) ? (user as any).role : [];
+      const isKunde = role.includes('kunde');
+      if (!isKunde) { setKundeRegionFromProfile(null); return; }
+      if (!user.id) return;
+      if (kundeRegion) { // bereits über Kundenliste ermittelt
+        setKundeRegionFromProfile(null);
+        return;
+      }
+      try {
+        const k = await getKundeById(user.id);
+        const region = (k as any)?.region ?? null;
+        setKundeRegionFromProfile(region);
+      } catch (e) {
+        setKundeRegionFromProfile(null);
+      }
+    };
+    run();
+  }, [user, kundeRegion]);
 
   // Artikel laden
   useEffect(() => {
@@ -216,7 +246,7 @@ export const Layout: React.FC = () => {
         onSubmit={handleSubmit}
         onEinheitChange={handleEinheitChange}
         articles={articles}
-        kundeRegion={kundeRegion}
+        kundeRegion={kundeRegion ?? kundeRegionFromProfile}
         submitLoading={submitLoading}
       />
     </>

@@ -628,12 +628,20 @@ export default function MitarbeiterOverview() {
             )}
 
             {/* CREATE MODAL */}
-            <BsModal id="modalCreate" title="Neuen Mitarbeiter anlegen" onClose={() => setCreating(null)}>
+            <BsModal
+                id="modalCreate"
+                title="Neuen Mitarbeiter anlegen"
+                onClose={() => { dismissModal('modalCreate'); setTimeout(() => setCreating(null), 0); }}
+            >
                 {creating && <MitarbeiterForm value={creating} onSubmit={handleCreate} submitting={submitting} />}
             </BsModal>
 
             {/* EDIT MODAL */}
-            <BsModal id="modalEdit" title="Mitarbeiter bearbeiten" onClose={() => setEditing(null)}>
+            <BsModal
+                id="modalEdit"
+                title="Mitarbeiter bearbeiten"
+                onClose={() => { dismissModal('modalEdit'); setTimeout(() => setEditing(null), 0); }}
+            >
                 {editing && <MitarbeiterForm value={editing} onSubmit={handleUpdate} submitting={submitting} />}
             </BsModal>
 
@@ -643,7 +651,12 @@ export default function MitarbeiterOverview() {
                     <div className="modal-content shadow-lg border-0 rounded-4">
                         <div className="modal-header border-0">
                             <h5 className="modal-title fw-semibold">Löschen bestätigen</h5>
-                            <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close" onClick={() => setDeleting(null)} />
+                            <button
+                                type="button"
+                                className="btn-close"
+                                aria-label="Close"
+                                onClick={() => { dismissModal('modalDelete'); setTimeout(() => setDeleting(null), 0); }}
+                            />
                         </div>
                         <div className="modal-body pt-0">
                             <p className="mb-0">

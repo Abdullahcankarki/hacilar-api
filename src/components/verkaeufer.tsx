@@ -4,6 +4,44 @@ import { useNavigate } from 'react-router-dom';
 import { MitarbeiterResource, MitarbeiterRolle } from '../Resources';
 import { api } from '../backend/api';
 
+// ---- Modal utilities: ensure proper cleanup even if Bootstrap injected a backdrop elsewhere ----
+const clearBootstrapBackdrops = () => {
+  try {
+    // 1) Body flags / inline paddings from Bootstrap
+    document.body.classList.remove('modal-open');
+    (document.body.style as any).paddingRight = '';
+    (document.body.style as any).overflow = '';
+
+    // 2) Remove any Bootstrap backdrops that might block clicks
+    const selectors = ['.modal-backdrop', '.offcanvas-backdrop', '.fade.modal-backdrop', '.show.modal-backdrop'];
+    selectors.forEach(sel => document.querySelectorAll(sel).forEach(el => el.parentElement?.removeChild(el)));
+
+    // 3) Remove any stray/empty modals (e.g., created by Bootstrap JS elsewhere)
+    document.querySelectorAll('.modal').forEach((m) => {
+      const hasContent = !!(m as HTMLElement).querySelector('.modal-content');
+      const isVisible = (m as HTMLElement).classList.contains('show') || (m as HTMLElement).classList.contains('d-block');
+      if (!hasContent || (!isVisible && !(m as HTMLElement).closest('#root'))) {
+        m.parentElement?.removeChild(m);
+      }
+    });
+
+    // 4) Blur any focused element inside a closing dialog to avoid focus-trap glitches
+    if (document.activeElement && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  } catch {}
+};
+
+const useModalLifecycle = () => {
+  useEffect(() => {
+    // Lock body scroll to mimic Bootstrap behaviour and avoid layout jump
+    document.body.classList.add('modal-open');
+    return () => {
+      clearBootstrapBackdrops();
+    };
+  }, []);
+};
+
 const cx = (...c: (string | false | undefined | null)[]) => c.filter(Boolean).join(' ');
 
 // ---- Toasts (lightweight) ----
@@ -25,30 +63,40 @@ const Toasts: React.FC<{ list: Toast[]; onClose: (id:number)=>void }> = ({ list,
 
 // ---- Confirm Modal ----
 const ConfirmModal: React.FC<{ title?: string; message: React.ReactNode; onConfirm: () => void; onCancel: () => void; busy?: boolean; confirmText?: string; cancelText?: string; }>
-= ({ title = 'Löschen bestätigen', message, onConfirm, onCancel, busy, confirmText = 'Löschen', cancelText = 'Abbrechen' }) => (
-  <div className="modal d-block" tabIndex={-1} role="dialog" style={{ background: 'rgba(30,33,37,.6)' }}>
-    <div className="modal-dialog modal-dialog-centered" role="document">
-      <div className="modal-content">
-        <div className="modal-header">
-          <h5 className="modal-title">{title}</h5>
-          <button type="button" className="btn-close" onClick={onCancel} />
-        </div>
-        <div className="modal-body">
-          <div className="d-flex align-items-start">
-            <i className="ci-trash fs-4 me-3 text-danger" />
-            <div>{message}</div>
+= ({ title = 'Löschen bestätigen', message, onConfirm, onCancel, busy, confirmText = 'Löschen', cancelText = 'Abbrechen' }) => {
+  useModalLifecycle();
+  return (
+    <div
+      className="modal d-block"
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      style={{ background: 'rgba(30,33,37,.6)' }}
+      onClick={(e)=>{ if (e.target === e.currentTarget) { onCancel(); queueMicrotask(clearBootstrapBackdrops); } }}
+    >
+      <div className="modal-dialog modal-dialog-centered" role="document">
+        <div className="modal-content">
+          <div className="modal-header">
+            <h5 className="modal-title">{title}</h5>
+            <button type="button" className="btn-close" onClick={()=>{ onCancel(); queueMicrotask(clearBootstrapBackdrops); }} />
           </div>
-        </div>
-        <div className="modal-footer">
-          <button className="btn btn-outline-secondary" onClick={onCancel} disabled={!!busy}>{cancelText}</button>
-          <button className="btn btn-danger" onClick={onConfirm} disabled={!!busy}>
-            {busy && <span className="spinner-border spinner-border-sm me-2" />} {confirmText}
-          </button>
+          <div className="modal-body">
+            <div className="d-flex align-items-start">
+              <i className="ci-trash fs-4 me-3 text-danger" />
+              <div>{message}</div>
+            </div>
+          </div>
+          <div className="modal-footer">
+            <button className="btn btn-outline-secondary" onClick={()=>{ onCancel(); queueMicrotask(clearBootstrapBackdrops); }} disabled={!!busy}>{cancelText}</button>
+            <button className="btn btn-danger" onClick={onConfirm} disabled={!!busy}>
+              {busy && <span className="spinner-border spinner-border-sm me-2" />} {confirmText}
+            </button>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // ---- Role Pills Selector (chips) ----
 const RolePills: React.FC<{ value: MitarbeiterRolle[]; onChange: (next: MitarbeiterRolle[])=>void; options: MitarbeiterRolle[] }>
@@ -90,13 +138,21 @@ const EditMitarbeiterModal: React.FC<{
     eintrittsdatum: initial.eintrittsdatum ?? '',
     rollen: initial.rollen ?? [],
   });
+  useModalLifecycle();
   return (
-    <div className="modal d-block" tabIndex={-1} role="dialog" style={{ background: 'rgba(30,33,37,.6)' }}>
+    <div
+      className="modal d-block"
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      style={{ background: 'rgba(30,33,37,.6)' }}
+      onClick={(e)=>{ if (e.target === e.currentTarget) { onCancel(); queueMicrotask(clearBootstrapBackdrops); } }}
+    >
       <div className="modal-dialog modal-lg modal-dialog-centered" role="document">
         <div className="modal-content">
           <div className="modal-header bg-primary text-white">
             <h5 className="modal-title">Mitarbeiter bearbeiten</h5>
-            <button type="button" className="btn-close btn-close-white" onClick={onCancel} />
+            <button type="button" className="btn-close btn-close-white" onClick={()=>{ onCancel(); queueMicrotask(clearBootstrapBackdrops); }} />
           </div>
           <div className="modal-body">
             <form onSubmit={(e)=>{ e.preventDefault(); onSubmit({
@@ -391,12 +447,19 @@ const MitarbeiterOverview: React.FC = () => {
 
       {/* Create Modal */}
       {showCreate && (
-        <div className="modal d-block" style={{ background: 'rgba(30,33,37,.6)' }} tabIndex={-1} role="dialog">
+        <div
+          className="modal d-block"
+          style={{ background: 'rgba(30,33,37,.6)' }}
+          tabIndex={-1}
+          role="dialog"
+          aria-modal="true"
+          onClick={(e)=>{ if (e.target === e.currentTarget) { setShowCreate(false); queueMicrotask(clearBootstrapBackdrops); } }}
+        >
           <div className="modal-dialog modal-lg modal-dialog-centered" role="document">
             <div className="modal-content">
               <div className="modal-header bg-primary text-white">
-                <h5 className="modal-title">Neuen Mitarbeiter erstellen</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={()=>setShowCreate(false)} />
+                <h5 className="modal-title">Neuen Kelek erstellen</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={()=>{ setShowCreate(false); queueMicrotask(clearBootstrapBackdrops); }} />
               </div>
               <div className="modal-body">
                 <form onSubmit={onCreate}>
@@ -441,7 +504,7 @@ const MitarbeiterOverview: React.FC = () => {
                     </div>
                   </div>
                   <div className="modal-footer mt-3">
-                    <button type="button" className="btn btn-secondary" onClick={()=>setShowCreate(false)}><i className="ci-close me-2"/>Abbrechen</button>
+                    <button type="button" className="btn btn-secondary" onClick={()=>{ setShowCreate(false); clearBootstrapBackdrops(); }}><i className="ci-close me-2"/>Abbrechen</button>
                     <button type="submit" className="btn btn-success" disabled={creating}>{creating && <span className="spinner-border spinner-border-sm me-2"/>} Erstellen</button>
                   </div>
                 </form>
@@ -456,7 +519,7 @@ const MitarbeiterOverview: React.FC = () => {
         <EditMitarbeiterModal
           initial={editItem}
           availableRoles={availableRoles}
-          onCancel={()=>setEditItem(null)}
+          onCancel={()=>{ setEditItem(null); clearBootstrapBackdrops(); }}
           onSubmit={handleEditSubmit}
         />
       )}
@@ -465,12 +528,14 @@ const MitarbeiterOverview: React.FC = () => {
       {confirmItem && (
         <ConfirmModal
           title="Mitarbeiter löschen?"
-          message={<>
-            Möchtest du den Mitarbeiter <strong>„{confirmItem.name}”</strong> wirklich löschen?
-            <div className="text-muted small mt-2">Dieser Vorgang kann nicht rückgängig gemacht werden.</div>
-          </>}
+          message={
+            <>
+              Möchtest du den Mitarbeiter <strong>„{confirmItem.name}”</strong> wirklich löschen?
+              <div className="text-muted small mt-2">Dieser Vorgang kann nicht rückgängig gemacht werden.</div>
+            </>
+          }
           onConfirm={doConfirmDelete}
-          onCancel={()=>{ if (!confirmBusy) setConfirmItem(null); }}
+          onCancel={()=>{ if (!confirmBusy) { setConfirmItem(null); clearBootstrapBackdrops(); } }}
           busy={confirmBusy}
           confirmText="Ja, löschen"
         />

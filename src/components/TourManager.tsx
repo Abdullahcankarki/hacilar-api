@@ -20,6 +20,7 @@ import {
     getAllMitarbeiter,
     getAllReihenfolgeVorlages,
     moveTourStop,
+    getCustomerStopsToday
 } from "../backend/api";
 
 import { useNavigate } from "react-router-dom";
@@ -347,7 +348,7 @@ const TourModal: React.FC<{
     };
 
     return createPortal(
-        <div className="modal fade show d-block" tabIndex={-1} role="dialog" aria-modal="true" style={{ zIndex: 1055 }}>
+        <div className="modal show d-block" tabIndex={-1} role="dialog" aria-modal="true" style={{ zIndex: 1055 }} onTransitionEnd={(e) => e.stopPropagation()}>
             <div className="modal-dialog modal-lg modal-dialog-centered" role="document">
                 <div className="modal-content border-0 shadow-lg">
                     <div className="modal-header">
@@ -516,7 +517,7 @@ const ConfirmModal: React.FC<{ show: boolean; onClose: () => void; onConfirm: ()
     };
 
     return createPortal(
-        <div className="modal fade show d-block" tabIndex={-1} role="dialog" aria-modal="true" style={{ zIndex: 1055 }}>
+        <div className="modal show d-block" tabIndex={-1} role="dialog" aria-modal="true" style={{ zIndex: 1055 }} onTransitionEnd={(e) => e.stopPropagation()}>
             <div className="modal-dialog modal-dialog-centered" role="document">
                 <div className="modal-content border-0 shadow-lg">
                     <div className="modal-header">
@@ -543,7 +544,9 @@ const StopDetailsModal: React.FC<{
   show: boolean;
   stop: TourStopResource | null;
   onClose: () => void;
-}> = ({ show, stop, onClose }) => {
+  etaLabel?: string | null;
+  etaLoading?: boolean;
+}> = ({ show, stop, onClose, etaLabel, etaLoading }) => {
   useEffect(() => { document.body.style.overflow = show ? "hidden" : ""; }, [show]);
   if (!show || !stop) return null;
   const ts = stop.signTimestampUtc ? dayjs(stop.signTimestampUtc).format("DD.MM.YYYY HH:mm") : "—";
@@ -553,7 +556,7 @@ const StopDetailsModal: React.FC<{
   ) : null;
 
   return createPortal(
-    <div className="modal fade show d-block" tabIndex={-1} role="dialog" aria-modal="true" style={{ zIndex: 1055 }}>
+    <div className="modal show d-block" tabIndex={-1} role="dialog" aria-modal="true" style={{ zIndex: 1055 }} onTransitionEnd={(e) => e.stopPropagation()}>
       <div className="modal-dialog modal-lg modal-dialog-centered" role="document">
         <div className="modal-content border-0 shadow-lg">
           <div className="modal-header">
@@ -577,6 +580,27 @@ const StopDetailsModal: React.FC<{
                   </div>
                 </div>
               </div>
+              {String(stop.status) === 'unterwegs' && (
+                <div className="col-12">
+                  <div className="alert alert-info mb-0" role="alert">
+                    <div className="d-flex align-items-center gap-2">
+                      <i className="ci-time" aria-hidden />
+                      <div>
+                        <div className="fw-semibold">Voraussichtliche Ankunft</div>
+                        {etaLoading ? (
+                          <div className="mt-1" aria-label="Laden…">
+                            <div className="progress" style={{ height: 6 }}>
+                              <div className="progress-bar progress-bar-striped progress-bar-animated" style={{ width: '100%' }} />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="small">{etaLabel ?? '—'}</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="col-md-6">
                 <div className="card border-0 shadow-sm h-100">
@@ -669,7 +693,58 @@ export const TourManager: React.FC = () => {
     const [toast, setToast] = useState<ToastT | null>(null);
     const [showStopDetails, setShowStopDetails] = useState(false);
     const [selectedStop, setSelectedStop] = useState<TourStopResource | null>(null);
-    const openStopDetails = (s: TourStopResource) => { setSelectedStop(s); setShowStopDetails(true); };
+    const [selectedStopEta, setSelectedStopEta] = useState<string | null>(null);
+    const [etaLoading, setEtaLoading] = useState<boolean>(false);
+    const etaReqIdRef = useRef(0);
+
+    const openStopDetails = async (s: TourStopResource) => {
+        // Neue Anfrage beginnt: vorigen ETA sofort leeren und Loading anzeigen (nur bei unterwegs)
+        setSelectedStop(s);
+        setShowStopDetails(true);
+        setSelectedStopEta(null);
+
+        const isUnterwegs = String(s.status) === 'unterwegs';
+        setEtaLoading(isUnterwegs);
+
+        // Request-ID erhöhen, um späte Antworten zu entwerten
+        const reqId = ++etaReqIdRef.current;
+
+        if (!isUnterwegs) return; // keine ETA laden
+
+        try {
+            const items = await getCustomerStopsToday(String(s.kundeId));
+            // Falls inzwischen eine neuere Anfrage läuft, abbrechen
+            if (reqId !== etaReqIdRef.current) return;
+            const match = items.find(x => x.stopId === s.id);
+            if (!match) { setSelectedStopEta('—'); setEtaLoading(false); return; }
+            const now = Date.now();
+            const fromMs = new Date(match.etaFromUtc).getTime();
+            const toMs = new Date(match.etaToUtc).getTime();
+            let minMin = Math.max(0, Math.round((fromMs - now) / 60000));
+            let maxMin = Math.max(minMin + 15, Math.round((toMs - now) / 60000));
+            const round5 = (n: number) => Math.max(0, Math.round(n / 5) * 5);
+            minMin = round5(minMin);
+            maxMin = round5(maxMin);
+            const fmtRange = (a: number, b: number) => {
+                if (b < 60) return `${a}–${b} Min`;
+                const ah = Math.max(1, Math.round(a / 60));
+                const bh = Math.max(1, Math.round(b / 60));
+                return `${ah}–${bh} Std`;
+            };
+            const fromLocal = dayjs(match.etaFromUtc).format('HH:mm');
+            const toLocal = dayjs(match.etaToUtc).format('HH:mm');
+            if (reqId === etaReqIdRef.current) {
+                setSelectedStopEta(`ca. ${fmtRange(minMin, maxMin)} · ${fromLocal}–${toLocal} Uhr`);
+                setEtaLoading(false);
+            }
+        } catch (e) {
+            if (reqId === etaReqIdRef.current) {
+                console.error('ETA laden fehlgeschlagen', e);
+                setSelectedStopEta('—');
+                setEtaLoading(false);
+            }
+        }
+    };
 
     const [sortKey, setSortKey] = useState<SortKey>("datum");
     const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -1113,6 +1188,7 @@ export const TourManager: React.FC = () => {
                             aria-modal="true"
                             aria-labelledby="filterOffcanvasLabel"
                             style={{ visibility: "visible", width: "min(90vw, 560px)", zIndex: 1055 }}
+                            onTransitionEnd={(e) => e.stopPropagation()}
                         >
                             <div className="offcanvas-header">
                                 <h5 className="offcanvas-title" id="filterOffcanvasLabel">Filtern & Sortieren</h5>
@@ -1154,6 +1230,7 @@ export const TourManager: React.FC = () => {
                                                                 <div
                                                                     ref={rangePanelRef}
                                                                     className="shadow border bg-white rounded-3 p-2"
+                                                                    onTransitionEnd={(e) => e.stopPropagation()}
                                                                     onWheel={(e) => e.stopPropagation()}
                                                                     onTouchMove={(e) => e.stopPropagation()}
                                                                     style={{
@@ -1407,7 +1484,9 @@ export const TourManager: React.FC = () => {
             <StopDetailsModal
                 show={showStopDetails}
                 stop={selectedStop}
-                onClose={() => { setShowStopDetails(false); setSelectedStop(null); }}
+                onClose={() => { setShowStopDetails(false); setSelectedStop(null); setSelectedStopEta(null); setEtaLoading(false); etaReqIdRef.current++; }}
+                etaLabel={selectedStopEta}
+                etaLoading={etaLoading}
             />
             <Toast toast={toast} onClose={() => setToast(null)} />
         </div>

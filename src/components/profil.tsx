@@ -8,6 +8,7 @@ import {
   getMitarbeiterById,
   updateKunde,
   updateMitarbeiter,
+  getCustomerStopsToday
 } from '../backend/api';
 
 const Profil: React.FC = () => {
@@ -23,7 +24,32 @@ const Profil: React.FC = () => {
   const [sortField, setSortField] = useState<'lieferdatum' | 'preis' | 'anzahl' | 'status' | 'auftragsnummer' | 'createdAt'>('lieferdatum');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [activeTab, setActiveTab] = useState<'profil' | 'auftraege'>('profil');
+  const [etaLoading, setEtaLoading] = useState<boolean>(false);
+  const [etaLabelHeute, setEtaLabelHeute] = useState<string | null>(null);
+  const etaReqIdRef = React.useRef(0);
+
+  const formatEtaLabel = (fromIso?: string, toIso?: string) => {
+    if (!fromIso || !toIso) return null;
+    const now = Date.now();
+    const fromMs = new Date(fromIso).getTime();
+    const toMs = new Date(toIso).getTime();
+    let minMin = Math.max(0, Math.round((fromMs - now) / 60000));
+    let maxMin = Math.max(minMin + 15, Math.round((toMs - now) / 60000));
+    const round5 = (n: number) => Math.max(0, Math.round(n / 5) * 5);
+    minMin = round5(minMin);
+    maxMin = round5(maxMin);
+    const fromLocal = new Date(fromMs).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    const toLocal = new Date(toMs).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    return `${fromLocal}–${toLocal} Uhr`;
+  };
   const isKunde = user?.role?.includes('kunde') && !user?.role?.includes('admin');
+
+  const isSameDay = (d?: string | Date) => {
+    if (!d) return false;
+    const dt = new Date(d);
+    const now = new Date();
+    return dt.getFullYear() === now.getFullYear() && dt.getMonth() === now.getMonth() && dt.getDate() === now.getDate();
+  };
 
   useEffect(() => {
     if (!user?.id) return;
@@ -35,6 +61,36 @@ const Profil: React.FC = () => {
         setKontaktForm({ email: kunde.email, telefon: kunde.telefon });
         const auftraege = await getAuftragByCutomerId(user.id)
         setAuftraege(auftraege);
+
+        // Nur ETA laden, wenn es mind. einen Auftrag mit Lieferdatum HEUTE gibt
+        const hasToday = Array.isArray(auftraege) && auftraege.some((a) => isSameDay(a.lieferdatum));
+        if (!hasToday) {
+          setEtaLoading(false);
+          setEtaLabelHeute(null);
+        } else {
+          // ETA für heutigen Tour-Stop des Kunden laden
+          setEtaLoading(true);
+          setEtaLabelHeute(null);
+          const reqId = ++etaReqIdRef.current;
+          try {
+            const stops = await getCustomerStopsToday(kunde.id);
+            if (reqId === etaReqIdRef.current) {
+              const first = Array.isArray(stops) ? stops[0] : undefined;
+              if (first && first.etaFromUtc && first.etaToUtc) {
+                setEtaLabelHeute(formatEtaLabel(first.etaFromUtc, first.etaToUtc));
+              } else {
+                setEtaLabelHeute('—');
+              }
+              setEtaLoading(false);
+            }
+          } catch (e) {
+            if (reqId === etaReqIdRef.current) {
+              console.error('ETA (heute) laden fehlgeschlagen', e);
+              setEtaLabelHeute('—');
+              setEtaLoading(false);
+            }
+          }
+        }
       } catch {
         const verk = await getMitarbeiterById(user.id);
         setUserData(verk);
@@ -120,7 +176,7 @@ const Profil: React.FC = () => {
                   <a
                     className={`list-group-item list-group-item-action d-flex align-items-center${activeTab === 'profil' ? ' active' : ''}`}
                     href="#!"
-                    onClick={() => setActiveTab('profil')}
+                    onClick={() => { setActiveTab('profil'); setEtaLabelHeute(null); setEtaLoading(false); etaReqIdRef.current++; }}
                   >
                     <i className="ci-user fs-base opacity-75 me-2"></i>
                     Persönliche Daten
@@ -129,7 +185,7 @@ const Profil: React.FC = () => {
                     <a
                       className={`list-group-item list-group-item-action d-flex align-items-center${activeTab === 'auftraege' ? ' active' : ''}`}
                       href="#!"
-                      onClick={() => setActiveTab('auftraege')}
+                      onClick={async () => { setActiveTab('auftraege'); /* optional: could re-trigger ETA */ }}
                     >
                       <i className="ci-file fs-base opacity-75 me-2"></i>
                       Aufträge
@@ -489,6 +545,7 @@ const Profil: React.FC = () => {
                               >
                                 Status {sortField === 'status' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
                               </th>
+                              <th className="text-center">Ankunft</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -505,6 +562,19 @@ const Profil: React.FC = () => {
                                 <td className="text-center d-none d-md-table-cell">{auftrag.preis?.toFixed(2) || '0.00'} €</td>
                                 <td className="text-center d-none d-md-table-cell">
                                   <span className={`badge ${statusBadge(auftrag.status)}`}>{auftrag.status || 'offen'}</span>
+                                </td>
+                                <td className="text-center">
+                                  {isSameDay(auftrag.lieferdatum) ? (
+                                    etaLoading ? (
+                                      <div className="progress" style={{ height: 6 }}>
+                                        <div className="progress-bar progress-bar-striped progress-bar-animated" style={{ width: '100%' }} />
+                                      </div>
+                                    ) : (
+                                      <span className="small text-nowrap">{etaLabelHeute ?? '—'}</span>
+                                    )
+                                  ) : (
+                                    <span className="small text-nowrap">{auftrag.lieferdatum ? new Date(auftrag.lieferdatum).toLocaleDateString() : '—'}</span>
+                                  )}
                                 </td>
                               </tr>
                             ))}

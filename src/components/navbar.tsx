@@ -65,7 +65,7 @@ const NavBar: React.FC<NavBarProps> = ({
   ];
 
   return (
-    <header className="navbar navbar-expand-lg bg-body sticky-top p-0">
+    <header className="navbar navbar-expand-lg bg-body sticky-top p-0" style={{ zIndex: 1050 }}>
       <div className="container py-3 px-4">
 
         {/* Logo */}

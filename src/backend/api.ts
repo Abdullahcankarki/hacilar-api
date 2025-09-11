@@ -849,6 +849,17 @@ export type TourCustomerStopDTO = {
   lng?: number;
 };
 
+/** Kundenstopps (heute) inkl. ETA-Range & optionaler Fahrzeugposition */
+export type TourCustomerStopTodayDTO = {
+  tourId: string;
+  stopId: string;
+  position: number;
+  status?: string;
+  etaFromUtc: string; // earliest ETA (UTC)
+  etaToUtc: string;   // latest ETA (UTC)
+  fahrzeug?: { name?: string; samsaraId?: string; coords?: { lat?: number; lng?: number } };
+};
+
 /**
  * GET /api/tourstops/customers/by-date
  * Optional: date (YYYY-MM-DD, Europe/Berlin), fahrerId, region
@@ -860,6 +871,43 @@ export async function getCustomerStopsByDate(params?: {
 }): Promise<TourCustomerStopDTO[]> {
   const q = toQuery({ date: params?.date, fahrerId: params?.fahrerId, region: params?.region });
   return apiFetch<TourCustomerStopDTO[]>(`/api/tour-stop/customers/by-date${q}`);
+}
+
+/**
+ * GET /api/tour-stop/customers/today/:kundeId
+ * Verhalten geändert: 
+ *  - Wenn der eingeloggte Nutzer die Rolle 'kunde' hat und **keine** kundenId übergeben wurde, wird seine eigene ID verwendet.
+ *  - Für Admin/Verkäufer & Co. MUSS die kundenId **explizit** übergeben werden (kein Fallback mehr auf localStorage.ausgewaehlterKunde).
+ */
+export async function getCustomerStopsToday(kundeId?: string): Promise<TourCustomerStopTodayDTO[]> {
+  let id = (kundeId || '').trim();
+
+  // Rollen aus gespeichertem User ziehen (nur zur Unterscheidung Kunde vs. Nicht-Kunde)
+  let isKunde = false;
+  let userId: string | undefined;
+  try {
+    const raw = localStorage.getItem('user');
+    if (raw) {
+      const u: any = JSON.parse(raw);
+      const roles: string[] = Array.isArray(u?.rollen)
+        ? u.rollen
+        : (Array.isArray(u?.role) ? u.role : (u?.role ? [u.role] : []));
+      isKunde = roles.includes('kunde');
+      userId = String(u?.id || u?._id || '');
+    }
+  } catch {}
+
+  // Kunde eingeloggt → falls keine ID übergeben, nimm seine eigene
+  if (!id && isKunde && userId) {
+    id = userId;
+  }
+
+  // Nicht-Kunde (Admin/Verkäufer) → kundenId MUSS übergeben werden
+  if (!id) {
+    throw new Error('Bitte Kunden-ID angeben (für Admin/Verkäufer ist keine automatische Auswahl mehr erlaubt).');
+  }
+
+  return apiFetch<TourCustomerStopTodayDTO[]>(`/api/tour-stop/customers/today/${id}`);
 }
 export async function createTourStop(
   data: Omit<TourStopResource, "id" | "updatedAt" | "abgeschlossenAm">
@@ -1059,6 +1107,7 @@ export const api = {
   getTourStopById,
   listTourStops,
   getCustomerStopsByDate,
+  getCustomerStopsToday,
   updateTourStop,
   deleteTourStop,
   deleteAllTourStops,
