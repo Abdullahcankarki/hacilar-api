@@ -184,9 +184,9 @@ export default function DriverTour() {
                     dateTo: dateISO,
                 });
                 const allRaw = Array.isArray(list) ? list : (list?.items ?? []);
-                // 2) Exakt 'heute' in Europe/Istanbul treffen, auch wenn Backend als JS-Date-String liefert
+                // 2) Exakt 'heute' in Europe/Berlin treffen, auch wenn Backend als JS-Date-String liefert
                 const todayYmd = dateISO;
-                const items = allRaw.filter((x) => toYmd((x as any).datum) === todayYmd);
+                const items = allRaw.filter((x) => toYmd((x as any).datumIso ?? (x as any).datum) === todayYmd);
                 // 3) Bevorzuge laufend > geplant > abgeschlossen
                 const laufend = items.find(x => x.status === "laufend");
                 const geplant = items.find(x => x.status === "geplant");
@@ -220,7 +220,7 @@ export default function DriverTour() {
                 setLoading(false);
             }
         })();
-    }, [driverId, dateISO, dateFromBuffered, dateToBuffered]);
+    }, [driverId, dateISO]);
 
     // SignaturePad initialisieren
     useEffect(() => {
@@ -424,7 +424,7 @@ export default function DriverTour() {
                     <h1 className="h4 mb-1">Meine Tour – {tour.name || tour.region}</h1>
                     <div className="text-muted small">
                         {/* alt: DateTime.fromISO(tour.datum, { zone: ZONE }).toFormat("dd.LL.yyyy") */}
-                        {formatDateDisplay(tour.datum)} • Status: <span className="badge bg-secondary">{tour.status}</span>
+                        {formatDateDisplay((tour as any).datumIso ?? tour.datum)} • Status: <span className="badge bg-secondary">{tour.status}</span>
                     </div>
                 </div>
                 <div className="d-flex gap-2">

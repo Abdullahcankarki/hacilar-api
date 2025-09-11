@@ -30,9 +30,25 @@ const DATE_FMT_IN = "YYYY-MM-DD";
 
 
 // ==== Aux types for lookups ====
+
 type Fahrzeug = { id: string; name: string; kennzeichen?: string; maxGewichtKg?: number };
 type Mitarbeiter = { id: string; name: string; rollen: string[] };
 type ReihenfolgeVorlage = { id: string; name: string };
+
+// UI form payload (datum as YYYY-MM-DD string for <input type="date">)
+type TourForm = {
+  datum: string;
+  region: string;
+  name?: string;
+  fahrzeugId?: string;
+  fahrerId?: string;
+  reihenfolgeVorlageId?: string;
+  maxGewichtKg?: number;
+  status?: TourStatus;
+  isStandard?: boolean;
+  parentTourId?: string;
+  splitIndex?: number;
+};
 
 const renderFahrzeugLabel = (f?: Fahrzeug) =>
     f ? [f.kennzeichen, f.name].filter(Boolean).join(" · ") : "";
@@ -288,36 +304,36 @@ const TourColumn: React.FC<{
 const TourModal: React.FC<{
     show: boolean;
     onClose: () => void;
-    onSubmit: (data: Partial<TourResource>) => Promise<void>;
+    onSubmit: (data: TourForm) => Promise<void>;
     initial?: Partial<TourResource>;
     fahrzeuge: Fahrzeug[];
     fahrer: Mitarbeiter[];
     vorlagen: ReihenfolgeVorlage[];
 }> = ({ show, onClose, onSubmit, initial, fahrzeuge, fahrer, vorlagen }) => {
-    const [form, setForm] = useState<Partial<TourResource>>({
-        datum: toDateInput(initial?.datum ?? dayjs().format(DATE_FMT_IN)),
+    const [form, setForm] = useState<TourForm>({
+        datum: toDateInput((initial as any)?.datumIso ?? (initial as any)?.datum ?? dayjs().format(DATE_FMT_IN)),
         region: initial?.region ?? "",
         name: initial?.name ?? "",
         fahrzeugId: initial?.fahrzeugId,
         fahrerId: initial?.fahrerId,
         reihenfolgeVorlageId: initial?.reihenfolgeVorlageId,
         maxGewichtKg: initial?.maxGewichtKg,
-        status: initial?.status ?? "geplant",
+        status: (initial?.status as TourStatus) ?? "geplant",
         isStandard: initial?.isStandard ?? false,
     });
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
         if (show) {
-            const base: Partial<TourResource> = {
-                datum: toDateInput(initial?.datum ?? dayjs().format(DATE_FMT_IN)),
+            const base: TourForm = {
+                datum: toDateInput((initial as any)?.datumIso ?? (initial as any)?.datum ?? dayjs().format(DATE_FMT_IN)),
                 region: initial?.region ?? "",
                 name: initial?.name ?? "",
                 fahrzeugId: initial?.fahrzeugId,
                 fahrerId: initial?.fahrerId,
                 reihenfolgeVorlageId: initial?.reihenfolgeVorlageId,
                 maxGewichtKg: initial?.maxGewichtKg,
-                status: initial?.status ?? "geplant",
+                status: (initial?.status as TourStatus) ?? "geplant",
                 isStandard: initial?.isStandard ?? false,
             };
             // Falls kein explizites Maxgewicht gesetzt ist, versuche vom ausgewählten Fahrzeug zu übernehmen
@@ -958,7 +974,7 @@ export const TourManager: React.FC = () => {
     }, [tours, q, sortKey, sortDir]);
 
     // Create / Update handlers (optimistic)
-    const handleCreate = async (data: Partial<TourResource>) => {
+    const handleCreate = async (data: TourForm) => {
         // build payload matching API contract (datum & region required)
         const payload = {
             datum: toDateInput(data.datum ?? dayjs().format("YYYY-MM-DD")),
@@ -979,7 +995,7 @@ export const TourManager: React.FC = () => {
         setToast({ type: "success", msg: "Tour erstellt." });
     };
 
-    const handleUpdate = async (id: string, data: Partial<TourResource>) => {
+    const handleUpdate = async (id: string, data: TourForm) => {
         const prev = tours;
         const idx = prev.findIndex(t => t.id === id);
         if (idx < 0) return;
@@ -990,9 +1006,9 @@ export const TourManager: React.FC = () => {
         try {
             const normalized = {
                 ...data,
-                ...(data.datum !== undefined ? { datum: toDateInput(data.datum) } : {}),
-                ...(data.region !== undefined ? { region: formatRegion(String(data.region), 'capitalized') } : {}),
-            } as Partial<TourResource>;
+                datum: toDateInput(data.datum),
+                region: formatRegion(String(data.region), 'capitalized'),
+            };
             const saved = await updateTour(id, normalized);
             setTours((curr) => sortTours(curr.map(t => (t.id === id ? { ...t, ...saved } : t)), sortKey, sortDir));
             setToast({ type: "success", msg: "Tour aktualisiert." });

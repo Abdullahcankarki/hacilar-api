@@ -72,7 +72,6 @@ const NavBar: React.FC<NavBarProps> = ({
         <NavLink className="navbar-brand p-0" to="/home">
           <img src={logo} alt="Logo" style={{ height: '30px', width: 'auto' }} />
         </NavLink>
-
         {/* Offcanvas Toggle */}
         <button
           type="button"
@@ -202,6 +201,7 @@ const NavBar: React.FC<NavBarProps> = ({
         )}
 
         <div className="d-flex align-items-center gap-3 ms-auto my-auto">
+          {isAdminOderVerkauf && (
           <button
             className="btn p-0 border-0 bg-transparent position-relative icon-btn text-secondary"
             onClick={onCartClick}
@@ -223,6 +223,7 @@ const NavBar: React.FC<NavBarProps> = ({
               </span>
             )}
           </button>
+          )}
 
           <button
             className="btn p-0 border-0 bg-transparent icon-btn text-secondary"

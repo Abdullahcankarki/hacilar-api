@@ -239,8 +239,8 @@ const WarenkorbPanel: React.FC<Props> = ({
             setDateError('Lieferregel wird noch geladen. Bitte einen Moment.');
             return;
         }
-        // Regel-Validierung
-        const parsed = DateTime.fromISO(lieferdatum, { zone: ZONE });
+        // Normalisiere auf 15:00 Uhr in Berlin und sende als ISO mit Offset
+        const parsed = DateTime.fromISO(lieferdatum, { zone: ZONE }).set({ hour: 15, minute: 0, second: 0, millisecond: 0 });
         const allowed = parsed.isValid && isDateAllowed(parsed.toJSDate(), rule).ok;
         if (!allowed) {
             setDateError('Dieses Datum ist nicht erlaubt. Bitte anderes Datum wählen.');
@@ -248,7 +248,9 @@ const WarenkorbPanel: React.FC<Props> = ({
         }
         setDateError(null);
         setShowDateModal(false);
-        onSubmit(lieferdatum, bemerkung);
+
+        // Sende eindeutig zonierten Zeitpunkt (z.B. "2025-09-12T15:00:00+02:00")
+        onSubmit(parsed.toISO(), bemerkung);
     };
 
     const lieferId = useId();
@@ -256,7 +258,7 @@ const WarenkorbPanel: React.FC<Props> = ({
     return (
         <>
             {show && (
-                <div className="offcanvas offcanvas-end show pb-sm-2 px-sm-2" style={{ width: '500px', visibility: 'visible' }}>
+                <div className="offcanvas offcanvas-end show pb-sm-2 px-sm-2" style={{ width: '500px', visibility: 'visible', zIndex: 1050 }}>
                     {/* Header */}
                     <div className="offcanvas-header flex-column align-items-start py-3 pt-lg-4">
                         <div className="d-flex align-items-center justify-content-between w-100 mb-3 mb-lg-4">
