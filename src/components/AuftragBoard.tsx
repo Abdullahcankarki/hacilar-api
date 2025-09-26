@@ -68,6 +68,9 @@ export default function AuftraegeBoard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [showBelade, setShowBelade] = useState(false);
+  const [selectedAuftrag, setSelectedAuftrag] = useState<AuftragResource | null>(null);
+  const [tourInfos, setTourInfos] = useState<any | null>(null);
 
   // Auto-Refresh alle 20 Sekunden
   useEffect(() => {
@@ -205,16 +208,16 @@ export default function AuftraegeBoard() {
                             <div className="d-flex align-items-center gap-2">
                               <span className="badge bg-secondary">{a.auftragsnummer || "—"}</span>
                               {typeof a.gesamtPaletten === "number" && (
-                                <span className="badge bg-outline-secondary border">{a.gesamtPaletten} Pal.</span>
+                                <span className="badge bg-outline-black border">{a.gesamtPaletten} Pal.</span>
                               )}
                             </div>
                             <div className="fw-semibold mt-1">{a.kundeName || "—"}</div>
                             <div className="text-muted small">Lieferdatum: {a.lieferdatum ? new Date(a.lieferdatum).toLocaleDateString("de-DE") : "—"}</div>
                             <div className="d-flex flex-wrap gap-2 mt-1">
-                              <span className={cls("badge", K_STATUS_BADGE[(a.kommissioniertStatus as KomStatus) || "offen"]) }>
+                              <span className={cls("badge", K_STATUS_BADGE[(a.kommissioniertStatus as KomStatus) || "offen"])}>
                                 Kommi: {a.kommissioniertStatus || "—"}
                               </span>
-                              <span className={cls("badge", (a.kontrolliertStatus as KontrollStatus) === "in Kontrolle" ? "bg-warning" : KO_STATUS_BADGE[(a.kontrolliertStatus as KontrollStatus) || "offen"]) }>
+                              <span className={cls("badge", (a.kontrolliertStatus as KontrollStatus) === "in Kontrolle" ? "bg-warning" : KO_STATUS_BADGE[(a.kontrolliertStatus as KontrollStatus) || "offen"])}>
                                 Kontrolle: {a.kontrolliertStatus || "—"}
                               </span>
                             </div>
@@ -263,7 +266,18 @@ export default function AuftraegeBoard() {
                               {loadingId === a.id ? "Wird geprüft…" : "Kontrollieren"}
                             </button>
                           )}
-
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-info"
+                            onClick={async () => {
+                              setSelectedAuftrag(a);
+                              const map = await api.getTourInfosForAuftraege([a.id!]);
+                              setTourInfos(map[a.id!] || {});
+                              setShowBelade(true);
+                            }}
+                          >
+                            Beladeinfos
+                          </button>
                           {/* Details */}
                           <button
                             type="button"
@@ -282,6 +296,25 @@ export default function AuftraegeBoard() {
           </div>
         ))}
       </div>
+      {showBelade && selectedAuftrag && (
+        <div className="modal fade show d-block" tabIndex={-1} role="dialog">
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Beladeinfos Auftrag {selectedAuftrag.auftragsnummer}</h5>
+                <button type="button" className="btn-close" onClick={() => setShowBelade(false)} />
+              </div>
+              <div className="modal-body">
+                <p><strong>Reihenfolge:</strong> {tourInfos?.reihenfolge ?? "nicht bekannt"}</p>
+                <p><strong>Fahrzeug-Kennzeichen:</strong> {tourInfos?.kennzeichen ?? "nicht bekannt"}</p>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowBelade(false)}>Schließen</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -36,6 +36,25 @@ const ArtikelListe: React.FC<Props> = ({
     const [favoriten, setFavoriten] = useState<string[]>([]);
     const [activeKat, setActiveKat] = useState<string | null>(null);
 
+    // Viewport width state and effect
+    const [viewportWidth, setViewportWidth] = useState<number>(typeof window !== 'undefined' ? window.innerWidth : 1200);
+
+    useEffect(() => {
+        const onResize = () => setViewportWidth(window.innerWidth);
+        window.addEventListener('resize', onResize, { passive: true } as any);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
+
+    // Bootstrap breakpoints: sm 576px, md 768px, lg 992px, xl 1200px
+    // "Kurz vor" Wechsel: 4→3 happens as we approach 992px from above; 3→2 happens as we approach 576px from above.
+    const smallCardMode = useMemo(() => {
+        const nearFourToThree = viewportWidth >= 765 && viewportWidth < 992; // ~last 92px before lg breakpoint
+        const nearFourToThree2 = viewportWidth >= 1200 && viewportWidth < 1270;
+        const nearThreeToTwo = viewportWidth >= 500 && viewportWidth < 709; // ~first 64px above sm breakpoint
+        const nearTwoToOne = viewportWidth >= 0 && viewportWidth < 450; // ~first 64px above sm breakpoint
+        return nearFourToThree || nearFourToThree2 || nearThreeToTwo || nearTwoToOne;
+    }, [viewportWidth]);
+
     useEffect(() => {
         (async () => {
             try {
@@ -334,6 +353,7 @@ const ArtikelListe: React.FC<Props> = ({
                                             setVakuum={setVakuum}
                                             bemerkungen={bemerkungen}
                                             setBemerkungen={setBemerkungen}
+                                            small={smallCardMode}
                                         />
                                     ))}
                                 </div>
@@ -431,6 +451,7 @@ const ArtikelListe: React.FC<Props> = ({
                                                     setVakuum={setVakuum}
                                                     bemerkungen={bemerkungen}
                                                     setBemerkungen={setBemerkungen}
+                                                    small={smallCardMode}
                                                 />
                                             );
                                         })}
@@ -470,6 +491,7 @@ const ArtikelListe: React.FC<Props> = ({
                                             setVakuum={setVakuum}
                                             bemerkungen={bemerkungen}
                                             setBemerkungen={setBemerkungen}
+                                            small={smallCardMode}
                                         />
                                     ))}
                                 </div>

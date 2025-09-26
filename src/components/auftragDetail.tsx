@@ -30,6 +30,15 @@ const AuftragDetail: React.FC = () => {
     const [statusError, setStatusError] = useState<string>('');
     const [statusSuccess, setStatusSuccess] = useState<string>('');
     const [showModal, setShowModal] = useState(false);
+    const [initialLieferdatum, setInitialLieferdatum] = useState<string | undefined>(undefined);
+
+        // Hilfsfunktion: entfernt lieferdatum aus Payloads für updateAuftrag
+    const ohneLieferdatum = (obj: any) => {
+        if (!obj) return obj;
+        const { lieferdatum, ...rest } = obj;
+        return rest;
+    };
+
 
     useEffect(() => {
         const fetchData = async () => {
@@ -37,6 +46,7 @@ const AuftragDetail: React.FC = () => {
                 if (!id) throw new Error('Keine Auftrag-ID angegeben.');
                 const auftragData = await api.getAuftragById(id);
                 setAuftrag(auftragData);
+                setInitialLieferdatum(auftragData.lieferdatum || undefined);
 
                 if (auftragData.artikelPosition?.length) {
                     const pos = await Promise.all(
@@ -102,11 +112,22 @@ const AuftragDetail: React.FC = () => {
         }
     };
 
+    const normDate = (v?: string) => {
+        if (!v) return '';
+        // falls bereits 'YYYY-MM-DD'
+        if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+        try { return new Date(v).toISOString().split('T')[0]; } catch { return ''; }
+    };
+
     const handleSaveAuftrag = async () => {
         try {
             if (!auftrag?.id) return;
             setSaving(true);
-            const updated = await api.updateAuftrag(auftrag.id, auftrag);
+            const payload: any = { ...auftrag };
+            if (normDate(payload.lieferdatum) === normDate(initialLieferdatum)) {
+                delete payload.lieferdatum; // nur senden, wenn wirklich geändert
+            }
+            const updated = await api.updateAuftrag(auftrag.id, payload);
             setAuftrag(updated);
             setStatusSuccess('Auftrag gespeichert.');
             setShowModal(false);

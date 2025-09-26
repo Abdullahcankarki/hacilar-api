@@ -20,7 +20,6 @@ import {
   ErrorWithHTML,
   fetchWithErrorHandling,
 } from "./fetchWithErrorHandling";
-import { useAuth } from "../providers/Authcontext"; // falls im selben Kontext
 
 let ausgewaehlterKundeGlobal: string | null = null;
 
@@ -33,6 +32,14 @@ export const getGlobalAusgewaehlterKunde = (): string | null => {
 };
 
 const API_URL = process.env.REACT_APP_API_SERVER_URL || "";
+
+/** Mapping: auftragId -> Tour-Infos (ohne Resource-Erweiterung) */
+export type TourInfosMap = Record<string, {
+  tourStopId?: string;
+  tourId?: string;
+  reihenfolge?: number;
+  kennzeichen?: string;
+}>;
 
 /**
  * Liefert das aktuell gespeicherte Token.
@@ -535,6 +542,26 @@ export async function setAuftragInBearbeitung(
 export async function deleteAuftrag(id: string): Promise<{ message: string }> {
   return apiFetch<{ message: string }>(`/api/auftrag/${id}`, {
     method: "DELETE",
+  });
+}
+
+/**
+ * GET /api/auftrag/in-bearbeitung/tour-infos
+ * Liefert Mapping für die aktuell sichtbaren in-Bearbeitung-Aufträge.
+ */
+export async function getTourInfosForInBearbeitung(): Promise<TourInfosMap> {
+  return apiFetch<TourInfosMap>(`/api/auftrag/in-bearbeitung/tour-infos`);
+}
+
+/**
+ * POST /api/auftrag/tour-infos
+ * Body: { ids: string[] }
+ * Liefert Mapping auftragId -> { reihenfolge, kennzeichen, ... }
+ */
+export async function getTourInfosForAuftraege(ids: string[]): Promise<TourInfosMap> {
+  return apiFetch<TourInfosMap>(`/api/auftrag/tour-infos`, {
+    method: "POST",
+    body: JSON.stringify({ ids }),
   });
 }
 
@@ -1048,6 +1075,8 @@ export const api = {
   getAuftragById,
   getAuftragByCutomerId,
   getAlleAuftraegeInBearbeitung,
+  getTourInfosForInBearbeitung,
+  getTourInfosForAuftraege,
   getAuftragLetzte,
   getAuftragLetzteArtikel,
   createAuftrag,

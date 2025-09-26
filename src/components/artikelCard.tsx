@@ -24,6 +24,7 @@ export type Props = {
   setVakuum: (data: { [id: string]: boolean }) => void;
   bemerkungen: { [id: string]: string };
   setBemerkungen: (data: { [id: string]: string }) => void;
+  small?: boolean;
 };
 
 // --- Helpers ---
@@ -52,6 +53,7 @@ const ArtikelCard: React.FC<Props> = ({
   setVakuum,
   bemerkungen,
   setBemerkungen,
+  small,
 }) => {
   const { user } = useAuth();
   const isInCart = cart.some((i) => i.artikel === article.id);
@@ -172,12 +174,21 @@ const ArtikelCard: React.FC<Props> = ({
 
         {/* Body */}
         <div className="card-body d-flex flex-column gap-2">
-          <div className="d-flex align-items-start justify-content-between gap-2 mb-1 name-row">
-            <Link className="d-block fw-medium name-wrap text-dark text-decoration-none" to={`/artikel/${article.id}`}>
-              <span>{article.name}</span>
-            </Link>
-            <span className="fw-medium text-dark">{formatCurrency(article.preis)}</span>
-          </div>
+          {small ? (
+            <div className="d-flex flex-column gap-1 mb-1 name-row">
+              <Link className="d-block fw-medium name-wrap text-dark text-decoration-none" to={`/artikel/${article.id}`}>
+                <span>{article.name}</span>
+              </Link>
+              <span className="fw-medium text-dark">{formatCurrency(article.preis)}</span>
+            </div>
+          ) : (
+            <div className="d-flex align-items-start justify-content-between gap-2 mb-1 name-row">
+              <Link className="d-block fw-medium name-wrap text-dark text-decoration-none" to={`/artikel/${article.id}`}>
+                <span>{article.name}</span>
+              </Link>
+              <span className="fw-medium text-dark">{formatCurrency(article.preis)}</span>
+            </div>
+          )}
 
           {article.ausverkauft && (
             <span className="badge bg-danger align-self-start">Ausverkauft</span>
@@ -187,35 +198,51 @@ const ArtikelCard: React.FC<Props> = ({
             <>
               {/* Menge + Plus/Minus */}
               <div className="d-flex gap-2 w-100">
-                <button
-                  className="btn btn-outline-secondary rounded-pill px-3"
-                  type="button"
-                  onClick={decQty}
-                  aria-label="Menge verringern"
-                >
-                  <i className="ci-minus" />
-                </button>
+                {small ? (
+                  <input
+                    type="text"
+                    value={getCurrentQty() ? String(getCurrentQty()) : ""}
+                    className="form-control form-control-sm text-center border-1 no-spinner"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const num = parseInt(val);
+                      const neueMenge = val === "" ? 0 : isNaN(num) ? 1 : num;
+                      setQty(neueMenge);
+                    }}
+                  />
+                ) : (
+                  <>
+                    <button
+                      className="btn btn-outline-secondary rounded-pill px-3"
+                      type="button"
+                      onClick={decQty}
+                      aria-label="Menge verringern"
+                    >
+                      <i className="ci-minus" />
+                    </button>
 
-                <input
-                  type="text"
-                  value={getCurrentQty() ? String(getCurrentQty()) : ""}
-                  className="form-control form-control-sm text-center border-1 no-spinner"
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const num = parseInt(val);
-                    const neueMenge = val === "" ? 0 : isNaN(num) ? 1 : num;
-                    setQty(neueMenge);
-                  }}
-                />
+                    <input
+                      type="text"
+                      value={getCurrentQty() ? String(getCurrentQty()) : ""}
+                      className="form-control form-control-sm text-center border-1 no-spinner"
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const num = parseInt(val);
+                        const neueMenge = val === "" ? 0 : isNaN(num) ? 1 : num;
+                        setQty(neueMenge);
+                      }}
+                    />
 
-                <button
-                  className="btn btn-outline-secondary rounded-pill px-3"
-                  type="button"
-                  onClick={incQty}
-                  aria-label="Menge erhöhen"
-                >
-                  <i className="ci-plus" />
-                </button>
+                    <button
+                      className="btn btn-outline-secondary rounded-pill px-3"
+                      type="button"
+                      onClick={incQty}
+                      aria-label="Menge erhöhen"
+                    >
+                      <i className="ci-plus" />
+                    </button>
+                  </>
+                )}
               </div>
 
               {/* Einheit */}
@@ -226,9 +253,9 @@ const ArtikelCard: React.FC<Props> = ({
                 onChange={(e) => setUnit(e.target.value as any)}
               >
                 <option value="kg">Kg</option>
-                <option value="stück">St</option>
+                <option value="stück">Stück</option>
                 <option value="kiste">Kiste</option>
-                <option value="karton">Ktn</option>
+                <option value="karton">Karton</option>
               </select>
 
               {/* Footer: Neue CTA-Buttons */}

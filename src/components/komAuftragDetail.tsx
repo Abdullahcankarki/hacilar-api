@@ -70,6 +70,13 @@ const KomAuftragDetail: React.FC = () => {
     const [editingBoxen, setEditingBoxen] = useState(false);
     const [showKontrolleModal, setShowKontrolleModal] = useState(false);
 
+    // Hilfsfunktion: entfernt lieferdatum aus Payloads für updateAuftrag
+    const ohneLieferdatum = (obj: any) => {
+        if (!obj) return obj;
+        const { lieferdatum, ...rest } = obj;
+        return rest;
+    };
+
     const isAdmin = user?.role?.includes('admin');
     const isKommissionierer = user?.role?.includes('kommissionierung');
     const isKontrolleur = user?.role?.includes('kontrolle');
@@ -167,7 +174,7 @@ const KomAuftragDetail: React.FC = () => {
             if (!auftrag?.id) return;
             setSaving(true);
             const updated = await api.updateAuftrag(auftrag.id, {
-                ...auftrag,
+                ...ohneLieferdatum(auftrag),
                 kommissioniertStatus: 'fertig',
                 kommissioniertEndzeit: new Date().toISOString(),
                 kontrolliertStatus: 'offen'
@@ -187,7 +194,7 @@ const KomAuftragDetail: React.FC = () => {
             if (!auftrag?.id) return;
             setSaving(true);
             const updated = await api.updateAuftrag(auftrag.id, {
-                ...auftrag,
+                ...ohneLieferdatum(auftrag),
                 kontrolliertStatus: 'geprüft',
                 kontrolliertZeit: new Date().toISOString(),
             });
@@ -278,10 +285,10 @@ const KomAuftragDetail: React.FC = () => {
                                             onChange={(e) => setAuftrag(prev => ({ ...prev!, gesamtPaletten: parseInt(e.target.value) }))}
                                             onBlur={async () => {
                                                 setEditingPaletten(false);
-                                                if (auftrag?.id) {
-                                                    const updated = await api.updateAuftrag(auftrag.id, { ...auftrag, gesamtPaletten: auftrag.gesamtPaletten });
-                                                    setAuftrag(updated);
-                                                }
+                                            if (auftrag?.id) {
+                                                const updated = await api.updateAuftrag(auftrag.id, { ...ohneLieferdatum(auftrag), gesamtPaletten: auftrag.gesamtPaletten });
+                                                setAuftrag(updated);
+                                            }
                                             }}
                                             autoFocus
                                             size="sm"
@@ -302,10 +309,10 @@ const KomAuftragDetail: React.FC = () => {
                                             onChange={(e) => setAuftrag(prev => ({ ...prev!, gesamtBoxen: parseInt(e.target.value) }))}
                                             onBlur={async () => {
                                                 setEditingBoxen(false);
-                                                if (auftrag?.id) {
-                                                    const updated = await api.updateAuftrag(auftrag.id, { ...auftrag, gesamtBoxen: auftrag.gesamtBoxen });
-                                                    setAuftrag(updated);
-                                                }
+                                            if (auftrag?.id) {
+                                                const updated = await api.updateAuftrag(auftrag.id, { ...ohneLieferdatum(auftrag), gesamtBoxen: auftrag.gesamtBoxen });
+                                                setAuftrag(updated);
+                                            }
                                             }}
                                             autoFocus
                                             size="sm"
@@ -338,7 +345,7 @@ const KomAuftragDetail: React.FC = () => {
                                         onChange={async (e) => {
                                             const neuerStatus = e.target.value as any;
                                             setAuftrag(prev => ({ ...prev!, kommissioniertStatus: neuerStatus }));
-                                            await api.updateAuftrag(auftrag.id!, { ...auftrag, kommissioniertStatus: neuerStatus });
+                                        await api.updateAuftrag(auftrag.id!, { ...ohneLieferdatum(auftrag), kommissioniertStatus: neuerStatus });
                                             setEditingKommissioniert(false);
                                         }}
                                     >
@@ -376,7 +383,7 @@ const KomAuftragDetail: React.FC = () => {
                                         onChange={async (e) => {
                                             const neuerStatus = e.target.value as any;
                                             setAuftrag(prev => ({ ...prev!, kontrolliertStatus: neuerStatus }));
-                                            await api.updateAuftrag(auftrag.id!, { ...auftrag, kontrolliertStatus: neuerStatus });
+                                        await api.updateAuftrag(auftrag.id!, { ...ohneLieferdatum(auftrag), kontrolliertStatus: neuerStatus });
                                             setEditingKontrollstatus(false);
                                         }}
                                     >

@@ -12,11 +12,11 @@ const ZONE = 'Europe/Berlin';
 
 // Interpret a JS Date (from flatpickr) as a calendar day without shifting across zones
 function toDateOnlyInZone(jsDate: Date, zone: string): DateTime {
-  const local = DateTime.fromJSDate(jsDate); // uses browser zone
-  return DateTime.fromObject(
-    { year: local.year, month: local.month, day: local.day },
-    { zone }
-  ).startOf('day');
+    const local = DateTime.fromJSDate(jsDate); // uses browser zone
+    return DateTime.fromObject(
+        { year: local.year, month: local.month, day: local.day },
+        { zone }
+    ).startOf('day');
 }
 
 function weekdayLuxon(dt: DateTime): number {
@@ -169,7 +169,7 @@ const WarenkorbPanel: React.FC<Props> = ({
 
         // (Re)create flatpickr instance
         if (fpRef.current) {
-            try { fpRef.current.destroy(); } catch {}
+            try { fpRef.current.destroy(); } catch { }
             fpRef.current = null;
         }
         fpRef.current = flatpickr(el, {
@@ -179,7 +179,7 @@ const WarenkorbPanel: React.FC<Props> = ({
             locale: German,
             defaultDate: defaultIso,
             minDate: 'today',
-            disable: [ (d: Date) => !isDateAllowed(d, rule).ok ],
+            disable: [(d: Date) => !isDateAllowed(d, rule).ok],
             onChange: (selectedDates, dateStr) => setLieferdatum(dateStr)
         });
 
@@ -189,7 +189,7 @@ const WarenkorbPanel: React.FC<Props> = ({
         }
 
         return () => {
-            if (fpRef.current) { try { fpRef.current.destroy(); } catch {} fpRef.current = null; }
+            if (fpRef.current) { try { fpRef.current.destroy(); } catch { } fpRef.current = null; }
         };
     }, [showDateModal, ruleLoading, rule, nextAvail]);
 
@@ -334,10 +334,6 @@ const WarenkorbPanel: React.FC<Props> = ({
 
                     {/* Footer */}
                     <div className="offcanvas-header flex-column align-items-start">
-                        <div className="d-flex align-items-center justify-content-between w-100 mb-3 mb-md-4">
-                            <span className="text-light-emphasis">Gesamtsumme:</span>
-                            <span className="h6 mb-0">{fmtEUR.format(gesamtpreis)}</span>
-                        </div>
                         <div className="d-flex w-100 gap-3">
                             <button className="btn btn-lg btn-secondary w-100" onClick={onHide}>
                                 Schließen
