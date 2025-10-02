@@ -226,6 +226,11 @@ const Profil: React.FC = () => {
                             <li><strong>Handelsregister-Nr:</strong> {(userData as KundeResource).handelsregisterNr}</li>
                             <li><strong>Ansprechpartner:</strong> {(userData as KundeResource).ansprechpartner}</li>
                             <li><strong>Website:</strong> {(userData as KundeResource).website}</li>
+                            <li className="mt-2"><strong className="text-muted">Belegversand · E-Mail-Empfänger</strong></li>
+                            <li><strong>E-Mail (Rechnung):</strong> {(userData as KundeResource).emailRechnung || '—'}</li>
+                            <li><strong>E-Mail (Lieferschein):</strong> {(userData as KundeResource).emailLieferschein || '—'}</li>
+                            <li><strong>E-Mail (Buchhaltung):</strong> {(userData as KundeResource).emailBuchhaltung || '—'}</li>
+                            <li><strong>E-Mail (Spedition):</strong> {(userData as KundeResource).emailSpedition || '—'}</li>
                             <li><strong>Gewerbe-Datei:</strong> <a href={(userData as KundeResource).gewerbeDateiUrl} target="_blank" rel="noopener noreferrer">Download</a></li>
                             <li><strong>Zusatz-Datei:</strong> <a href={(userData as KundeResource).zusatzDateiUrl} target="_blank" rel="noopener noreferrer">Download</a></li>
                           </>
@@ -245,7 +250,7 @@ const Profil: React.FC = () => {
                         )}
                       </ul>
                     )}
-                    {isEditing && (
+                        {isEditing && (
                       <form className="row">
                         <div className="col-sm-12 mb-3">
                           <label className="form-label">Name</label>
@@ -272,6 +277,22 @@ const Profil: React.FC = () => {
                             <div className="col-sm-12 mb-3">
                               <label className="form-label">Website</label>
                               <input name="website" className="form-control" value={formData.website || ''} onChange={handleChange} />
+                            </div>
+                            <div className="col-sm-12 mb-3">
+                              <label className="form-label">E-Mail (Rechnung)</label>
+                              <input name="emailRechnung" type="email" className="form-control" value={formData.emailRechnung || ''} onChange={handleChange} />
+                            </div>
+                            <div className="col-sm-12 mb-3">
+                              <label className="form-label">E-Mail (Lieferschein)</label>
+                              <input name="emailLieferschein" type="email" className="form-control" value={formData.emailLieferschein || ''} onChange={handleChange} />
+                            </div>
+                            <div className="col-sm-12 mb-3">
+                              <label className="form-label">E-Mail (Buchhaltung)</label>
+                              <input name="emailBuchhaltung" type="email" className="form-control" value={formData.emailBuchhaltung || ''} onChange={handleChange} />
+                            </div>
+                            <div className="col-sm-12 mb-3">
+                              <label className="form-label">E-Mail (Spedition)</label>
+                              <input name="emailSpedition" type="email" className="form-control" value={formData.emailSpedition || ''} onChange={handleChange} />
                             </div>
                             <div className="col-sm-12 mb-3">
                               <label className="form-label">Gewerbe-Datei URL</label>

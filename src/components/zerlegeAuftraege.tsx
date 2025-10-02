@@ -4,6 +4,26 @@ import { api } from '../backend/api';
 import { useAuth } from '../providers/Authcontext';
 import { useNavigate } from 'react-router-dom';
 
+const formatDateNormal = (dateStr?: string) => {
+  if (!dateStr) return '—';
+  return new Date(dateStr).toLocaleString('de-DE', {
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+};
+
+const formatTime = (dateStr?: string) => {
+  if (!dateStr) return '—';
+  return new Date(dateStr).toLocaleString('de-DE', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+};
+
 const ZerlegeAuftraege: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -11,6 +31,9 @@ const ZerlegeAuftraege: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [todayDeleted, setTodayDeleted] = useState(false);
+  const isZerleger = user?.role.includes('zerleger');
+  const isAdmin = user?.role.includes('admin');
+  const [updating, setUpdating] = useState(false);
 
   const fetchZerlegeauftraege = async () => {
     try {
@@ -34,6 +57,19 @@ const ZerlegeAuftraege: React.FC = () => {
       fetchZerlegeauftraege(); // Refresh
     } catch (err: any) {
       console.error(err.message || 'Fehler beim Löschen');
+    }
+  };
+
+  const handleStatusUpdate = async (auftragId: string, artikelPositionId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setUpdating(true);
+    try {
+      await api.updateZerlegeauftragStatus(auftragId, artikelPositionId);
+      await fetchZerlegeauftraege();
+    } catch (err: any) {
+      console.error(err.message || 'Status konnte nicht aktualisiert werden');
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -81,56 +117,78 @@ const ZerlegeAuftraege: React.FC = () => {
       <div className="card shadow-sm">
         <div className="card-body p-0">
           <div className="table-responsive">
-            <table className="table table-hover align-middle mb-0">
+            <table className="table table-hover table-bordered align-middle mb-0">
               <thead className="table-light">
                 <tr>
                   <th scope="col">Auftrags-Nr.</th>
                   <th scope="col">Kunde</th>
-                  <th scope="col">Artikel</th>
+                  <th scope="col">Artikel (Menge / Bemerkung)</th>
                   <th scope="col">Status</th>
+                  <th scope="col">Erledigt am</th>
+                  <th scope="col">Aktion</th>
                 </tr>
               </thead>
               <tbody>
                 {auftraege.map((auftrag) => (
-                  <tr
-                    key={auftrag.id}
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => navigate(`/zerlege/${auftrag.id}`)}
-                  >
-                    <td className="fw-semibold">
-                      #{auftrag.auftragsnummer}
-                    </td>
-                    <td>{auftrag.kundenName}</td>
-                    <td>
-                      {auftrag.artikelPositionen.map((p) => (
-                        <div key={p.artikelPositionId}>
-                          <i
-                            className={`ci-check-circle me-1 ${
-                              p.status === 'erledigt' ? 'text-success' : 'text-muted'
-                            }`}
-                          ></i>
-                          {p.artikelName || p.artikelPositionId}
-                        </div>
-                      ))}
-                    </td>
-                    <td>
-                      <span
-                        className={`badge ${
-                          auftrag.artikelPositionen.every((p) => p.status === 'erledigt')
-                            ? 'bg-success'
-                            : 'bg-warning text-dark'
-                        }`}
+                  <React.Fragment key={auftrag.id}>
+                    {auftrag.artikelPositionen.map((p, idx) => (
+                      <tr
+                        key={`${auftrag.id}-${p.artikelPositionId}`}
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => navigate(`/zerlege/${auftrag.id}`)}
                       >
-                        {auftrag.artikelPositionen.every((p) => p.status === 'erledigt')
-                          ? 'Alle erledigt'
-                          : 'Offen'}
-                      </span>
-                    </td>
-                  </tr>
+                        {idx === 0 && (
+                          <td className="fw-semibold" rowSpan={auftrag.artikelPositionen.length}>
+                            #{auftrag.auftragsnummer}
+                          </td>
+                        )}
+                        {idx === 0 && (
+                          <td rowSpan={auftrag.artikelPositionen.length}>{auftrag.kundenName}</td>
+                        )}
+                        <td>
+                          <div className="fw-semibold">{p.artikelName || p.artikelPositionId}</div>
+                          {typeof p.menge !== 'undefined' && (
+                            <div className="text-muted small">Menge: {p.menge} kg</div>
+                          )}
+                          {p.bemerkung && (
+                            <div className="text-muted small">Bemerkung: {p.bemerkung}</div>
+                          )}
+                        </td>
+                        <td>
+                          <span className={`badge ${p.status === 'erledigt' ? 'bg-success' : 'bg-warning text-dark'}`}>
+                            {p.status === 'erledigt' ? 'erledigt' : 'offen'}
+                          </span>
+                        </td>
+                        <td className="small">{p.erledigtAm ? formatTime(p.erledigtAm) : '—'}</td>
+                        <td onClick={(e) => e.stopPropagation()}>
+                          {p.status !== 'erledigt' ? (
+                            <button
+                              className="btn btn-sm btn-success"
+                              disabled={updating || !(isZerleger || isAdmin)}
+                              onClick={(e) => handleStatusUpdate(auftrag.id, p.artikelPositionId, e)}
+                            >
+                              <i className="bi bi-check2-circle me-1"></i> Erledigt
+                            </button>
+                          ) : (
+                            <button
+                              className="btn btn-sm btn-outline-danger"
+                              disabled={updating || !(isZerleger || isAdmin)}
+                              onClick={(e) => handleStatusUpdate(auftrag.id, p.artikelPositionId, e)}
+                            >
+                              <i className="bi bi-arrow-counterclockwise me-1"></i> Rückgängig
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="table-group-divider">
+                      <td colSpan={6}></td>
+                    </tr>
+                  </React.Fragment>
                 ))}
                 {auftraege.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="text-center py-4">
+                    <td colSpan={6} className="text-center py-4">
                       Keine Zerlegeaufträge gefunden.
                     </td>
                   </tr>

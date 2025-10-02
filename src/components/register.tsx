@@ -20,6 +20,11 @@ const RegisterForm: React.FC = () => {
     handelsregisterNr: '',
     ansprechpartner: '',
     website: '',
+    // neu:
+    emailRechnung: '',
+    emailLieferschein: '',
+    emailBuchhaltung: '',
+    emailSpedition: '',
     agb: false,
     datenschutz: false,
   });
@@ -62,7 +67,7 @@ const RegisterForm: React.FC = () => {
         navigate('/login');
       }, 1500);
     } catch (error) {
-      setErrors({ general:  error + 'Registrierung fehlgeschlagen' });
+      setErrors({ general: error + 'Registrierung fehlgeschlagen' });
     }
   };
 
@@ -267,6 +272,58 @@ const RegisterForm: React.FC = () => {
                       placeholder="Website"
                       value={kunde.website}
                       onChange={e => setKunde({ ...kunde, website: e.target.value })}
+                    />
+                  </div>
+                  {/* E-Mail-Empfänger für Belegversand (optional) */}
+                  <div className="mb-3">
+                    <label htmlFor="register-emailRechnung" className="form-label">E-Mail (Rechnung)</label>
+                    <input
+                      type="email"
+                      className="form-control form-control-lg"
+                      id="register-emailRechnung"
+                      autoComplete="off"
+                      placeholder="z. B. buchhaltung@kunde.de"
+                      value={kunde.emailRechnung}
+                      onChange={e => setKunde({ ...kunde, emailRechnung: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="mb-3">
+                    <label htmlFor="register-emailLieferschein" className="form-label">E-Mail (Lieferschein)</label>
+                    <input
+                      type="email"
+                      className="form-control form-control-lg"
+                      id="register-emailLieferschein"
+                      autoComplete="off"
+                      placeholder="z. B. logistik@kunde.de"
+                      value={kunde.emailLieferschein}
+                      onChange={e => setKunde({ ...kunde, emailLieferschein: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="mb-3">
+                    <label htmlFor="register-emailBuchhaltung" className="form-label">E-Mail (Buchhaltung)</label>
+                    <input
+                      type="email"
+                      className="form-control form-control-lg"
+                      id="register-emailBuchhaltung"
+                      autoComplete="off"
+                      placeholder="z. B. rechnungen@kunde.de"
+                      value={kunde.emailBuchhaltung}
+                      onChange={e => setKunde({ ...kunde, emailBuchhaltung: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="mb-3">
+                    <label htmlFor="register-emailSpedition" className="form-label">E-Mail (Spedition)</label>
+                    <input
+                      type="email"
+                      className="form-control form-control-lg"
+                      id="register-emailSpedition"
+                      autoComplete="off"
+                      placeholder="z. B. dispo@spedition.de"
+                      value={kunde.emailSpedition}
+                      onChange={e => setKunde({ ...kunde, emailSpedition: e.target.value })}
                     />
                   </div>
                 </div>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Alert, Button, Form, Modal, Spinner } from 'react-bootstrap';
+import { Alert, Button, Form, Modal, Spinner, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import { AuftragResource, ArtikelPositionResource, ArtikelResource } from '../Resources';
 import { api } from '../backend/api';
 import AuftragPositionenTabelle from './auftragsPositionenTabelle';
@@ -32,6 +32,13 @@ const AuftragDetail: React.FC = () => {
     const [showModal, setShowModal] = useState(false);
     const [initialLieferdatum, setInitialLieferdatum] = useState<string | undefined>(undefined);
 
+    const [belege, setBelege] = useState<any[]>([]);
+    const [emailLogs, setEmailLogs] = useState<any[]>([]);
+    const [busyBeleg, setBusyBeleg] = useState<boolean>(false);
+    const [showBelegModal, setShowBelegModal] = useState(false);
+    const [belegTypModal, setBelegTypModal] = useState<"gutschrift"|"preisdifferenz"|null>(null);
+    const [belegForm, setBelegForm] = useState<{ referenzBelegNummer?: string; betrag?: number }>({});
+
         // Hilfsfunktion: entfernt lieferdatum aus Payloads für updateAuftrag
     const ohneLieferdatum = (obj: any) => {
         if (!obj) return obj;
@@ -39,6 +46,16 @@ const AuftragDetail: React.FC = () => {
         return rest;
     };
 
+    const downloadBlob = (blob: Blob, filename: string) => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -57,6 +74,16 @@ const AuftragDetail: React.FC = () => {
 
                 const artikelData = await api.getAllArtikel(); // API: alle Artikel laden
                 setAlleArtikel(artikelData.items);
+                if (auftragData.id) {
+                  try {
+                    const [b, logs] = await Promise.all([
+                      api.getBelege(auftragData.id),
+                      api.getBelegEmailLogs(auftragData.id),
+                    ]);
+                    setBelege(b);
+                    setEmailLogs(logs);
+                  } catch (e) { /* ignore for now */ }
+                }
             } catch (err: any) {
                 setError(err.message || 'Fehler beim Laden der Daten');
             } finally {
@@ -136,6 +163,37 @@ const AuftragDetail: React.FC = () => {
         } finally {
             setSaving(false);
         }
+    };
+
+    const handleBelegPdf = async (typ: "lieferschein"|"rechnung"|"gutschrift"|"preisdifferenz", input?: any) => {
+      if (!auftrag?.id) return;
+      try {
+        setBusyBeleg(true);
+        const blob = await api.generateBelegPdf(auftrag.id, typ, input);
+        const filename = `${typ}_${auftrag.auftragsnummer || auftrag.id}.pdf`;
+        downloadBlob(blob, filename);
+        setStatusSuccess(`PDF (${typ}) erzeugt.`);
+      } catch (e:any) {
+        setStatusError(e.message || `Fehler beim Erzeugen des ${typ}-PDF.`);
+      } finally { setBusyBeleg(false); }
+    };
+
+    const openBelegInput = (typ: "gutschrift"|"preisdifferenz") => {
+      setBelegTypModal(typ);
+      setBelegForm({});
+      setShowBelegModal(true);
+    };
+
+    const saveBelegEntry = async (typ: "lieferschein"|"rechnung"|"gutschrift"|"preisdifferenz", data?: any) => {
+      if (!auftrag?.id) return;
+      try {
+        setBusyBeleg(true);
+        const entry = await api.addBeleg(auftrag.id, { typ, ...data });
+        setBelege(prev => [entry, ...prev]);
+        setStatusSuccess(`Beleg (${typ}) eingetragen.`);
+      } catch (e:any) {
+        setStatusError(e.message || 'Fehler beim Beleg-Eintrag.');
+      } finally { setBusyBeleg(false); }
     };
 
     if (loading) return (
@@ -247,6 +305,99 @@ const AuftragDetail: React.FC = () => {
                 saving={isKunde ? undefined : saving}
                 auftragId={auftrag.id!}
             />
+
+            {!isKunde && (
+              <div className="card mt-4">
+                <div className="card-header d-flex justify-content-between align-items-center">
+                  <span>Belege</span>
+                  <div className="small text-muted">PDF-Erstellung & Versandvorbereitung</div>
+                </div>
+                <div className="card-body">
+                  <div className="d-flex flex-wrap gap-2 mb-3">
+                    <Button size="sm" variant="outline-primary" disabled={busyBeleg} onClick={() => handleBelegPdf('lieferschein')}>Lieferschein PDF</Button>
+                    <Button size="sm" variant="outline-primary" disabled={busyBeleg} onClick={() => handleBelegPdf('rechnung')}>Rechnung PDF</Button>
+                    <Button size="sm" variant="outline-secondary" disabled={busyBeleg} onClick={() => openBelegInput('gutschrift')}>Gutschrift erstellen</Button>
+                    <Button size="sm" variant="outline-secondary" disabled={busyBeleg} onClick={() => openBelegInput('preisdifferenz')}>Preisdifferenz erstellen</Button>
+                  </div>
+
+                  <div className="row">
+                    <div className="col-md-6 mb-3">
+                      <h6 className="text-muted">Belegeinträge</h6>
+                      {belege?.length ? (
+                        <ul className="list-group list-group-flush">
+                          {belege.map((b:any, idx:number) => (
+                            <li key={idx} className="list-group-item px-0 d-flex justify-content-between align-items-center">
+                              <div>
+                                <span className="badge bg-light text-dark me-2 text-uppercase">{b.typ}</span>
+                                <strong>{b.nummer || '—'}</strong>
+                                <div className="small text-muted">{b.datum ? new Date(b.datum).toLocaleString('de-DE') : '—'}</div>
+                              </div>
+                              <div className="small">{b.status || 'entwurf'}</div>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="text-muted small">Noch keine Belege eingetragen.</div>
+                      )}
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <h6 className="text-muted">E-Mail-Historie</h6>
+                      {emailLogs?.length ? (
+                        <ul className="list-group list-group-flush">
+                          {emailLogs.map((l:any, idx:number) => (
+                            <li key={idx} className="list-group-item px-0 d-flex justify-content-between align-items-center">
+                              <div>
+                                <span className={`badge me-2 ${l.status==='gesendet' ? 'bg-success' : l.status==='fehlgeschlagen' ? 'bg-danger' : 'bg-secondary'}`}>{l.status}</span>
+                                <span className="text-uppercase">{l.belegTyp}</span>
+                                <div className="small text-muted">{l.gesendetAm ? new Date(l.gesendetAm).toLocaleString('de-DE') : '—'} · {Array.isArray(l.empfaenger) ? l.empfaenger.join(', ') : ''}</div>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="text-muted small">Noch keine E-Mail-Logs vorhanden.</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!isKunde && (
+              <Modal show={showBelegModal} onHide={() => setShowBelegModal(false)}>
+                <Modal.Header closeButton>
+                  <Modal.Title>{belegTypModal === 'gutschrift' ? 'Gutschrift' : 'Preisdifferenz'} erstellen</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Referenz-Belegnummer (z. B. Rechnung)</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={belegForm.referenzBelegNummer || ''}
+                      onChange={(e) => setBelegForm({ ...belegForm, referenzBelegNummer: e.target.value })}
+                    />
+                  </Form.Group>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Betrag (EUR)</Form.Label>
+                    <Form.Control
+                      type="number"
+                      step="0.01"
+                      value={belegForm.betrag?.toString() || ''}
+                      onChange={(e) => setBelegForm({ ...belegForm, betrag: parseFloat(e.target.value) })}
+                    />
+                  </Form.Group>
+                </Modal.Body>
+                <Modal.Footer>
+                  <Button variant="secondary" onClick={() => setShowBelegModal(false)}>Abbrechen</Button>
+                  <Button variant="primary" disabled={busyBeleg || !belegTypModal} onClick={async () => {
+                    if (!belegTypModal) return;
+                    await handleBelegPdf(belegTypModal, belegForm); // direkt PDF erzeugen
+                    await saveBelegEntry(belegTypModal, belegForm); // Eintrag speichern
+                    setShowBelegModal(false);
+                  }}>Erstellen</Button>
+                </Modal.Footer>
+              </Modal>
+            )}
 
             {!isKunde && (
                 <div className="card mt-4">

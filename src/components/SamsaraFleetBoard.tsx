@@ -221,6 +221,8 @@ export default function SamsaraFleetBoard({
   const mountedRef = useRef(true);
   const [status, setStatus] = useState<Record<string, { moving: boolean; idleMin: number }>>({});
   const idleSinceRef = useRef<Record<string, number>>({});
+  const hasAutoSelectedRef = useRef(false);
+  const userSelectedRef = useRef(false);
   const IDLE_THRESHOLD_MIN = 7; // länger stehende Fahrzeuge ab 7 Minuten
   // Disable autoFit when a vehicle is selected (to avoid re-fitting after flyTo)
   useEffect(() => {
@@ -233,7 +235,10 @@ export default function SamsaraFleetBoard({
   // Beim ersten Mount: letzte Auswahl aus localStorage holen
   useEffect(() => {
     const saved = localStorage.getItem('sfb_selectedVehicleId');
-    if (saved) setSelectedVehicleId(saved);
+    if (saved) {
+      setSelectedVehicleId(saved);
+      userSelectedRef.current = true;
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -304,9 +309,13 @@ export default function SamsaraFleetBoard({
       setLoading(false);
 
       // On first load, preselect first vehicle with GPS
-      if (!selectedVehicleId) {
+      // On first load only, never override user choice
+      if (!hasAutoSelectedRef.current && !userSelectedRef.current && !selectedVehicleId) {
         const firstWithGps = normalizedFiltered.find((v: any) => v.gps?.latitude && v.gps?.longitude);
-        if (firstWithGps) setSelectedVehicleId(firstWithGps.id);
+        if (firstWithGps) {
+          setSelectedVehicleId(firstWithGps.id);
+          hasAutoSelectedRef.current = true;
+        }
       }
     } catch (e: any) {
       if (!mountedRef.current) return;
@@ -514,7 +523,7 @@ export default function SamsaraFleetBoard({
                       <span className="badge bg-primary-subtle text-primary border">{kmhFromMph(selectedVehicle.gps.speedMilesPerHour)} km/h</span>
                     )}
                   </div>
-                  <div className="mt-2 small text-muted text-truncate" style={{maxWidth:'100%'}}>
+                  <div className="mt-2 small text-muted text-truncate" style={{ maxWidth: '100%' }}>
                     {selectedVehicle.gps?.reverseGeo?.formattedLocation || '–'}
                   </div>
                   <div className="row g-2 mt-2">
@@ -550,7 +559,7 @@ export default function SamsaraFleetBoard({
                     const longIdle = st && !st.moving && st.idleMin >= IDLE_THRESHOLD_MIN;
                     const speed = v.gps?.speedMilesPerHour != null ? kmhFromMph(v.gps.speedMilesPerHour) : null;
                     return (
-                      <button key={v.id} className="list-group-item list-group-item-action py-3" onClick={() => setSelectedVehicleId(v.id)}>
+                      <button key={v.id} className="list-group-item list-group-item-action py-3" onClick={() => { userSelectedRef.current = true; setSelectedVehicleId(v.id); }}>
                         <div className="d-flex align-items-start justify-content-between gap-3">
                           <div className="d-flex align-items-center gap-2">
                             <span className="me-1" dangerouslySetInnerHTML={{ __html: vehicleIcon(isSelected ? theme.accent : '#6c757d', isSelected).options.html as string }} />
@@ -638,7 +647,7 @@ export default function SamsaraFleetBoard({
                     const variant: 'moving' | 'idle' | 'stopped' = st?.moving ? 'moving' : (longIdle ? 'idle' : 'stopped');
                     const color = selected ? theme.accent : (st?.moving ? theme.accent : (longIdle ? theme.warn : '#6c757d'));
                     return (
-                      <Marker key={v.id} position={[lat, lng]} icon={vehicleIcon(color, selected, variant)} eventHandlers={{ click: () => setSelectedVehicleId(v.id) }}>
+                      <Marker key={v.id} position={[lat, lng]} icon={vehicleIcon(color, selected, variant)} eventHandlers={{ click: () => { userSelectedRef.current = true; setSelectedVehicleId(v.id); } }}>
                         <Tooltip direction="top" offset={[0, -12]} opacity={0.9} permanent className="vehicle-label">
                           {v.name || v.id}
                         </Tooltip>

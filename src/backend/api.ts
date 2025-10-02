@@ -1043,6 +1043,52 @@ export async function moveTourStop(
   });
 }
 
+/* Beleg-Funktionen */
+export async function generateBelegPdf(
+  auftragId: string,
+  typ: "lieferschein" | "rechnung" | "gutschrift" | "preisdifferenz",
+  data?: Partial<any>
+): Promise<Blob> {
+  const res = await fetch(`${API_URL}/api/beleg/${auftragId}/${typ}/pdf`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
+    },
+    body: data ? JSON.stringify(data) : "{}",
+  });
+  if (!res.ok) throw new Error(`Fehler beim PDF-Generieren: ${res.statusText}`);
+  return res.blob();
+}
+
+export async function addBeleg(
+  auftragId: string,
+  beleg: any
+): Promise<any> {
+  return apiFetch<any>(`/api/beleg/${auftragId}/add`, {
+    method: "POST",
+    body: JSON.stringify(beleg),
+  });
+}
+
+export async function logBelegEmail(
+  auftragId: string,
+  log: any
+): Promise<any> {
+  return apiFetch<any>(`/api/beleg/${auftragId}/email-log`, {
+    method: "POST",
+    body: JSON.stringify(log),
+  });
+}
+
+export async function getBelege(auftragId: string): Promise<any[]> {
+  return apiFetch<any[]>(`/api/beleg/${auftragId}`);
+}
+
+export async function getBelegEmailLogs(auftragId: string): Promise<any[]> {
+  return apiFetch<any[]>(`/api/beleg/${auftragId}/email-logs`);
+}
+
 /* Exportiere ein Objekt, das alle Funktionen zusammenfasst */
 export const api = {
   apiFetch,
@@ -1142,4 +1188,10 @@ export const api = {
   deleteAllTourStops,
   reorderTourStops,
   moveTourStop,
+    // Beleg
+  generateBelegPdf,
+  addBeleg,
+  logBelegEmail,
+  getBelege,
+  getBelegEmailLogs,
 };

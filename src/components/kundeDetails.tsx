@@ -65,6 +65,10 @@ const EditKundeModal: React.FC<{
     adresse: kunde.adresse,
     region: kunde.region,
     kategorie: kunde.kategorie,
+    emailRechnung: kunde.emailRechnung,
+    emailLieferschein: kunde.emailLieferschein,
+    emailBuchhaltung: kunde.emailBuchhaltung,
+    emailSpedition: kunde.emailSpedition,
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>('');
@@ -104,6 +108,22 @@ const EditKundeModal: React.FC<{
             <div className="mb-3">
               <label htmlFor="email" className="form-label">Email</label>
               <input id="email" name="email" type="email" className="form-control" value={formData.email || ''} onChange={handleChange} disabled={busy} />
+            </div>
+            <div className="mb-3">
+              <label htmlFor="emailRechnung" className="form-label">E-Mail (Rechnung)</label>
+              <input id="emailRechnung" name="emailRechnung" type="email" className="form-control" value={formData.emailRechnung || ''} onChange={handleChange} disabled={busy} placeholder="z. B. buchhaltung@kunde.de" />
+            </div>
+            <div className="mb-3">
+              <label htmlFor="emailLieferschein" className="form-label">E-Mail (Lieferschein)</label>
+              <input id="emailLieferschein" name="emailLieferschein" type="email" className="form-control" value={formData.emailLieferschein || ''} onChange={handleChange} disabled={busy} placeholder="z. B. logistik@kunde.de" />
+            </div>
+            <div className="mb-3">
+              <label htmlFor="emailBuchhaltung" className="form-label">E-Mail (Buchhaltung)</label>
+              <input id="emailBuchhaltung" name="emailBuchhaltung" type="email" className="form-control" value={formData.emailBuchhaltung || ''} onChange={handleChange} disabled={busy} placeholder="z. B. rechnungen@kunde.de" />
+            </div>
+            <div className="mb-3">
+              <label htmlFor="emailSpedition" className="form-label">E-Mail (Spedition)</label>
+              <input id="emailSpedition" name="emailSpedition" type="email" className="form-control" value={formData.emailSpedition || ''} onChange={handleChange} disabled={busy} placeholder="z. B. dispo@spedition.de" />
             </div>
             <div className="mb-3">
               <label htmlFor="telefon" className="form-label">Telefon</label>
@@ -328,6 +348,15 @@ const KundeDetail: React.FC = () => {
                   <InfoRow label="Letzte Änderung" value={kunde.updatedAt ? new Date(kunde.updatedAt).toLocaleString('de-DE') : '—'} />
                   <InfoRow label="Gewerbedatei" value={kunde.gewerbeDateiUrl ? (<a href={kunde.gewerbeDateiUrl} target="_blank" rel="noreferrer">Anzeigen</a>) : '—'} />
                   <InfoRow label="Zusatzdatei" value={kunde.zusatzDateiUrl ? (<a href={kunde.zusatzDateiUrl} target="_blank" rel="noreferrer">Anzeigen</a>) : '—'} />
+                  {/* Belegversand-E-Mails */}
+                  <div className="col-12">
+                    <hr className="text-muted"/>
+                    <h6 className="text-muted mb-3">Belegversand · E-Mail-Empfänger</h6>
+                  </div>
+                  <InfoRow label="E-Mail (Rechnung)" value={kunde.emailRechnung || '—'} />
+                  <InfoRow label="E-Mail (Lieferschein)" value={kunde.emailLieferschein || '—'} />
+                  <InfoRow label="E-Mail (Buchhaltung)" value={kunde.emailBuchhaltung || '—'} />
+                  <InfoRow label="E-Mail (Spedition)" value={kunde.emailSpedition || '—'} />
                 </div>
               </div>
             </div>
