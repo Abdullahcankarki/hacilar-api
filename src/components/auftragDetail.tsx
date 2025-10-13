@@ -315,11 +315,11 @@ const AuftragDetail: React.FC = () => {
                 <div className="card-body">
                   <div className="d-flex flex-wrap gap-2 mb-3">
                     <Button size="sm" variant="outline-primary" disabled={busyBeleg} onClick={() => handleBelegPdf('lieferschein')}>Lieferschein PDF</Button>
-                    <Button size="sm" variant="outline-primary" disabled={busyBeleg} onClick={() => handleBelegPdf('rechnung')}>Rechnung PDF</Button>
+                    {/* <Button size="sm" variant="outline-primary" disabled={busyBeleg} onClick={() => handleBelegPdf('rechnung')}>Rechnung PDF</Button>
                     <Button size="sm" variant="outline-secondary" disabled={busyBeleg} onClick={() => openBelegInput('gutschrift')}>Gutschrift erstellen</Button>
-                    <Button size="sm" variant="outline-secondary" disabled={busyBeleg} onClick={() => openBelegInput('preisdifferenz')}>Preisdifferenz erstellen</Button>
+                    <Button size="sm" variant="outline-secondary" disabled={busyBeleg} onClick={() => openBelegInput('preisdifferenz')}>Preisdifferenz erstellen</Button> */}
                   </div>
-
+{/* 
                   <div className="row">
                     <div className="col-md-6 mb-3">
                       <h6 className="text-muted">Belegeinträge</h6>
@@ -358,10 +358,11 @@ const AuftragDetail: React.FC = () => {
                         <div className="text-muted small">Noch keine E-Mail-Logs vorhanden.</div>
                       )}
                     </div>
-                  </div>
+                  </div>*/}
+                  
                 </div>
               </div>
-            )}
+            )} 
 
             {!isKunde && (
               <Modal show={showBelegModal} onHide={() => setShowBelegModal(false)}>
