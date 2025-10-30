@@ -1,20 +1,13 @@
 // App.tsx
-import React, { JSX } from 'react';
+import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './providers/Authcontext';
-import NavBar from './components/navbar';
-import LoginForm from './components/login';
 import Dashboard from './components/dashboard';
-import Auftraege from './components/auftraege';
-import Artikel from './components/artikel';
-import Kunden from './components/kunden';
 import KundeEdit from './components/kundeEdit';
 import Profil from './components/profil';
 import KundeDetail from './components/kundeDetails';
 import KundenaufpreisEditor from './components/kundenaufpreiseditor';
 import AuftragDetail from './components/auftragDetail';
-import 'bootstrap/dist/css/bootstrap.min.css';
-import Verkaeufer from './components/verkaeufer';
 import VerkaeuferDetails from './components/verkaeuferDetails';
 import VerkaeuferEdit from './components/verkaeuferEdit';
 import Statistiken from './components/stats';
@@ -28,7 +21,6 @@ import AllArtikel from './components/allArtikel';
 import RegisterForm from './components/register';
 import ZerlegeAuftraege from './components/zerlegeAuftraege';
 import ZerlegeDetail from './components/zerlegeDetail';
-import KomAuftraege from './components/komAuftraege';
 import KomAuftragDetail from './components/komAuftragDetail';
 import FahrzeugUebersicht from './components/fahrzeug';
 import RegionRuleOverview from './components/RegionRuleOverview';
@@ -45,6 +37,7 @@ import FleetPage from './components/Fleetpage';
 import SupportHelp from './components/SupportHelp';
 import ForgotPassword from './components/forgot-password';
 import ResetPassword from './components/reset-password';
+import InventoryDashboard from './components/inventoryDashboard';
 
 
 // 📌 App-Routen
@@ -98,6 +91,7 @@ const AppRoutes: React.FC = () => {
               <Route path="tour-manager" element={<TourManager />} />
               <Route path="fahrer" element={<DriverTour />} />
               <Route path="fleet" element={<FleetPage />} />
+              <Route path="inventory" element={<InventoryDashboard />} />
               <Route path="*" element={<Navigate to="/home" replace />} />
             </>
           ) : roles.includes('zerleger') ? (

@@ -3,10 +3,10 @@ import React from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../providers/Authcontext';
 import logo from '../assets/logo.png';
-import 'bootstrap/dist/js/bootstrap.bundle.min';
 import { KundeResource } from '../Resources';
 import Select from 'react-select';
 import { Form } from 'react-bootstrap';
+import { Dropdown } from 'bootstrap';
 
 type NavBarProps = {
   onCartClick: () => void;
@@ -50,6 +50,22 @@ const NavBar: React.FC<NavBarProps> = ({
   const isZerleger = role.length === 1 && role[0] === 'zerleger';
   const isKunde = role.length === 1 && role[0] === 'kunde';
   const isAdminOderVerkauf = isAdmin || isVerkauf;
+
+  React.useEffect(() => {
+    const triggers = document.querySelectorAll<HTMLElement>('[data-bs-toggle="dropdown"]');
+    const instances: Dropdown[] = [];
+    triggers.forEach((el) => {
+      try {
+        const inst = Dropdown.getOrCreateInstance(el);
+        instances.push(inst);
+      } catch (e) {
+        // ignore
+      }
+    });
+    return () => {
+      instances.forEach((inst) => inst.dispose());
+    };
+  }, []);
 
   const navLinks = [
     { to: isKommissionierer ? '/kommissionierung' : '/shop', label: isKommissionierer ? 'Kommissionierung' : 'Shop', visible: isKunde || isAdminOderVerkauf || isKommissionierer },
@@ -109,9 +125,21 @@ const NavBar: React.FC<NavBarProps> = ({
               {isAdminOderVerkauf && (
                 <>
                   <li className="nav-item dropdown">
-                    <span className="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <a
+                      href="#"
+                      className="nav-link dropdown-toggle"
+                      role="button"
+                      data-bs-toggle="dropdown"
+                      data-bs-reference="parent"
+                      aria-expanded="false"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        const inst = Dropdown.getOrCreateInstance(e.currentTarget);
+                        inst.toggle();
+                      }}
+                    >
                       Produktion
-                    </span>
+                    </a>
                     <ul className="dropdown-menu">
                       <li><NavLink className="dropdown-item" to="/auftraege">Aufträge</NavLink></li>
                       <li><NavLink className="dropdown-item" to="/zerlege">Zerlegung</NavLink></li>
@@ -120,9 +148,21 @@ const NavBar: React.FC<NavBarProps> = ({
                   </li>
 
                   <li className="nav-item dropdown">
-                    <span className="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <a
+                      href="#"
+                      className="nav-link dropdown-toggle"
+                      role="button"
+                      data-bs-toggle="dropdown"
+                      data-bs-reference="parent"
+                      aria-expanded="false"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        const inst = Dropdown.getOrCreateInstance(e.currentTarget);
+                        inst.toggle();
+                      }}
+                    >
                       Verwaltung
-                    </span>
+                    </a>
                     <ul className="dropdown-menu">
                       <li><NavLink className="dropdown-item" to="/kunden">Kunden</NavLink></li>
                       <li><NavLink className="dropdown-item" to="/mitarbeiter">Mitarbeiter</NavLink></li>
@@ -131,6 +171,7 @@ const NavBar: React.FC<NavBarProps> = ({
                       <li><NavLink className="dropdown-item" to="/region-rule">Region-Regel</NavLink></li>
                       <li><NavLink className="dropdown-item" to="/reihenfolge-vorlage">Reihenfolge-Vorlagen</NavLink></li>
                       <li><NavLink className="dropdown-item" to="/tour-manager">Touren</NavLink></li>
+                      <li><NavLink className="dropdown-item" to="/inventory">Bestand</NavLink></li>
                       <li><NavLink className="dropdown-item" to="/stats">Statistiken</NavLink></li>
                     </ul>
                   </li>

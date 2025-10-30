@@ -5,6 +5,7 @@ import {
     getAllAuftraege,
     getAllMitarbeiter,
     getAllKunden,
+    generateBelegeBatchPdfs
 } from "../backend/api";
 import { AuftragResource, MitarbeiterResource, KundeResource } from "../Resources";
 
@@ -85,6 +86,54 @@ export default function AuftraegeOverview() {
     const [auftragsnummer, setAuftragsnummer] = useState("");
     const [updatedVon, setUpdatedVon] = useState("");
     const [updatedBis, setUpdatedBis] = useState("");
+
+    // Drucken (Mehrfachauswahl)
+    const [selectionMode, setSelectionMode] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [selectAllFiltered, setSelectAllFiltered] = useState(false);
+
+    const isSelected = (id?: string) => !!(id && selectedIds.has(id));
+    const toggleSelect = (id?: string) => {
+        if (!id) return;
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+    const clearSelection = () => {
+        setSelectedIds(new Set());
+        setSelectAllFiltered(false);
+    };
+
+    const handleBatchPrint = async () => {
+        try {
+            const ids = selectAllFiltered
+                ? items.map(i => i.id!).filter(Boolean)
+                : Array.from(selectedIds);
+            if (!ids.length) {
+                alert("Bitte mindestens einen Auftrag auswählen.");
+                return;
+            }
+            const files = await generateBelegeBatchPdfs(ids, 'rechnung');
+            for (const f of files) {
+                const url = URL.createObjectURL(f.blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = f.filename || "beleg.pdf";
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+            }
+            // nach Erfolg Auswahl zurücksetzen (optional)
+            clearSelection();
+            setSelectionMode(false);
+        } catch (e: any) {
+            alert(e?.message || "Fehler beim Batch-Druck");
+        }
+    };
 
 
     // Load Mitarbeiter (für „nur Kontrolle-User“ Filter)
@@ -256,6 +305,52 @@ export default function AuftraegeOverview() {
                                 {n}
                             </button>
                         ))}
+                    </div>
+                    {/* Drucken (Mehrfachauswahl) */}
+                    <div className="ms-auto d-flex align-items-center gap-2 mt-2 mt-lg-0">
+                        {!selectionMode ? (
+                            <button
+                                className="btn btn-success"
+                                onClick={() => { setSelectionMode(true); clearSelection(); }}
+                                title="Mehrere Belege drucken"
+                            >
+                                <i className="ci-printer me-2" /> Drucken
+                            </button>
+                        ) : (
+                            <>
+                                <button
+                                  className="btn btn-primary"
+                                  onClick={handleBatchPrint}
+                                  title="Ausgewählte drucken"
+                                >
+                                  <i className="ci-download me-2" /> Ausgewählte drucken (Rechnung)
+                                </button>
+                                <div className="form-check ms-2">
+                                    <input
+                                        className="form-check-input"
+                                        type="checkbox"
+                                        id="selectAllFiltered"
+                                        checked={selectAllFiltered}
+                                        onChange={(e) => {
+                                            setSelectAllFiltered(e.target.checked);
+                                            if (e.target.checked) {
+                                                // When selecting all filtered, clear individual set to avoid confusion
+                                                setSelectedIds(new Set());
+                                            }
+                                        }}
+                                    />
+                                    <label className="form-check-label" htmlFor="selectAllFiltered">
+                                        Alle (gefilterten) auswählen
+                                    </label>
+                                </div>
+                                <button
+                                    className="btn btn-outline-secondary"
+                                    onClick={() => { setSelectionMode(false); clearSelection(); }}
+                                >
+                                    Abbrechen
+                                </button>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
@@ -587,6 +682,24 @@ export default function AuftraegeOverview() {
                         <table className="table table-hover align-middle mb-0">
                             <thead className="table-light position-sticky top-0" style={{ zIndex: 1 }}>
                                 <tr>
+                                    {selectionMode && <th style={{ width: 36 }}>
+                                        {!selectAllFiltered && (
+                                            <input
+                                                type="checkbox"
+                                                aria-label="Alle sichtbaren auswählen"
+                                                onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        const next = new Set(selectedIds);
+                                                        for (const a of items) if (a.id) next.add(a.id);
+                                                        setSelectedIds(next);
+                                                    } else {
+                                                        clearSelection();
+                                                    }
+                                                }}
+                                                checked={selectAllFiltered ? true : items.every(a => a.id && selectedIds.has(a.id))}
+                                            />
+                                        )}
+                                    </th>}
                                     <th style={{ width: 120 }}>Auftragsnr.</th>
                                     <th>Kunde</th>
                                     <th style={{ width: 140 }}>Lieferdatum</th>
@@ -623,9 +736,18 @@ export default function AuftraegeOverview() {
                                     <tr
                                         key={a.id}
                                         role="button"
-                                        onClick={() => handleRowClick(a.id)}
-                                        className="cursor-pointer"
+                                        onClick={() => selectionMode ? toggleSelect(a.id) : handleRowClick(a.id)}
+                                        className={cls("cursor-pointer", selectionMode && isSelected(a.id) && "table-active")}
                                     >
+                                        {selectionMode && (
+                                            <td onClick={(e) => e.stopPropagation()}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isSelected(a.id) || selectAllFiltered}
+                                                    onChange={() => toggleSelect(a.id)}
+                                                />
+                                            </td>
+                                        )}
                                         <td className="fw-semibold">{a.auftragsnummer || "—"}</td>
                                         <td>
                                             <div className="d-flex align-items-center">

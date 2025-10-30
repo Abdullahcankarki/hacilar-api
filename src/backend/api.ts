@@ -1061,6 +1061,219 @@ export async function generateBelegPdf(
   return res.blob();
 }
 
+export type BatchBelegFile = { auftragId: string; filename: string; blob: Blob };
+
+// ------------------------- Zusatz-Typen: Charges & Bestand -------------------------
+export type ChargeListResponse = { items: any[]; total: number; page: number; limit: number };
+export type BestandUebersichtResponse = { items: any[]; total: number; page: number; limit: number };
+export type ChargeViewResponse = { charge: any | null; reservierungen: any[]; bewegungen: any[] };
+/* ------------------------------ Charges (Chargen) ------------------------------ */
+export async function listCharges(params?: {
+  artikelId?: string; q?: string; isTK?: boolean; mhdFrom?: string; mhdTo?: string; page?: number; limit?: number;
+}): Promise<ChargeListResponse> {
+  const q = toQuery(params as any);
+  return apiFetch<ChargeListResponse>(`/api/charges${q}`);
+}
+
+export async function getChargeByIdApi(id: string): Promise<any> {
+  return apiFetch<any>(`/api/charges/${id}`);
+}
+
+export async function getChargeViewApi(id: string): Promise<ChargeViewResponse> {
+  return apiFetch<ChargeViewResponse>(`/api/charges/${id}/view`);
+}
+
+export async function createChargeApi(data: {
+  artikelId: string; mhd: string; isTK: boolean; schlachtDatum?: string; lieferantId?: string;
+}): Promise<any> {
+  return apiFetch<any>(`/api/charges`, { method: "POST", body: JSON.stringify(data) });
+}
+
+export async function updateChargeApi(id: string, data: Partial<{ mhd: string; isTK: boolean; schlachtDatum?: string; lieferantId?: string; artikelId: string }>): Promise<any> {
+  return apiFetch<any>(`/api/charges/${id}`, { method: "PUT", body: JSON.stringify(data) });
+}
+
+export async function mergeChargeApi(sourceChargeId: string, data: { zielChargeId: string; menge?: number; zielLagerbereich: "TK"|"NON_TK"; notiz?: string; }): Promise<any> {
+  return apiFetch<any>(`/api/charges/${sourceChargeId}/merge`, { method: "POST", body: JSON.stringify(data) });
+}
+
+export async function umbuchenChargeApi(sourceChargeId: string, data: { nach: { chargeId?: string; lagerbereich: "TK"|"NON_TK"; newCharge?: { mhd: string; isTK: boolean; schlachtDatum?: string; lieferantId?: string } }; menge: number; notiz?: string; }): Promise<any> {
+  return apiFetch<any>(`/api/charges/${sourceChargeId}/umbuchen`, { method: "POST", body: JSON.stringify(data) });
+}
+
+export async function muellChargeApi(chargeId: string, data: { menge: number; lagerbereich: "TK"|"NON_TK"; grund: "MHD_ABGELAUFEN"|"BESCHAEDIGT"|"VERDERB"|"RUECKWEISUNG_KUNDE"|"SONSTIGES"; notiz?: string; }): Promise<any> {
+  return apiFetch<any>(`/api/charges/${chargeId}/muell`, { method: "POST", body: JSON.stringify(data) });
+}
+
+export async function deleteChargeApi(id: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(`/api/charges/${id}`, { method: "DELETE" });
+}
+
+/* ----------------------------------- Bestand ---------------------------------- */
+export async function getBestandUebersichtApi(params?: {
+  artikelId?: string; chargeId?: string; lagerbereich?: "TK"|"NON_TK"; datum?: string; q?: string; kritisch?: boolean; thresholdDays?: number; page?: number; limit?: number;
+}): Promise<BestandUebersichtResponse> {
+  const q = toQuery(params as any);
+  return apiFetch<BestandUebersichtResponse>(`/api/bestand/uebersicht${q}`);
+}
+
+export async function getBestandChargeViewApi(chargeId: string): Promise<ChargeViewResponse> {
+  return apiFetch<ChargeViewResponse>(`/api/bestand/charge/${chargeId}`);
+}
+
+export async function getBestandZeitreiseApi(params: { datum: string; artikelId?: string; chargeId?: string; }): Promise<{ items: any[] }> {
+  const q = toQuery(params as any);
+  return apiFetch<{ items: any[] }>(`/api/bestand/zeitreise${q}`);
+}
+
+/**
+ * Manueller Zugang (ohne Wareneingang): Bestand positiv korrigieren oder neue Charge on-the-fly anlegen
+ * POST /api/bestand/manuell-zugang
+ */
+export async function addManuellerZugangApi(data: {
+  artikelId: string;
+  menge: number; // > 0
+  lagerbereich: "TK" | "NON_TK";
+  notiz?: string;
+  chargeId?: string; // existierende Charge nutzen
+  createNewCharge?: { // neue Charge anlegen
+    mhd: string; // YYYY-MM-DD
+    isTK: boolean;
+    schlachtDatum?: string; // YYYY-MM-DD
+    lieferantId?: string;
+  };
+}): Promise<{ bewegung: any; chargeId: string }> {
+  return apiFetch<{ bewegung: any; chargeId: string }>(`/api/bestand/manuell-zugang`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+/* ----------------------------------- Historie --------------------------------- */
+export async function listHistorie(params?: {
+  from?: string; to?: string; typ?: string; artikelId?: string; chargeId?: string; auftragId?: string; lagerbereich?: "TK"|"NON_TK"; q?: string; page?: number; limit?: number;
+}): Promise<{ items: any[]; total: number; page: number; limit: number }> {
+  const q = toQuery(params as any);
+  return apiFetch(`/api/historie${q}`);
+}
+
+export async function getBewegungByIdApi(id: string): Promise<any> {
+  return apiFetch<any>(`/api/historie/${id}`);
+}
+
+export async function exportHistorieCsv(params?: {
+  from?: string; to?: string; typ?: string; artikelId?: string; chargeId?: string; auftragId?: string; lagerbereich?: "TK"|"NON_TK"; q?: string; filename?: string;
+}): Promise<Blob> {
+  const q = toQuery(params as any);
+  const token = localStorage.getItem("token");
+  const res = await fetch(`${API_URL}/api/historie/export.csv${q}` , {
+    method: "GET",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (!res.ok) throw new Error(`Export fehlgeschlagen: ${res.statusText}`);
+  return res.blob();
+}
+
+/* ------------------------------------ Müll ------------------------------------ */
+export async function listMuellApi(params?: { from?: string; to?: string; artikelId?: string; chargeId?: string; q?: string; page?: number; limit?: number; }): Promise<{ items: any[]; total: number; page: number; limit: number }> {
+  const q = toQuery(params as any);
+  return apiFetch(`/api/muell${q}`);
+}
+
+export async function bookMuellApi(data: { artikelId: string; chargeId: string; menge: number; lagerbereich: "TK"|"NON_TK"; grund: string; notiz?: string; }): Promise<any> {
+  return apiFetch<any>(`/api/muell`, { method: "POST", body: JSON.stringify(data) });
+}
+
+export async function undoMuellApi(bewegungId: string, begruendung?: string): Promise<any> {
+  return apiFetch<any>(`/api/muell/${bewegungId}/undo`, { method: "POST", body: JSON.stringify({ begruendung }) });
+}
+
+/* -------------------------------- Reservierungen ------------------------------- */
+export async function createReservierungApi(data: { artikelId: string; auftragId: string; lieferDatum: string; menge: number; }): Promise<any> {
+  return apiFetch<any>(`/api/reservierungen`, { method: "POST", body: JSON.stringify(data) });
+}
+
+export async function listReservierungenApi(params?: { artikelId?: string; auftragId?: string; status?: "AKTIV"|"ERFUELLT"|"AUFGELOEST"; from?: string; to?: string; q?: string; page?: number; limit?: number; }): Promise<{ items: any[]; total: number; page: number; limit: number }> {
+  // Service nutzt lieferDatumFrom/To – Route akzeptiert from/to, der Server mappt bereits; hier belassen wir from/to
+  const q = toQuery(params as any);
+  return apiFetch(`/api/reservierungen${q}`);
+}
+
+export async function getReservierungByIdApi(id: string): Promise<any> {
+  return apiFetch<any>(`/api/reservierungen/${id}`);
+}
+
+export async function updateReservierungApi(id: string, data: Partial<{ menge: number; lieferDatum: string; status: "AKTIV"|"ERFUELLT"|"AUFGELOEST" }>): Promise<any> {
+  return apiFetch<any>(`/api/reservierungen/${id}`, { method: "PUT", body: JSON.stringify(data) });
+}
+
+export async function cancelReservierungApi(id: string): Promise<any> {
+  return apiFetch<any>(`/api/reservierungen/${id}/cancel`, { method: "POST" });
+}
+
+/* ----------------------------------- Warnungen -------------------------------- */
+export async function getMhdWarnungenApi(params?: { thresholdDays?: number; onlyCritical?: boolean; artikelId?: string; page?: number; limit?: number; }): Promise<{ items: any[]; total: number; page: number; limit: number }> {
+  const q = toQuery(params as any);
+  return apiFetch(`/api/warnungen/mhd${q}`);
+}
+
+export async function getUeberreserviertWarnungenApi(params?: { bisDatum?: string; artikelId?: string; }): Promise<{ items: any[]; total: number }> {
+  const q = toQuery(params as any);
+  return apiFetch(`/api/warnungen/ueberreserviert${q}`);
+}
+
+export async function getTkMismatchWarnungenApi(params?: { from?: string; to?: string; artikelId?: string; page?: number; limit?: number; }): Promise<{ items: any[]; total: number; page: number; limit: number }> {
+  const q = toQuery(params as any);
+  return apiFetch(`/api/warnungen/tk-mismatch${q}`);
+}
+
+export async function getWarnungenSummaryApi(params?: { thresholdDays?: number; bisDatum?: string; }): Promise<{ mhd: { total: number; critical: number }; ueberreserviert: { total: number }; tkMismatch: { total: number } }> {
+  const q = toQuery(params as any);
+  return apiFetch(`/api/warnungen/summary${q}`);
+}
+
+/**
+ * POST /api/beleg/batch/pdf
+ * Body: { auftragIds: string[], belegTyp: "lieferschein"|"rechnung"|"gutschrift"|"preisdifferenz" }
+ * Response: { files: { auftragId, filename, dataBase64, mime }[] }
+ *
+ * Liefert **einzelne** PDFs (nicht gemerged) als Browser-Blob pro Auftrag.
+ */
+export async function generateBelegeBatchPdfs(
+  auftragIds: string[],
+  typ: "lieferschein" | "rechnung" | "gutschrift" | "preisdifferenz"
+): Promise<BatchBelegFile[]> {
+  const res = await fetch(`${API_URL}/api/beleg/batch/pdf`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
+    },
+    body: JSON.stringify({ auftragIds, belegTyp: typ }),
+  });
+  if (!res.ok) throw new Error(`Fehler beim Batch-PDF-Generieren: ${res.statusText}`);
+  const json = await res.json();
+  const files = Array.isArray(json?.files) ? json.files : [];
+
+  // Helper: Base64 → Blob
+  const base64ToBlob = (b64: string, mime = "application/pdf"): Blob => {
+    const byteStr = atob(b64);
+    const len = byteStr.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) bytes[i] = byteStr.charCodeAt(i);
+    return new Blob([bytes], { type: mime });
+  };
+
+  const result: BatchBelegFile[] = files.map((f: any) => ({
+    auftragId: String(f.auftragId || ""),
+    filename: String(f.filename || "beleg.pdf"),
+    blob: base64ToBlob(String(f.dataBase64 || ""), String(f.mime || "application/pdf")),
+  }));
+  return result;
+}
+
 export async function addBeleg(
   auftragId: string,
   beleg: any
@@ -1188,10 +1401,45 @@ export const api = {
   deleteAllTourStops,
   reorderTourStops,
   moveTourStop,
-    // Beleg
+  // Beleg
   generateBelegPdf,
+  generateBelegeBatchPdfs,
   addBeleg,
   logBelegEmail,
   getBelege,
   getBelegEmailLogs,
+  // Charges
+  listCharges,
+  getChargeByIdApi,
+  getChargeViewApi,
+  createChargeApi,
+  updateChargeApi,
+  mergeChargeApi,
+  umbuchenChargeApi,
+  muellChargeApi,
+  deleteChargeApi,
+  // Bestand
+  getBestandUebersichtApi,
+  getBestandChargeViewApi,
+  getBestandZeitreiseApi,
+  addManuellerZugangApi,
+  // Historie
+  listHistorie,
+  getBewegungByIdApi,
+  exportHistorieCsv,
+  // Müll
+  listMuellApi,
+  bookMuellApi,
+  undoMuellApi,
+  // Reservierungen
+  createReservierungApi,
+  listReservierungenApi,
+  getReservierungByIdApi,
+  updateReservierungApi,
+  cancelReservierungApi,
+  // Warnungen
+  getMhdWarnungenApi,
+  getUeberreserviertWarnungenApi,
+  getTkMismatchWarnungenApi,
+  getWarnungenSummaryApi,
 };
