@@ -1149,6 +1149,28 @@ export async function addManuellerZugangApi(data: {
   });
 }
 
+/**
+ * DELETE /api/bestand/charge/:id/komplett
+ * Löscht eine Charge inkl. Bewegungen, Reservierungen und Aggregationen (transaktional)
+ */
+export async function deleteBestandChargeKomplettApi(id: string): Promise<{
+  success: boolean;
+  deleted: { reservierungen: number; bewegungen: number; agg: number; charge: number };
+}> {
+  return apiFetch(`/api/bestand/charge/${id}/komplett`, { method: "DELETE" });
+}
+
+/**
+ * DELETE /api/bestand/artikel/:id/komplett
+ * Löscht alle Bestände/Charges eines Artikels inkl. zugehöriger Daten
+ */
+export async function deleteBestandByArtikelKomplettApi(id: string): Promise<{
+  success: boolean;
+  deleted: { reservierungen: number; bewegungen: number; agg: number; charges: number };
+}> {
+  return apiFetch(`/api/bestand/artikel/${id}/komplett`, { method: "DELETE" });
+}
+
 /* ----------------------------------- Historie --------------------------------- */
 export async function listHistorie(params?: {
   from?: string; to?: string; typ?: string; artikelId?: string; chargeId?: string; auftragId?: string; lagerbereich?: "TK"|"NON_TK"; q?: string; page?: number; limit?: number;
@@ -1423,6 +1445,8 @@ export const api = {
   getBestandChargeViewApi,
   getBestandZeitreiseApi,
   addManuellerZugangApi,
+  deleteBestandChargeKomplettApi,
+  deleteBestandByArtikelKomplettApi,
   // Historie
   listHistorie,
   getBewegungByIdApi,

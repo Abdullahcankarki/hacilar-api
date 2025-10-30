@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Modal, Offcanvas } from "bootstrap";
+import { Modal, Offcanvas, Dropdown } from "bootstrap";
 import {
     api,
     type ChargeViewResponse,
@@ -307,17 +307,6 @@ export default function InventoryDashboard() {
                         <i className="ci-filter me-1" /> Filter
                     </button>
                     <button
-                        className="btn btn-primary"
-                        onClick={() => {
-                            setFormCharge({ artikelId: "", mhd: "", isTK: false });
-                            if (createModalRef.current) {
-                                Modal.getOrCreateInstance(createModalRef.current).show();
-                            }
-                        }}
-                    >
-                        <i className="ci-plus me-1" /> Charge anlegen
-                    </button>
-                    <button
                         className="btn btn-outline-primary"
                         onClick={() => {
                             setManZugangForm({ artikelId: "", menge: "", lagerbereich: "NON_TK", modus: "EXISTING" });
@@ -589,7 +578,7 @@ export default function InventoryDashboard() {
                                                 <td className="text-end">{fmt(row.reserviert)}</td>
                                                 <td className="text-end">{fmt(row.unterwegs)}</td>
                                                 <td className="text-end">
-                                                    <div className="btn-group dropdown position-static">
+                                                    <div className="btn-group dropdown">
                                                         <button
                                                             className="btn btn-sm btn-outline-primary"
                                                             onClick={() => openChargeView(row.chargeId)}
@@ -600,8 +589,15 @@ export default function InventoryDashboard() {
                                                             type="button"
                                                             className="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
                                                             data-bs-toggle="dropdown"
-                                                            data-bs-display="static"
+                                                            data-bs-boundary="viewport"
+                                                            data-bs-offset="0,8"
                                                             aria-expanded="false"
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                const btn = e.currentTarget as HTMLButtonElement;
+                                                                Dropdown.getOrCreateInstance(btn).toggle();
+                                                            }}
                                                         >
                                                             <span className="visually-hidden">Toggle Dropdown</span>
                                                         </button>
@@ -747,13 +743,6 @@ export default function InventoryDashboard() {
                                     value={histTo}
                                     onChange={(e) => setHistTo(e.target.value)}
                                 />
-                                <button
-                                    className="btn btn-sm btn-outline-secondary"
-                                    onClick={exportHistorieCsv}
-                                    title="CSV Export"
-                                >
-                                    <i className="ci-download" />
-                                </button>
                             </div>
                         </div>
                         <div className="card-body p-0">
@@ -1176,7 +1165,7 @@ export default function InventoryDashboard() {
                                     try {
                                         if (!formCharge.id) return;
                                         setSaving(true);
-                                        await deleteChargeApi(formCharge.id);
+                                        await api.deleteBestandChargeKomplettApi(formCharge.id);
                                         if (deleteModalRef.current) {
                                             Modal.getOrCreateInstance(deleteModalRef.current).hide();
                                         }
