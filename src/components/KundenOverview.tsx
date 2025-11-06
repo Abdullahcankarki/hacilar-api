@@ -58,6 +58,7 @@ const CreateKundeModal: React.FC<{
   const [region, setRegion] = useState("");
   const [telefon, setTelefon] = useState("");
   const [adresse, setAdresse] = useState("");
+  const [kategorie, setKategorie] = useState("");
   const [error, setError] = useState<string>("");
 
   async function handleSubmit(e: React.FormEvent) {
@@ -71,6 +72,7 @@ const CreateKundeModal: React.FC<{
         region: region.trim() || undefined,
         telefon: telefon.trim() || undefined,
         adresse: adresse.trim() || undefined,
+        kategorie: kategorie.trim() || undefined,
       };
       const created = await createKunde(payload as any);
       onSaved(created);
@@ -115,6 +117,10 @@ const CreateKundeModal: React.FC<{
                   <label className="form-label">Adresse</label>
                   <input className="form-control" value={adresse} onChange={(e) => setAdresse(e.target.value)} />
                 </div>
+                <div className="col-md-6">
+                  <label className="form-label">Kategorie</label>
+                  <input className="form-control" value={kategorie} onChange={(e) => setKategorie(e.target.value)} />
+                </div>
               </div>
               <div className="modal-footer mt-3">
                 <button type="button" className="btn btn-secondary" onClick={onCancel}>Abbrechen</button>
@@ -144,12 +150,21 @@ const EditKundeModal: React.FC<{
   const [telefon, setTelefon] = useState(initial.telefon || "");
   const [adresse, setAdresse] = useState(initial.adresse || "");
   const [error, setError] = useState<string>("");
+  const [kategorie, setKategorie] = useState(initial.kategorie || "");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true); setError("");
     try {
-      const payload: Partial<KundeResource> = { name: name.trim(), email: email.trim(), kundenNummer: kundenNummer.trim(), region: region.trim(), telefon: telefon.trim(), adresse: adresse.trim() };
+      const payload: Partial<KundeResource> = {
+        name: name.trim(),
+        email: email.trim(),
+        kundenNummer: kundenNummer.trim(),
+        region: region.trim(),
+        telefon: telefon.trim(),
+        adresse: adresse.trim(),
+        kategorie: kategorie.trim(),
+      };
       const updated = await updateKunde(initial.id!, payload);
       onSaved(updated);
     } catch (err: any) {
@@ -193,6 +208,10 @@ const EditKundeModal: React.FC<{
                   <label className="form-label">Adresse</label>
                   <input className="form-control" value={adresse} onChange={(e) => setAdresse(e.target.value)} />
                 </div>
+                <div className="col-md-6">
+                  <label className="form-label">Kategorie</label>
+                  <input className="form-control" value={kategorie} onChange={(e) => setKategorie(e.target.value)} />
+                </div>
               </div>
               <div className="modal-footer mt-3">
                 <button type="button" className="btn btn-secondary" onClick={onCancel}>Abbrechen</button>
@@ -225,6 +244,7 @@ const KundenOverview: React.FC = () => {
   const [search, setSearch] = useState("");
   const dSearch = useDebounced(search, 350);
   const [region, setRegion] = useState("");
+  const [kategorie, setKategorie] = useState("");
   const [isApproved, setIsApproved] = useState<"all" | "1" | "0">("all");
   const [sortBy, setSortBy] = useState<string>("-createdAt");
 
@@ -252,6 +272,7 @@ const KundenOverview: React.FC = () => {
         page, limit,
         search: dSearch || undefined,
         region: region.trim() || undefined,
+        kategorie: kategorie.trim() || undefined,
         isApproved: isApproved === "all" ? undefined : isApproved === "1",
         sortBy,
       });
@@ -264,7 +285,7 @@ const KundenOverview: React.FC = () => {
     }
   }
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [dSearch, region, isApproved, page, limit, sortBy]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [dSearch, region, kategorie, isApproved, page, limit, sortBy]);
 
   /* ----------- Delete Flow ----------- */
   function requestDelete(item: KundeResource) {
@@ -298,6 +319,12 @@ const KundenOverview: React.FC = () => {
     return Array.from(s).sort((a, b) => a.localeCompare(b));
   }, [items]);
 
+  const kategorieOptions = useMemo(() => {
+    const s = new Set<string>();
+    items.forEach((k) => k.kategorie && s.add(k.kategorie));
+    return Array.from(s).sort((a, b) => a.localeCompare(b));
+  }, [items]);
+
   return (
     <div className="container py-4">
       {/* Header */}
@@ -321,11 +348,11 @@ const KundenOverview: React.FC = () => {
         <div className="card-body">
           <div className="row g-3">
             <div className="col-md-4">
-              <label className="form-label">Suche (Name / E‑Mail / Kundennummer)</label>
+              <label className="form-label">Suche</label>
               <div className="position-relative">
                 <input
                   className="form-control"
-                  placeholder="z. B. Müller, 10023…"
+                  placeholder="z. B. Müller, 10023, Gastro…"
                   value={search}
                   onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                 />
@@ -335,7 +362,7 @@ const KundenOverview: React.FC = () => {
               </div>
             </div>
 
-            <div className="col-md-3">
+            <div className="col-md-2">
               <label className="form-label">Region</label>
               <select
                 className="form-select"
@@ -347,7 +374,19 @@ const KundenOverview: React.FC = () => {
               </select>
             </div>
 
-            <div className="col-md-3">
+            <div className="col-md-2">
+              <label className="form-label">Kategorie</label>
+              <select
+                className="form-select"
+                value={kategorie}
+                onChange={(e) => { setKategorie(e.target.value); setPage(1); }}
+              >
+                <option value="">Alle Kategorien</option>
+                {kategorieOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+              </select>
+            </div>
+
+            <div className="col-md-2">
               <label className="form-label">Status</label>
               <select
                 className="form-select"
@@ -374,6 +413,8 @@ const KundenOverview: React.FC = () => {
                 <option value="-name">Name Z–A</option>
                 <option value="region">Region A–Z</option>
                 <option value="-region">Region Z–A</option>
+                <option value="kategorie">Kategorie A–Z</option>
+                <option value="-kategorie">Kategorie Z–A</option>
               </select>
             </div>
           </div>
@@ -391,6 +432,7 @@ const KundenOverview: React.FC = () => {
                 <th>E‑Mail</th>
                 <th>Kundennr.</th>
                 <th>Region</th>
+                <th>Kategorie</th>
                 <th>Status</th>
                 <th style={{ width: 200 }}></th>
               </tr>
@@ -433,6 +475,7 @@ const KundenOverview: React.FC = () => {
                   <td>{k.email || <span className="text-muted">—</span>}</td>
                   <td>{k.kundenNummer || <span className="text-muted">—</span>}</td>
                   <td>{k.region || <span className="text-muted">—</span>}</td>
+                  <td>{k.kategorie || <span className="text-muted">—</span>}</td>
                   <td>
                     {k.isApproved
                       ? <span className="badge bg-success">freigeschaltet</span>

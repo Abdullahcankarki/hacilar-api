@@ -8,6 +8,7 @@ import {
     generateBelegeBatchPdfs
 } from "../backend/api";
 import { AuftragResource, MitarbeiterResource, KundeResource } from "../Resources";
+import BestellteArtikelModal from "./bestellteArtikelModal";
 
 /** Small helpers */
 const cls = (...xs: (string | false | undefined)[]) => xs.filter(Boolean).join(" ");
@@ -16,7 +17,7 @@ const formatDate = (iso?: string) =>
 
 type Status = "offen" | "in Bearbeitung" | "abgeschlossen" | "storniert";
 type KomStatus = "offen" | "gestartet" | "fertig";
-type KontrollStatus = "offen" | "geprüft";
+type KontrollStatus = "offen" | "in Kontrolle" | "geprüft";
 
 const STATUS_BADGE: Record<Status, string> = {
     offen: "bg-secondary",
@@ -33,6 +34,7 @@ const K_STATUS_BADGE: Record<KomStatus, string> = {
 
 const KO_STATUS_BADGE: Record<KontrollStatus, string> = {
     offen: "bg-secondary",
+    "in Kontrolle": "bg-info",
     geprüft: "bg-success",
 };
 
@@ -75,6 +77,8 @@ export default function AuftraegeOverview() {
     // Kunden-Auswahl
     const [kunden, setKunden] = useState<KundeResource[]>([]);
     const [ausgewaehlterKunde, setAusgewaehlterKunde] = useState<string>('');
+
+    const [showBestellteModal, setShowBestellteModal] = useState(false);
     // halte den API-Filter `kunde` in sync mit der gespeicherten Auswahl
     useEffect(() => {
         if (ausgewaehlterKunde) {
@@ -288,6 +292,16 @@ export default function AuftraegeOverview() {
                             <i className="ci-filter me-2" /> Filter
                         </button>
                     </div>
+                    <button
+                        type="button"
+                        className="btn btn-dark d-flex align-items-center"
+                        title="Bestellte Artikel anzeigen"
+                        aria-label="Bestellte Artikel anzeigen"
+                        onClick={() => setShowBestellteModal(true)}
+                    >
+                        <i className="ci-check-square me-2" />
+                        Bestellte Artikel
+                    </button>
                     <div className="btn-group btn-group-sm order-2 flex-shrink-0 mt-2 mt-lg-0">
                         <button
                             className={cls("btn btn-outline-secondary", limit === undefined && "active")}
@@ -319,11 +333,11 @@ export default function AuftraegeOverview() {
                         ) : (
                             <>
                                 <button
-                                  className="btn btn-primary"
-                                  onClick={handleBatchPrint}
-                                  title="Ausgewählte drucken"
+                                    className="btn btn-primary"
+                                    onClick={handleBatchPrint}
+                                    title="Ausgewählte drucken"
                                 >
-                                  <i className="ci-download me-2" /> Ausgewählte drucken (Rechnung)
+                                    <i className="ci-download me-2" /> Ausgewählte drucken (Rechnung)
                                 </button>
                                 <div className="form-check ms-2">
                                     <input
@@ -755,7 +769,7 @@ export default function AuftraegeOverview() {
                                                     <div className="fw-medium">{a.kundeName || "—"}</div>
                                                 </div>
                                                 {a.gesamtPaletten ? (
-                                                    <span className="badge bg-outline-secondary border ms-2">
+                                                    <span className="badge bg-white text-secondary border border-secondary ms-2">
                                                         {a.gesamtPaletten} Pal.
                                                     </span>
                                                 ) : null}
@@ -817,6 +831,11 @@ export default function AuftraegeOverview() {
                     )}
                 </div>
             </div>
+
+            <BestellteArtikelModal
+                isOpen={showBestellteModal}
+                onClose={() => setShowBestellteModal(false)}
+            />
         </div>
     );
 }

@@ -7,7 +7,6 @@ import {
     // Charges
     createChargeApi,
     updateChargeApi,
-    deleteChargeApi,
     getAllArtikel,
     muellChargeApi,
     umbuchenChargeApi,

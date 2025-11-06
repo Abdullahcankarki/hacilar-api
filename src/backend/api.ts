@@ -201,6 +201,7 @@ export async function getAllKunden(params?: {
   limit?: number;
   search?: string;
   region?: string;
+  kategorie?: string;
   isApproved?: boolean;
   sortBy?: string; // e.g. "name" or "-createdAt"
 }): Promise<{ items: KundeResource[]; total: number; page: number; limit: number }> {
@@ -441,6 +442,56 @@ export async function deleteKundenpreis(
 }
 
 /* Auftrag-Funktionen */
+// ---- Aggregierte bestellte Artikel (Frontend) ----
+export type BestellteArtikelGroupBy = "artikel" | "artikelKunde" | "artikelKundeTag";
+export type BestellteArtikelSort =
+  | "mengeDesc" | "mengeAsc"
+  | "preisDesc" | "preisAsc"
+  | "artikelNameAsc" | "artikelNameDesc"
+  | "kundeNameAsc" | "kundeNameDesc"
+  | "lieferdatumAsc" | "lieferdatumDesc";
+
+export type GetBestellteArtikelParams = {
+  lieferdatumVon?: string; // YYYY-MM-DD
+  lieferdatumBis?: string; // YYYY-MM-DD
+  kundenKategorie?: string;
+  kundenRegion?: string;
+  artikelNr?: string;
+  artikelName?: string;
+  statusIn?: Array<"offen" | "in Bearbeitung" | "abgeschlossen" | "storniert">;
+  groupBy?: BestellteArtikelGroupBy;
+  sort?: BestellteArtikelSort;
+  debug?: boolean; // optional: aktiviert Server-Logs
+};
+
+export type BestellteArtikelAggRow = {
+  artikelId: string;
+  artikelName?: string;
+  artikelNummer?: string;
+  mengeSum: number;
+  einheit?: string;
+};
+
+/**
+ * GET /api/auftrag/bestellte-artikel
+ * Query: lieferdatumVon, lieferdatumBis, kundenKategorie, kundenRegion, artikelNr, artikelName, statusIn, groupBy, sort, debug
+ * Aggregierte Sicht je nach groupBy. Keine Pagination.
+ */
+export async function getBestellteArtikelAggregiertApi(params?: GetBestellteArtikelParams): Promise<BestellteArtikelAggRow[]> {
+  const q = toQueryArtikel({
+    lieferdatumVon: params?.lieferdatumVon,
+    lieferdatumBis: params?.lieferdatumBis,
+    kundenKategorie: params?.kundenKategorie,
+    kundenRegion: params?.kundenRegion,
+    artikelNr: params?.artikelNr,
+    artikelName: params?.artikelName,
+    statusIn: params?.statusIn, // toQueryArtikel serialisiert Arrays als Komma-Liste
+    groupBy: params?.groupBy,
+    sort: params?.sort,
+    debug: params?.debug,
+  });
+  return apiFetch<BestellteArtikelAggRow[]>(`/api/auftrag/bestellte-artikel${q}`);
+}
 export async function getAllAuftraege(params?: {
   page?: number;
   limit?: number;
@@ -1364,6 +1415,7 @@ export const api = {
   updateAuftrag,
   setAuftragInBearbeitung,
   deleteAuftrag,
+  getBestellteArtikelAggregiertApi,
   // Zerlegeauftrag
   getAllZerlegeauftraege,
   getZerlegeauftragById,
