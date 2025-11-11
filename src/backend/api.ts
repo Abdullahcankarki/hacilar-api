@@ -361,11 +361,24 @@ export async function getAllArtikel(params?: {
   }>(`${base}${q}`);
 }
 
+
 export async function getArtikelByIdClean(
   id: string
 ): Promise<ArtikelResource> {
   const url = `/api/artikel/clean/${id}`;
   return apiFetch<ArtikelResource>(url);
+}
+
+/**
+ * GET /api/artikel/:id/analytics
+ * Gibt detaillierte Analysen zu einem Artikel (Zeitraum + Kunden, Preise, Mengen, etc.)
+ */
+export async function getArtikelAnalyticsApi(
+  artikelId: string,
+  params: { from: string; to: string; granularity?: 'day' | 'week' | 'month'; topCustomersLimit?: number; recentOrdersLimit?: number }
+): Promise<any> {
+  const q = toQueryArtikel(params);
+  return apiFetch(`/api/artikel/${artikelId}/analytics${q}`);
 }
 
 export async function createArtikel(
@@ -438,6 +451,126 @@ export async function deleteKundenpreis(
 ): Promise<{ message: string }> {
   return apiFetch<{ message: string }>(`/api/kundenpreis/${id}`, {
     method: "DELETE",
+  });
+}
+
+/**
+ * GET /api/kundenpreis/customer/:customerId
+ * Liefert eine kundenzentrierte Übersicht der Artikel mit Basispreis, Aufpreis und Effektivpreis.
+ */
+export async function getKundenpreiseByCustomer(
+  customerId: string,
+  params?: {
+    q?: string;
+    sort?: 'artikelNummer' | 'artikelName' | 'basispreis' | 'aufpreis' | 'effektivpreis';
+    order?: 'asc' | 'desc';
+    page?: number;
+    limit?: number;
+    includeAllArticles?: boolean;
+  }
+): Promise<Array<{
+  id: string;
+  artikel: string;
+  artikelNummer?: string;
+  artikelName?: string;
+  einheit?: string;
+  basispreis: number;
+  aufpreis: number;
+  effektivpreis: number;
+}>> {
+  const q = toQuery(params);
+  return apiFetch(`/api/kundenpreis/customer/${customerId}${q}`);
+}
+
+/**
+ * GET /api/kundenpreis/artikel/:artikelId/overview
+ * Liefert eine artikelzentrierte Übersicht der Kunden mit Basispreis, Aufpreis und Effektivpreis.
+ */
+export async function getKundenpreiseArtikelOverview(
+  artikelId: string,
+  params?: {
+    q?: string; // Suche über Kundenname/Kundennummer
+    sort?: 'kundeName' | 'kundennummer' | 'kategorie' | 'region' | 'basispreis' | 'aufpreis' | 'effektivpreis';
+    order?: 'asc' | 'desc';
+    page?: number;
+    limit?: number;
+    includeAllCustomers?: boolean;
+  }
+): Promise<Array<{
+  id: string;          // KundenPreis-ID oder 'default'
+  customer: string;    // Kunden-ID
+  kundeName?: string;
+  kundennummer?: string;
+  kategorie?: string;
+  region?: string;
+  basispreis: number;
+  aufpreis: number;
+  effektivpreis: number;
+}>> {
+  const q = toQuery(params);
+  return apiFetch(`/api/kundenpreis/artikel/${artikelId}/overview${q}`);
+}
+
+/**
+ * POST /api/kundenpreis/customer/:customerId/bulk
+ * Massenbearbeitung von Kundenpreisen nach Auswahl (Artikel, Kategorie, Artikelnummer-Spanne, etc.)
+ * Aktion: 'set' | 'add' | 'sub' → Aufpreis setzen, addieren oder subtrahieren.
+ */
+export async function bulkEditKundenpreiseByCustomer(
+  customerId: string,
+  data: {
+    selection: {
+      artikelIds?: string[];
+      artikelNummerFrom?: string;
+      artikelNummerTo?: string;
+      artikelKategorie?: string;
+    };
+    action: {
+      mode: 'set' | 'add' | 'sub';
+      value: number;
+    };
+  }
+): Promise<Array<{
+  id: string;
+  artikel: string;
+  customer: string;
+  aufpreis: number;
+}>> {
+  return apiFetch(`/api/kundenpreis/customer/${customerId}/bulk`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * POST /api/kundenpreis/artikel/:artikelId/bulk
+ * Massenbearbeitung von Kundenpreisen nach Auswahl (Kunden, Kategorie, Region, Kundennummer-Spanne, etc.)
+ * Aktion: 'set' | 'add' | 'sub' → Aufpreis setzen, addieren oder subtrahieren.
+ */
+export async function bulkEditKundenpreiseByArtikel(
+  artikelId: string,
+  data: {
+    selection: {
+      customerIds?: string[];
+      kundennummerFrom?: string;
+      kundennummerTo?: string;
+      kundenKategorie?: string;
+      region?: string;
+    };
+    action: {
+      mode: 'set' | 'add' | 'sub';
+      value: number;
+    };
+  }
+): Promise<Array<{
+  id: string;
+  artikel: string;
+  customer: string;
+  aufpreis: number;
+}>> {
+  return apiFetch(`/api/kundenpreis/artikel/${artikelId}/bulk`, {
+    method: 'POST',
+    body: JSON.stringify(data),
   });
 }
 
@@ -1392,6 +1525,7 @@ export const api = {
   getArtikelById,
   getAllArtikelClean,
   getArtikelByIdClean,
+  getArtikelAnalyticsApi,
   createArtikel,
   updateArtikel,
   deleteArtikel,
@@ -1402,6 +1536,10 @@ export const api = {
   createKundenpreis,
   deleteKundenpreis,
   createMassKundenpreis,
+  getKundenpreiseByCustomer,
+  getKundenpreiseArtikelOverview,
+  bulkEditKundenpreiseByCustomer,
+  bulkEditKundenpreiseByArtikel,
   // Auftrag
   getAllAuftraege,
   getAuftragById,

@@ -446,6 +446,7 @@ export default function ArtikelOverviewAdmin() {
             <option value={24}>24</option>
             <option value={48}>48</option>
             <option value={96}>96</option>
+            <option value={1000}>1000</option>
           </select>
         </div>
       </div>
@@ -494,14 +495,14 @@ export default function ArtikelOverviewAdmin() {
                   </div>
                   <div className="text-muted small mb-2">#{a.artikelNummer} • {a.kategorie || "—"} • {a.erfassungsModus || "GEWICHT"}</div>
                   <div className="mt-auto d-flex gap-2">
-                    <button className="btn btn-sm btn-outline-secondary w-100" onClick={() => setEditItem(a)}>
-                      <i className="ci-edit me-1" /> Bearbeiten
+                    <button className="btn btn-sm btn-outline-primary" onClick={() => navigate(`/artikel/${a.id}`)} title="Details">
+                      Details
                     </button>
-                    <button className="btn btn-warning" onClick={() => navigate(`/kundenaufpreise/${a.id}`)}>
-                      <i className="ci-dollar-sign"></i>
+                    <button className="btn btn-sm btn-outline-secondary" onClick={() => setEditItem(a)} title="Bearbeiten">
+                      <i className="ci-edit me-1"/>
                     </button>
                     <button className="btn btn-sm btn-outline-danger" onClick={() => setDelItem(a)} title="Löschen">
-                      <i className="ci-trash" />
+                      <i className="ci-trash"/>
                     </button>
                   </div>
                 </div>
