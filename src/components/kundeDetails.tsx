@@ -1,8 +1,12 @@
 // KundeDetail.tsx – Redesigned (Cartzilla/Bootstrap High-Quality)
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Tooltip, Legend } from 'chart.js';
+import { Line, Bar, Pie, Chart } from 'react-chartjs-2';
 import { KundeResource, AuftragResource } from '../Resources';
 import { getKundeById, apiFetch, api } from '../backend/api';
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Tooltip, Legend);
+
 
 // ---------- UI Helpers ----------
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
@@ -17,6 +21,39 @@ const InfoRow: React.FC<{ label: string; value?: React.ReactNode }> = ({ label, 
     <p className="mb-0 fw-medium">{value ?? '—'}</p>
   </div>
 );
+
+// --- Dashboard helpers ---
+const numberDE = (n: number, digits = 2) => n.toLocaleString('de-DE', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+const formatWeekLabel = (iso: string) => {
+  const d = new Date(iso);
+  // Simple KW display
+  const firstThursday = new Date(d.getFullYear(), 0, 4);
+  const dayOfYear = Math.floor((d.getTime() - new Date(d.getFullYear(),0,1).getTime()) / 86400000) + 1;
+  const week = Math.floor((dayOfYear + ((firstThursday.getDay()+6)%7) - 1) / 7) + 1;
+  return `${d.getFullYear()} · KW ${week}`;
+};
+
+// ---- Chart Color Utilities (Bootstrap-inspired palette)
+const HEX = [
+  '#0d6efd', // primary
+  '#198754', // success
+  '#dc3545', // danger
+  '#fd7e14', // orange
+  '#6f42c1', // purple
+  '#20c997', // teal
+  '#6610f2', // indigo
+  '#0dcaf0', // info
+  '#6c757d', // secondary
+  '#ffc107', // warning
+];
+const hexToRgba = (hex: string, a = 0.25) => {
+  const m = hex.replace('#','');
+  const bigint = parseInt(m, 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+};
 
 
 // Confirm Modal (no window.confirm)
@@ -309,7 +346,7 @@ const KundeDetail: React.FC = () => {
   const [error, setError] = useState<string>('');
 
   // UI states
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'prices'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'dashboard' | 'orders' | 'prices'>('overview');
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmBusy, setConfirmBusy] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -394,6 +431,204 @@ const KundeDetail: React.FC = () => {
     };
     load();
   }, [id]);
+
+  // ---- Dashboard (Kunde Analytics) ----
+  type KundeAnalytics = {
+    totals: { totalMenge: number; totalUmsatz: number; bestellzeilen: number; artikelCount: number; avgPreisGewichtet: number | null; minPreis: number | null; maxPreis: number | null; };
+    byArtikel: Array<{ artikelId: string; artikelName?: string; artikelNummer?: string; menge: number; umsatz: number; avgPreisGewichtet: number | null; minPreis: number | null; maxPreis: number | null; bestellzeilen: number; }>;
+    priceExactByDate: Array<{ date: string; preis: number; count: number }>;
+    timeline: Array<{ date: string; menge: number; umsatz: number }>;
+    fulfillment: { bestelltMenge: number; rausMenge: number; differenz: number; rate: number | null; positionen: number; };
+    fulfillmentTimeline: Array<{ date: string; bestelltMenge: number; rausMenge: number; differenz: number }>;
+  };
+  const [from, setFrom] = useState<string>('');
+  const [to, setTo] = useState<string>('');
+  const [granularity, setGranularity] = useState<'day'|'week'|'month'>('week');
+  const [analyticsLoading, setAnalyticsLoading] = useState<boolean>(false);
+  const [analyticsError, setAnalyticsError] = useState<string>('');
+  const [analytics, setAnalytics] = useState<KundeAnalytics | null>(null);
+
+  const loadAnalytics = async () => {
+    if (!id) return;
+    setAnalyticsLoading(true);
+    setAnalyticsError('');
+    try {
+      const data = await api.getKundeAnalyticsApi(id, {
+        from: from || undefined,
+        to: to || undefined,
+        granularity,
+        topArticlesLimit: 20,
+        recentOrdersLimit: 50,
+        priceHistogramBuckets: 10,
+      });
+      setAnalytics(data);
+    } catch (err: any) {
+      setAnalyticsError(err?.message || 'Fehler beim Laden der Analytics');
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'dashboard') {
+      loadAnalytics();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, from, to, granularity, id]);
+
+  // ---- Chart builders ----
+  const buildTimelineChart = (rows: Array<{date:string; menge:number; umsatz:number}>, g: 'day'|'week'|'month') => {
+    const labels = rows.map(r => g === 'week' ? formatWeekLabel(r.date) : new Date(r.date).toLocaleDateString('de-DE'));
+    const menge = rows.map(r => Number(r.menge || 0));
+    const umsatz = rows.map(r => Number(r.umsatz || 0));
+    return {
+      data: {
+        labels,
+        datasets: [
+          {
+            type: 'bar' as const,
+            label: 'Menge (kg)',
+            data: menge,
+            borderWidth: 1,
+            borderRadius: 4,
+            order: 2,
+            backgroundColor: hexToRgba(HEX[0], 0.25),
+            borderColor: HEX[0],
+          },
+          {
+            type: 'line' as const,
+            label: 'Umsatz (€)',
+            data: umsatz,
+            borderWidth: 2,
+            tension: 0.25,
+            order: 1,
+            borderColor: HEX[1],
+            pointBackgroundColor: HEX[1],
+            pointBorderColor: HEX[1],
+            fill: false,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom' as const } },
+        scales: { y: { beginAtZero: true } }
+      }
+    };
+  };
+
+  const buildFulfillmentTimelineChart = (rows: Array<{date:string; bestelltMenge:number; rausMenge:number}>, g:'day'|'week'|'month') => {
+    const labels = rows.map(r => g === 'week' ? formatWeekLabel(r.date) : new Date(r.date).toLocaleDateString('de-DE'));
+    return {
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Bestellt (kg)',
+            data: rows.map(r => Number(r.bestelltMenge||0)),
+            borderWidth: 1,
+            borderRadius: 4,
+            backgroundColor: hexToRgba(HEX[2], 0.25),
+            borderColor: HEX[2],
+          },
+          {
+            label: 'Raus (kg)',
+            data: rows.map(r => Number(r.rausMenge||0)),
+            borderWidth: 1,
+            borderRadius: 4,
+            backgroundColor: hexToRgba(HEX[3], 0.25),
+            borderColor: HEX[3],
+          }
+        ]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' as const } }, scales: { y: { beginAtZero: true } } }
+    };
+  };
+
+  const buildTopArticlesPieChart = (rows: Array<{artikelName?:string; artikelNummer?:string; menge:number}>) => {
+    const top = rows.slice(0, 10);
+    const labels = top.map(r => r.artikelName || r.artikelNummer || '—');
+    const data = top.map(r => Number(r.menge || 0));
+    const bg = labels.map((_, i) => hexToRgba(HEX[i % HEX.length], 0.6));
+    const bd = labels.map((_, i) => HEX[i % HEX.length]);
+    return {
+      data: {
+        labels,
+        datasets: [{
+          label: 'Menge (kg)',
+          data,
+          backgroundColor: bg,
+          borderColor: bd,
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom' as const,
+            onClick: (_e: any, item: any, legend: any) => {
+              // Toggle individual pie slice visibility (Chart.js v3/v4)
+              const chart = legend.chart;
+              const index = item.index;
+              const meta = chart.getDatasetMeta(0);
+              const segment = meta.data?.[index];
+              if (segment) {
+                segment.hidden = !segment.hidden;
+                chart.update();
+              }
+            },
+            labels: {
+              generateLabels: (chart) => {
+                const ds: any = chart.data.datasets[0] || {};
+                const data: number[] = (ds.data || []) as number[];
+                const labels = chart.data.labels || [];
+                const total = data.reduce((a, b) => a + (Number(b) || 0), 0);
+                const bgs: string[] = (ds.backgroundColor || []) as string[];
+                const bds: string[] = (ds.borderColor || []) as string[];
+                const meta = chart.getDatasetMeta(0);
+                return labels.map((label: any, i: number) => {
+                  const value = Number(data[i] || 0);
+                  const pct = total ? ((value / total) * 100).toFixed(1) + '%' : '0%';
+                  const hidden = !!(meta?.data?.[i] && (meta.data[i] as any).hidden);
+                  return {
+                    text: `${label} (${pct})`,
+                    fillStyle: bgs[i % bgs.length],
+                    strokeStyle: bds[i % bds.length],
+                    lineWidth: 1,
+                    hidden,
+                    datasetIndex: 0,
+                    index: i
+                  };
+                });
+              }
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const value = ctx.parsed;
+                const total = (ctx.chart.data.datasets[0].data as number[]).reduce((a, b) => a + (Number(b) || 0), 0);
+                const pct = total ? ((value / total) * 100).toFixed(1) + '%' : '0%';
+                return `${ctx.label}: ${value.toLocaleString('de-DE')} kg (${pct})`;
+              }
+            }
+          }
+        }
+      }
+    };
+  };
+
+  const buildPriceExactByDateChart = (rows: Array<{date:string; preis:number; count:number}>, g:'day'|'week'|'month') => {
+    const labels = rows.map(r => g === 'week' ? formatWeekLabel(r.date) : new Date(r.date).toLocaleDateString('de-DE'));
+    const data = rows.map(r => Number(r.preis||0));
+    return {
+      data: { labels, datasets: [{ label: 'Preis (€)', data, borderWidth: 1, borderRadius: 4, backgroundColor: hexToRgba(HEX[4], 0.35), borderColor: HEX[4] }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' as const } }, scales: { y: { beginAtZero: true } } }
+    };
+  };
 
   const counts = useMemo(() => ({
     offen: auftraege.filter(a => a.status === 'offen').length,
@@ -530,6 +765,11 @@ const KundeDetail: React.FC = () => {
           </button>
         </li>
         <li className="nav-item" role="presentation">
+          <button className={cx('nav-link', activeTab === 'dashboard' && 'active')} onClick={() => setActiveTab('dashboard')}>
+            <i className="ci-analytics me-2" /> Dashboard
+          </button>
+        </li>
+        <li className="nav-item" role="presentation">
           <button className={cx('nav-link', activeTab === 'orders' && 'active')} onClick={() => setActiveTab('orders')}>
             <i className="ci-package me-2" /> Aufträge
             <span className="badge bg-secondary ms-2">{auftraege.length}</span>
@@ -543,6 +783,333 @@ const KundeDetail: React.FC = () => {
       </ul>
 
       <div className="tab-content pt-3">
+        {activeTab === 'dashboard' && (
+                <div className="card border-0 shadow-sm mb-3">
+                    <div className="card-body">
+                        <div className="d-flex align-items-center justify-content-between mb-3">
+                            <h6 className="mb-0"><i className="ci-analytics me-2" />Kunden-Dashboard</h6>
+                            <div className="d-flex gap-2">
+                                <button className="btn btn-sm btn-outline-secondary" onClick={loadAnalytics} disabled={analyticsLoading}>
+                                    {analyticsLoading ? <span className="spinner-border spinner-border-sm me-2" /> : <div></div>}
+                                    Aktualisieren
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Filterleiste */}
+                        <div className="row g-3 align-items-end mb-3">
+                            <div className="col-md-3">
+                                <label className="form-label small text-muted"><i className="ci-calendar me-2" />Von</label>
+                                <input type="date" className="form-control" value={from} onChange={(e) => setFrom(e.target.value)} />
+                            </div>
+                            <div className="col-md-3">
+                                <label className="form-label small text-muted"><i className="ci-calendar me-2" />Bis</label>
+                                <input type="date" className="form-control" value={to} onChange={(e) => setTo(e.target.value)} />
+                            </div>
+                            <div className="col-md-3">
+                                <label className="form-label small text-muted"><i className="ci-trending-up me-2" />Granularität</label>
+                                <select className="form-select" value={granularity} onChange={(e) => setGranularity(e.target.value as any)}>
+                                    <option value="day">Tag</option>
+                                    <option value="week">Woche</option>
+                                    <option value="month">Monat</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Quick Date Range Presets */}
+                        <div className="mb-3 d-flex flex-wrap gap-2">
+                          <button className="btn btn-sm btn-outline-secondary" onClick={() => {
+                            const d = new Date(); setFrom(d.toISOString().slice(0,10)); setTo(d.toISOString().slice(0,10));
+                          }}>Heute</button>
+                          <button className="btn btn-sm btn-outline-secondary" onClick={() => {
+                            const d = new Date(); d.setDate(d.getDate() - 1); setFrom(d.toISOString().slice(0,10)); setTo(d.toISOString().slice(0,10));
+                          }}>Gestern</button>
+                          <button className="btn btn-sm btn-outline-secondary" onClick={() => {
+                            const now = new Date();
+                            const monday = new Date(now); const day = now.getDay() || 7;
+                            monday.setDate(now.getDate() - day + 1);
+                            const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+                            setFrom(monday.toISOString().slice(0,10)); setTo(sunday.toISOString().slice(0,10));
+                          }}>Diese Woche</button>
+                          <button className="btn btn-sm btn-outline-secondary" onClick={() => {
+                            const now = new Date();
+                            const monday = new Date(now); const day = now.getDay() || 7;
+                            monday.setDate(now.getDate() - day - 6);
+                            const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+                            setFrom(monday.toISOString().slice(0,10)); setTo(sunday.toISOString().slice(0,10));
+                          }}>Letzte Woche</button>
+                          <button className="btn btn-sm btn-outline-secondary" onClick={() => {
+                            const now = new Date();
+                            const first = new Date(now.getFullYear(), now.getMonth(), 1);
+                            const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                            setFrom(first.toISOString().slice(0,10)); setTo(last.toISOString().slice(0,10));
+                          }}>Diesen Monat</button>
+                          <button className="btn btn-sm btn-outline-secondary" onClick={() => {
+                            const now = new Date();
+                            const first = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                            const last = new Date(now.getFullYear(), now.getMonth(), 0);
+                            setFrom(first.toISOString().slice(0,10)); setTo(last.toISOString().slice(0,10));
+                          }}>Letzten Monat</button>
+                          <button className="btn btn-sm btn-outline-secondary" onClick={() => {
+                            const now = new Date();
+                            const first = new Date(now.getFullYear(), 0, 1);
+                            const last = new Date(now.getFullYear(), 11, 31);
+                            setFrom(first.toISOString().slice(0,10)); setTo(last.toISOString().slice(0,10));
+                          }}>Dieses Jahr</button>
+                          <button className="btn btn-sm btn-outline-secondary" onClick={() => {
+                            const now = new Date();
+                            const first = new Date(now.getFullYear() - 1, 0, 1);
+                            const last = new Date(now.getFullYear() - 1, 11, 31);
+                            setFrom(first.toISOString().slice(0,10)); setTo(last.toISOString().slice(0,10));
+                          }}>Letztes Jahr</button>
+                        </div>
+
+                        {analyticsError && <div className="alert alert-danger">{analyticsError}</div>}
+
+                        {analyticsLoading ? (
+                            <div className="d-flex flex-column align-items-center justify-content-center py-5 my-3 border rounded bg-light">
+                                <span className="spinner-border mb-3" style={{ width: '3rem', height: '3rem' }} />
+                                <div className="fw-medium text-muted">Analytics werden geladen…</div>
+                            </div>
+                        ) : analytics ? (
+                            <>
+                                {/* KPI-Zeile */}
+                                <div className="row g-3 mb-3">
+                                    <div className="col-md-3">
+                                        <div className="p-3 border rounded bg-light h-100">
+                                            <div className="text-muted small">Menge gesamt</div>
+                                            <div className="h5 mb-0">{(analytics.totals?.totalMenge ?? 0).toLocaleString('de-DE')} kg</div>
+                                        </div>
+                                    </div>
+                                    <div className="col-md-3">
+                                        <div className="p-3 border rounded bg-light h-100">
+                                            <div className="text-muted small">Umsatz gesamt</div>
+                                            <div className="h5 mb-0">{(analytics.totals?.totalUmsatz ?? 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</div>
+                                        </div>
+                                    </div>
+                                    <div className="col-md-3">
+                                        <div className="p-3 border rounded bg-light h-100">
+                                            <div className="text-muted small">Ø-Preis</div>
+                                            <div className="h5 mb-0">{(analytics.totals?.avgPreisGewichtet ?? 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</div>
+                                        </div>
+                                    </div>
+                                    <div className="col-md-3">
+                                        <div className="p-3 border rounded bg-light h-100">
+                                            <div className="text-muted small">Artikelanzahl</div>
+                                            <div className="h5 mb-0">{analytics.totals?.artikelCount ?? 0}</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Zeitverlauf (Chart rechts von Tabelle) */}
+                                <div className="mb-4">
+                                  <h6 className="mb-2">Zeitverlauf</h6>
+                                  <div className="row g-3 align-items-stretch">
+                                    <div className="col-md-7">
+                                      <div className="table-responsive">
+                                        <table className="table table-sm">
+                                          <thead>
+                                            <tr>
+                                              <th>Periode</th>
+                                              <th className="text-end">Menge</th>
+                                              <th className="text-end">Umsatz</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {analytics.timeline?.map((t: any, i: number) => (
+                                              <tr key={i}>
+                                                <td>
+                                                  {granularity === 'week'
+                                                    ? formatWeekLabel(t.date)
+                                                    : new Date(t.date).toLocaleDateString('de-DE')}
+                                                </td>
+                                                <td className="text-end">{t.menge?.toLocaleString('de-DE')}</td>
+                                                <td className="text-end">{t.umsatz?.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                                              </tr>
+                                            ))}
+                                            {(!analytics.timeline || analytics.timeline.length === 0) && (
+                                              <tr><td colSpan={3} className="text-muted">Keine Daten im Zeitraum.</td></tr>
+                                            )}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    </div>
+                                    <div className="col-md-5">
+                                      <div className="card border-0 h-100">
+                                        <div className="card-body">
+                                          <div style={{ height: 240 }}>
+                                            {(() => {
+                                              const cfg = buildTimelineChart(analytics.timeline || [], granularity);
+                                              // Mixed chart (bar + line) must use the generic <Chart> component
+                                              return <Chart type="bar" data={cfg.data as any} options={cfg.options} />;
+                                            })()}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Erfüllung: Bestellt vs. Raus (Chart rechts von Tabelle) */}
+                                <div className="mb-4">
+                                  <h6 className="mb-2"><i className="ci-check-circle me-2" />Erfüllung (Bestellt vs. Raus)</h6>
+                                  <div className="row g-3 align-items-stretch">
+                                    <div className="col-md-7">
+                                      <div className="table-responsive">
+                                        <table className="table table-sm">
+                                          <thead>
+                                            <tr>
+                                              <th>Periode</th>
+                                              <th className="text-end">Bestellt (kg)</th>
+                                              <th className="text-end">Raus (kg)</th>
+                                              <th className="text-end">Differenz</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {(analytics.fulfillmentTimeline || []).map((r:any, idx:number) => (
+                                              <tr key={idx}>
+                                                <td>{granularity === 'week' ? formatWeekLabel(r.date) : new Date(r.date).toLocaleDateString('de-DE')}</td>
+                                                <td className="text-end">{Number(r.bestelltMenge ?? 0).toLocaleString('de-DE')}</td>
+                                                <td className="text-end">{Number(r.rausMenge ?? 0).toLocaleString('de-DE')}</td>
+                                                <td className={cx('text-end', Number(r.differenz ?? 0) < 0 && 'text-danger')}>
+                                                  {Number(r.differenz ?? 0).toLocaleString('de-DE')}
+                                                </td>
+                                              </tr>
+                                            ))}
+                                            {(!analytics.fulfillmentTimeline || analytics.fulfillmentTimeline.length === 0) && (
+                                              <tr><td colSpan={4} className="text-muted">Keine Daten (nur Positionen mit Nettogewicht werden berücksichtigt).</td></tr>
+                                            )}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                      {/* Totals row */}
+                                      {analytics.fulfillment && (
+                                        <div className="mt-2 text-muted small">
+                                          <span className="me-3"><strong>Summe bestellt:</strong> {Number(analytics.fulfillment.bestelltMenge ?? 0).toLocaleString('de-DE')} kg</span>
+                                          <span className="me-3"><strong>Summe raus:</strong> {Number(analytics.fulfillment.rausMenge ?? 0).toLocaleString('de-DE')} kg</span>
+                                          <span className={cx(Number(analytics.fulfillment.differenz ?? 0) < 0 && 'text-danger')}>
+                                            <strong>Diff:</strong> {Number(analytics.fulfillment.differenz ?? 0).toLocaleString('de-DE')} kg
+                                          </span>
+                                          {analytics.fulfillment.rate != null && (
+                                            <span className="ms-3"><strong>Erfüllungsquote:</strong> {(Number(analytics.fulfillment.rate) * 100).toFixed(1)}%</span>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="col-md-5">
+                                      <div className="card border-0 h-100">
+                                        <div className="card-body">
+                                          <div style={{ height: 260 }}>
+                                            {(() => {
+                                              const cfg = buildFulfillmentTimelineChart(analytics.fulfillmentTimeline || [], granularity);
+                                              return <Bar data={cfg.data} options={cfg.options} />;
+                                            })()}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Top-Artikel (Pie rechts von Tabelle) */}
+                                <div className="mb-4">
+                                  <h6 className="mb-2"><i className="ci-cube me-2" />Top-Artikel (Menge)</h6>
+                                  <div className="row g-3 align-items-stretch">
+                                    <div className="col-md-7">
+                                      <div className="table-responsive">
+                                        <table className="table table-sm align-middle">
+                                          <thead>
+                                            <tr>
+                                              <th>Artikel</th>
+                                              <th className="text-end">Menge</th>
+                                              <th className="text-end">Umsatz</th>
+                                              <th className="text-end">Ø-Preis (gew.)</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {analytics.byArtikel?.map((a: any) => (
+                                              <tr key={a.artikelId}>
+                                                <td>
+                                                  <div className="fw-medium">{a.artikelName || a.artikelNummer || '—'}</div>
+                                                  <div className="text-muted small">{a.artikelNummer}</div>
+                                                </td>
+                                                <td className="text-end">{Number(a.menge ?? 0).toLocaleString('de-DE')}</td>
+                                                <td className="text-end">{Number(a.umsatz ?? 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                                                <td className="text-end">{a.avgPreisGewichtet != null ? Number(a.avgPreisGewichtet).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'} {a.avgPreisGewichtet!=null && '€'}</td>
+                                              </tr>
+                                            ))}
+                                            {(!analytics.byArtikel || analytics.byArtikel.length === 0) && (
+                                              <tr><td colSpan={4} className="text-muted">Keine Artikel im Zeitraum.</td></tr>
+                                            )}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    </div>
+                                    <div className="col-md-5">
+                                      <div className="card border-0 h-100">
+                                        <div className="card-body">
+                                          <div style={{ height: 260 }}>
+                                            {(() => {
+                                              const cfg = buildTopArticlesPieChart(analytics.byArtikel || []);
+                                              return <Pie data={cfg.data} options={cfg.options} />;
+                                            })()}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Preis × Zeitraum (exakt) */}
+                                <div className="mt-4">
+                                  <h6 className="mb-2"><i className="ci-timeline me-2" />Preis × Zeitraum (exakt)</h6>
+                                  <div className="row g-3 align-items-stretch">
+                                    <div className="col-md-7">
+                                      <div className="table-responsive">
+                                        <table className="table table-sm">
+                                          <thead>
+                                            <tr>
+                                              <th>Periode</th>
+                                              <th className="text-end">Preis (€)</th>
+                                              <th className="text-end">Anzahl</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {(analytics.priceExactByDate || []).map((r:any, idx:number) => (
+                                              <tr key={idx}>
+                                                <td>{granularity === 'week' ? formatWeekLabel(r.date) : new Date(r.date).toLocaleDateString('de-DE')}</td>
+                                                <td className="text-end">{(Number(r.preis) || 0).toFixed(2)}</td>
+                                                <td className="text-end">{r.count}</td>
+                                              </tr>
+                                            ))}
+                                            {(!analytics.priceExactByDate || analytics.priceExactByDate.length === 0) && (
+                                              <tr><td colSpan={3} className="text-muted">Keine Daten.</td></tr>
+                                            )}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    </div>
+                                    <div className="col-md-5">
+                                      <div className="card border-0 h-100">
+                                        <div className="card-body">
+                                          <div style={{ height: 260 }}>
+                                            {(() => {
+                                              const cfg = buildPriceExactByDateChart(analytics.priceExactByDate || [], granularity);
+                                              return <Bar data={cfg.data} options={cfg.options} />;
+                                            })()}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="text-muted">Keine Daten.</div>
+                        )}
+                    </div>
+                </div>
+            )}
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <div className="tab-pane fade show active">

@@ -380,7 +380,7 @@ function VorlageForm({
                 <button type="button" className="btn btn-outline-secondary" onClick={onCancel} disabled={submitting}>
                     Abbrechen
                 </button>
-                <button type="submit" className="btn btn-primary" disabled={!isValid || submitting}>
+                <button type="submit" className="btn btn-secondary" disabled={!isValid || submitting}>
                     {submitting ? (
                         <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
                     ) : (
@@ -531,7 +531,7 @@ export default function ReihenfolgeVorlageOverview() {
                             <button className="btn btn-outline-secondary" onClick={() => { setQ(""); setRegionFilter(""); }}>
                                 <i className="ci-close me-2" /> Zurücksetzen
                             </button>
-                            <button className="btn btn-outline-primary" onClick={load}>
+                            <button className="btn btn-outline-secondary" onClick={load}>
                                 <i className="ci-refresh me-2" /> Aktualisieren
                             </button>
                         </div>
@@ -586,7 +586,7 @@ export default function ReihenfolgeVorlageOverview() {
                                         </td>
                                         <td className="text-end">
                                             <div className="btn-group">
-                                                <button className="btn btn-sm btn-outline-primary" onClick={() => setEditItem(it)}>
+                                                <button className="btn btn-sm btn-outline-secondary" onClick={() => setEditItem(it)}>
                                                     <i className="ci-edit me-1" /> Bearbeiten
                                                 </button>
                                                 <button className="btn btn-sm btn-outline-danger" onClick={() => setDeleteItem(it)}>

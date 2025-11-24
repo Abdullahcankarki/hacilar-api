@@ -224,7 +224,7 @@ const RuleFormModal: React.FC<{
                         </div>
                         <div className="modal-footer">
                             <button type="button" className="btn btn-outline-secondary" onClick={onCancel} disabled={busy}>Abbrechen</button>
-                            <button type="submit" className="btn btn-primary" disabled={busy}>
+                            <button type="submit" className="btn btn-secondary" disabled={busy}>
                                 {busy && <span className="spinner-border spinner-border-sm me-2" />}
                                 {isEdit ? "Speichern" : "Anlegen"}
                             </button>
@@ -460,7 +460,7 @@ const RegionRuleOverview: React.FC = () => {
                                     <td className="text-end">
                                         {/* ...innerhalb der Actions-Zelle (td className="text-end") */}
                                         <div className="btn-group">
-                                            <button className="btn btn-sm btn-outline-primary" onClick={() => setEditRule(r)}>
+                                            <button className="btn btn-sm btn-outline-secondary" onClick={() => setEditRule(r)}>
                                                 <i className="ci-edit me-1" /> Bearbeiten
                                             </button>
                                             <button

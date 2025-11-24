@@ -813,7 +813,7 @@ const ArtikelDetails: React.FC = () => {
                                     </div>
                                     <div className="col-md-3">
                                         <div className="p-3 border rounded bg-light h-100">
-                                            <div className="text-muted small">Gew. Ø-Preis</div>
+                                            <div className="text-muted small">Ø-Preis</div>
                                             <div className="h5 mb-0">{(analytics.totals?.avgPreisGewichtet ?? 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</div>
                                         </div>
                                     </div>
@@ -827,7 +827,7 @@ const ArtikelDetails: React.FC = () => {
 
                                 {/* Timeline (Chart rechts von Tabelle) */}
                                 <div className="mb-4">
-                                  <h6 className="mb-2"><i className="ci-time me-2" />Zeitverlauf</h6>
+                                  <h6 className="mb-2">Zeitverlauf</h6>
                                   <div className="row g-3 align-items-stretch">
                                     <div className="col-md-7">
                                       <div className="table-responsive">

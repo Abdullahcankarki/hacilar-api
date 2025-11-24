@@ -508,7 +508,7 @@ const TourModal: React.FC<{
 
                         <div className="modal-footer">
                             <button type="button" className="btn btn-outline-secondary" onClick={onClose}>Abbrechen</button>
-                            <button type="submit" className="btn btn-primary" disabled={submitting}>
+                            <button type="submit" className="btn btn-secondary" disabled={submitting}>
                                 {submitting ? "Speichern…" : "Speichern"}
                             </button>
                         </div>
@@ -1157,7 +1157,7 @@ export const TourManager: React.FC = () => {
                     <div className="text-muted small">{tours.length} Touren gesamt · Sichtbar: {filteredTours.length}</div>
                 </div>
                 <div className="d-flex gap-2">
-                    <button className="btn btn-primary" onClick={() => setShowCreate(true)}>
+                    <button className="btn btn-secondary" onClick={() => setShowCreate(true)}>
                         <i className="ci-plus me-2" /> Tour erstellen
                     </button>
                 </div>
@@ -1286,7 +1286,7 @@ export const TourManager: React.FC = () => {
                                                                     />
                                                                     <div className="d-flex justify-content-end gap-2 px-2 pb-1">
                                                                         <button className="btn btn-sm btn-outline-dark" onClick={() => { setPage(1); setDateFrom(""); setDateTo(""); }}>Leeren</button>
-                                                                        <button className="btn btn-sm btn-primary" onClick={() => setShowRange(false)}>OK</button>
+                                                                        <button className="btn btn-sm btn-secondary" onClick={() => setShowRange(false)}>OK</button>
                                                                     </div>
                                                                 </div>,
                                                                 document.body
@@ -1401,7 +1401,7 @@ export const TourManager: React.FC = () => {
                                 </div>
                                 <div className="offcanvas-footer d-flex gap-2 p-3 border-top">
                                     <button className="btn btn-outline-secondary flex-fill" onClick={() => setShowFilterModal(false)}>Schließen</button>
-                                    <button className="btn btn-primary flex-fill" onClick={() => { setPage(1); load(); setShowFilterModal(false); }}>Anwenden</button>
+                                    <button className="btn btn-secondary flex-fill" onClick={() => { setPage(1); load(); setShowFilterModal(false); }}>Anwenden</button>
                                 </div>
                             </div>
                         </div>

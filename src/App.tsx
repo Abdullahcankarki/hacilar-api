@@ -10,7 +10,7 @@ import KundenaufpreisEditor from './components/kundenaufpreiseditor';
 import AuftragDetail from './components/auftragDetail';
 import VerkaeuferDetails from './components/verkaeuferDetails';
 import VerkaeuferEdit from './components/verkaeuferEdit';
-import Statistiken from './components/stats';
+import StatsDashboard from './components/stats';
 import { Layout } from './components/layout';
 import "./App.css"
 import './Cartzilla/assets/css/theme.min.css';
@@ -84,7 +84,7 @@ const AppRoutes: React.FC = () => {
               <Route path="mitarbeiter" element={<MitarbeiterVerwaltung />} />
               <Route path="mitarbeiter/:id" element={<VerkaeuferDetails />} />
               <Route path="mitarbeiter/edit/:id" element={<VerkaeuferEdit />} />
-              <Route path="stats" element={<Statistiken />} />
+              <Route path="stats" element={<StatsDashboard />} />
               <Route path="fahrzeug" element={<FahrzeugUebersicht />} />
               <Route path="region-rule" element={<RegionRuleOverview />} />
               <Route path="reihenfolge-vorlage" element={<ReihenfolgeVorlageOverview />} />

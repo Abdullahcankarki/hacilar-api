@@ -264,10 +264,10 @@ export default function BestellteArtikelModal({ isOpen, onClose }: Props) {
                                 <button className="btn btn-outline-danger ms-auto" type="button" onClick={resetFilters}>
                                     Zurücksetzen
                                 </button>
-                                <div className="form-check form-switch ms-2">
+                                {/* <div className="form-check form-switch ms-2">
                                     <input className="form-check-input" type="checkbox" id="debugSwitch" checked={debug} onChange={e => setDebug(e.target.checked)} />
                                     <label className="form-check-label" htmlFor="debugSwitch">Debug-Log</label>
-                                </div>
+                                </div> */}
                                 <span className="badge bg-secondary align-self-center ms-2">
                                     Ergebnisse: {rows.length}
                                 </span>

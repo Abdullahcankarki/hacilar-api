@@ -41,6 +41,81 @@ export type TourInfosMap = Record<string, {
   kennzeichen?: string;
 }>;
 
+// ------------------------------ Statistik-Typen (Frontend) ------------------------------
+export type AuftragsOverviewStats = {
+  totalAuftraege: number;
+  totalUmsatz: number;
+  totalNettoGewichtKg: number;
+  statusCounts: {
+    offen: number;
+    "in Bearbeitung": number;
+    abgeschlossen: number;
+    storniert: number;
+  };
+};
+
+export type UmsatzByRegion = {
+  region: string | null;
+  umsatz: number;
+  nettoGewichtKg: number;
+  auftragsCount: number;
+};
+
+export type UmsatzByKundenKategorie = {
+  kategorie: string | null;
+  umsatz: number;
+  nettoGewichtKg: number;
+  kundenCount: number;
+};
+
+export type UmsatzByArtikelKategorie = {
+  kategorie: string | null;
+  umsatz: number;
+  nettoGewichtKg: number;
+};
+
+export type TopArtikelStats = {
+  artikelId: string;
+  artikelNummer?: string;
+  artikelName?: string;
+  kategorie?: string;
+  umsatz: number;
+  nettoGewichtKg: number;
+};
+
+export type KundenRankingItem = {
+  kundeId: string;
+  name: string;
+  region?: string;
+  kategorie?: string;
+  umsatz: number;
+  nettoGewichtKg: number;
+  auftragsCount: number;
+};
+
+export type TourOverviewStats = {
+  totalTouren: number;
+  totalStops: number;
+  totalGewichtKg: number;
+  tourenByRegion: {
+    region: string;
+    count: number;
+    gewichtKg: number;
+  }[];
+  tourenByFahrer: {
+    fahrerId: string | null;
+    fahrerName: string | null;
+    count: number;
+    gewichtKg: number;
+  }[];
+};
+
+export type ZerlegeOverviewStats = {
+  totalZerlegeAuftraege: number;
+  offeneZerlegeAuftraege: number;
+  erledigteZerlegeAuftraege: number;
+};
+
 /**
  * Liefert das aktuell gespeicherte Token.
  */
@@ -314,6 +389,8 @@ export async function getAllArtikelClean(params?: {
   ausverkauft?: boolean;
   name?: string;
   erfassungsModus?: string | string[];
+  sortBy?: "name" | "preis" | "kategorie" | "artikelNummer";
+  sortDir?: "asc" | "desc";
 }): Promise<{
   items: ArtikelResource[];
   page: number;
@@ -340,6 +417,8 @@ export async function getAllArtikel(params?: {
   ausverkauft?: boolean;
   name?: string;
   erfassungsModus?: string | string[];
+  sortBy?: "name" | "preis" | "kategorie" | "artikelNummer";
+  sortDir?: "asc" | "desc";
 }): Promise<{
   items: ArtikelResource[];
   page: number;
@@ -379,6 +458,18 @@ export async function getArtikelAnalyticsApi(
 ): Promise<any> {
   const q = toQueryArtikel(params);
   return apiFetch(`/api/artikel/${artikelId}/analytics${q}`);
+}
+
+/**
+ * GET /api/kunde/:id/analytics
+ * Gibt detaillierte Analysen zu einem Kunden (Zeitraum + Artikel, Preise, Mengen, etc.)
+ */
+export async function getKundeAnalyticsApi(
+  kundenId: string,
+  params?: { from?: string; to?: string; granularity?: 'day' | 'week' | 'month'; topArticlesLimit?: number; recentOrdersLimit?: number; priceHistogramBuckets?: number }
+): Promise<any> {
+  const q = toQueryArtikel(params as any);
+  return apiFetch(`/api/kunde/${kundenId}/analytics${q}`);
 }
 
 export async function createArtikel(
@@ -624,6 +715,72 @@ export async function getBestellteArtikelAggregiertApi(params?: GetBestellteArti
     debug: params?.debug,
   });
   return apiFetch<BestellteArtikelAggRow[]>(`/api/auftrag/bestellte-artikel${q}`);
+}
+
+/* --------------------------------- Statistik-APIs --------------------------------- */
+
+// GET /api/stats/overview/auftrag
+export async function getStatsAuftragsOverview(params?: { from?: string; to?: string; }): Promise<AuftragsOverviewStats> {
+  const q = toQuery(params as any);
+  return apiFetch<AuftragsOverviewStats>(`/api/stats/overview/auftrag${q}`);
+}
+
+// GET /api/stats/overview/region
+export async function getStatsUmsatzByRegion(params?: { from?: string; to?: string; }): Promise<UmsatzByRegion[]> {
+  const q = toQuery(params as any);
+  return apiFetch<UmsatzByRegion[]>(`/api/stats/overview/region${q}`);
+}
+
+// GET /api/stats/overview/kategorie (Kunden-Kategorie)
+export async function getStatsUmsatzByKundenKategorie(params?: { from?: string; to?: string; }): Promise<UmsatzByKundenKategorie[]> {
+  const q = toQuery(params as any);
+  return apiFetch<UmsatzByKundenKategorie[]>(`/api/stats/overview/kategorie${q}`);
+}
+
+// GET /api/stats/overview/artikel-kategorie
+export async function getStatsUmsatzByArtikelKategorie(params?: { from?: string; to?: string; }): Promise<UmsatzByArtikelKategorie[]> {
+  const q = toQuery(params as any);
+  return apiFetch<UmsatzByArtikelKategorie[]>(`/api/stats/overview/artikel-kategorie${q}`);
+}
+
+// GET /api/stats/top-artikel
+export async function getStatsTopArtikel(params?: { from?: string; to?: string; limit?: number; }): Promise<TopArtikelStats[]> {
+  const q = toQuery(params as any);
+  return apiFetch<TopArtikelStats[]>(`/api/stats/top-artikel${q}`);
+}
+
+// GET /api/stats/kunden-ranking
+export async function getStatsKundenRanking(params?: { from?: string; to?: string; limit?: number; }): Promise<KundenRankingItem[]> {
+  const q = toQuery(params as any);
+  return apiFetch<KundenRankingItem[]>(`/api/stats/kunden-ranking${q}`);
+}
+
+// GET /api/stats/overview/tour
+export async function getStatsTourOverview(params?: { from?: string; to?: string; }): Promise<TourOverviewStats> {
+  const q = toQuery(params as any);
+  return apiFetch<TourOverviewStats>(`/api/stats/overview/tour${q}`);
+}
+
+// GET /api/stats/overview/zerlege
+export async function getStatsZerlegeOverview(params?: { from?: string; to?: string; }): Promise<ZerlegeOverviewStats> {
+  const q = toQuery(params as any);
+  return apiFetch<ZerlegeOverviewStats>(`/api/stats/overview/zerlege${q}`);
+}
+
+// GET /api/stats/compare
+export async function getStatsCompare(
+  kpi: string,
+  rangeA: { from?: string; to?: string },
+  rangeB: { from?: string; to?: string }
+): Promise<any> {
+  const q = toQuery({
+    kpi,
+    fromA: rangeA.from,
+    toA: rangeA.to,
+    fromB: rangeB.from,
+    toB: rangeB.to,
+  });
+  return apiFetch<any>(`/api/stats/compare${q}`);
 }
 export async function getAllAuftraege(params?: {
   page?: number;
@@ -1519,6 +1676,7 @@ export const api = {
   createKunde,
   updateKunde,
   deleteKunde,
+  getKundeAnalyticsApi,
   // Artikel
   getAllArtikel,
   getAuswahlArtikel,
@@ -1554,6 +1712,17 @@ export const api = {
   setAuftragInBearbeitung,
   deleteAuftrag,
   getBestellteArtikelAggregiertApi,
+  // Stats
+  getStatsAuftragsOverview,
+  getStatsUmsatzByRegion,
+  getStatsUmsatzByKundenKategorie,
+  getStatsUmsatzByArtikelKategorie,
+  getStatsTopArtikel,
+  getStatsKundenRanking,
+  getStatsTourOverview,
+  getStatsZerlegeOverview,
+  getStatsCompare,
+  // Zerlegeauftrag
   // Zerlegeauftrag
   getAllZerlegeauftraege,
   getZerlegeauftragById,

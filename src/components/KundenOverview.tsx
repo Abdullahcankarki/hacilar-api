@@ -483,7 +483,7 @@ const KundenOverview: React.FC = () => {
                   </td>
                   <td className="text-end">
                     <div className="btn-group">
-                      <button className="btn btn-sm btn-outline-primary" title="Bearbeiten" onClick={(e) => { e.stopPropagation(); setEditItem(k); }}>
+                      <button className="btn btn-sm btn-outline-secondary" title="Bearbeiten" onClick={(e) => { e.stopPropagation(); setEditItem(k); }}>
                         <i className="ci-edit me-1" /> Bearbeiten
                       </button>
                       <button

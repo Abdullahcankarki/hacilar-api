@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type { ArtikelResource } from "../Resources";
 import {
   getAllArtikelClean,
@@ -207,7 +207,7 @@ function CreateEditModal({ mode, show, onClose, onSaved, initial }: CreateEditMo
             </div>
             <div className="modal-footer">
               <button type="button" className="btn btn-outline-secondary" onClick={onClose} disabled={saving}>Abbrechen</button>
-              <button type="submit" className="btn btn-primary" disabled={saving}>
+              <button type="submit" className="btn btn-secondary" disabled={saving}>
                 {saving ? "Speichern…" : "Speichern"}
               </button>
             </div>
@@ -263,6 +263,8 @@ export default function ArtikelOverviewAdmin() {
   // Query state
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(PAGE_LIMIT);
+  const [sortOption, setSortOption] = useState<'nameAsc' | 'nameDesc' | 'preisAsc' | 'preisDesc' | 'kategorieAsc'>('nameAsc');
+  const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
   const [name, setName] = useState("");
   const [kategorie, setKategorie] = useState<string>("");
   const [ausverkauft, setAusverkauft] = useState<undefined | boolean>(undefined);
@@ -297,6 +299,17 @@ export default function ArtikelOverviewAdmin() {
         kategorie: kategorie || undefined,
         ausverkauft,
         erfassungsModus: erfassungsModus || undefined,
+        // Sortierung an Backend übergeben
+        sortBy:
+          sortOption === "preisAsc" || sortOption === "preisDesc"
+            ? "preis"
+            : sortOption === "kategorieAsc"
+            ? "kategorie"
+            : "name",
+        sortDir:
+          sortOption === "nameDesc" || sortOption === "preisDesc"
+            ? "desc"
+            : "asc",
       });
       setItems(res.items);
       setTotal(res.total);
@@ -311,13 +324,13 @@ export default function ArtikelOverviewAdmin() {
   useEffect(() => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, limit, debouncedName, kategorie, ausverkauft, erfassungsModus]);
+  }, [page, limit, debouncedName, kategorie, ausverkauft, erfassungsModus, sortOption]);
 
   // Reset page when filters change (except page/limit)
   useEffect(() => {
     setPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedName, kategorie, ausverkauft, erfassungsModus]);
+  }, [debouncedName, kategorie, ausverkauft, erfassungsModus, sortOption]);
 
   const onCreateSaved = () => { showToast({ variant: 'success', title: 'Artikel', message: 'Artikel erstellt.' }); fetchData(); };
   const onEditSaved = () => { showToast({ variant: 'success', title: 'Artikel', message: 'Artikel aktualisiert.' }); fetchData(); };
@@ -338,7 +351,6 @@ export default function ArtikelOverviewAdmin() {
       setDeleteBusy(false);
     }
   };
-
 
   // Derived
   const from = (page - 1) * limit + 1;
@@ -366,7 +378,25 @@ export default function ArtikelOverviewAdmin() {
           <h2 className="h4 mb-1">Artikelverwaltung</h2>
           <div className="text-muted small">{total} Artikel gesamt</div>
         </div>
-        <div className="d-flex gap-2">
+        <div className="d-flex align-items-center gap-2">
+          <div className="btn-group" role="group" aria-label="Ansicht wechseln">
+            <button
+              type="button"
+              className={`btn btn-sm btn-outline-secondary ${viewMode === "grid" ? "active" : ""}`}
+              title="Kachel-Ansicht"
+              onClick={() => setViewMode("grid")}
+            >
+              <i className="ci-view-grid me-1" /> Kacheln
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm btn-outline-secondary ${viewMode === "table" ? "active" : ""}`}
+              title="Tabellen-Ansicht"
+              onClick={() => setViewMode("table")}
+            >
+              <i className="ci-view-list me-1" /> Tabelle
+            </button>
+          </div>
           <button className="btn btn-dark rounded-3" onClick={() => setShowCreate(true)}>
             <i className="ci-plus me-2" /> Artikel erstellen
           </button>
@@ -434,20 +464,37 @@ export default function ArtikelOverviewAdmin() {
             <>Keine Ergebnisse</>
           )}
         </div>
-        <div className="d-flex align-items-center gap-2">
-          <label className="text-muted small">Pro Seite</label>
-          <select
-            className="form-select form-select-sm"
-            style={{ width: 90 }}
-            value={limit}
-            onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
-          >
-            <option value={12}>12</option>
-            <option value={24}>24</option>
-            <option value={48}>48</option>
-            <option value={96}>96</option>
-            <option value={1000}>1000</option>
-          </select>
+        <div className="d-flex align-items-center gap-3 flex-wrap justify-content-end">
+          <div className="d-flex align-items-center gap-2">
+            <label className="text-muted small mb-0">Sortierung</label>
+            <select
+              className="form-select form-select-sm"
+              style={{ minWidth: 170 }}
+              value={sortOption}
+              onChange={(e) => setSortOption(e.target.value as any)}
+            >
+              <option value="nameAsc">Name A–Z</option>
+              <option value="nameDesc">Name Z–A</option>
+              <option value="preisAsc">Preis aufsteigend</option>
+              <option value="preisDesc">Preis absteigend</option>
+              <option value="kategorieAsc">Kategorie A–Z</option>
+            </select>
+          </div>
+          <div className="d-flex align-items-center gap-2">
+            <label className="text-muted small mb-0">Pro Seite</label>
+            <select
+              className="form-select form-select-sm"
+              style={{ width: 90 }}
+              value={limit}
+              onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
+            >
+              <option value={12}>12</option>
+              <option value={24}>24</option>
+              <option value={48}>48</option>
+              <option value={96}>96</option>
+              <option value={1000}>1000</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -471,7 +518,7 @@ export default function ArtikelOverviewAdmin() {
             </div>
           ))}
         </div>
-      ) : (
+      ) : viewMode === "grid" ? (
         <div className="row g-3">
           {items.map((a) => (
             <div className="col-6 col-md-4 col-lg-3" key={a.id}>
@@ -495,7 +542,7 @@ export default function ArtikelOverviewAdmin() {
                   </div>
                   <div className="text-muted small mb-2">#{a.artikelNummer} • {a.kategorie || "—"} • {a.erfassungsModus || "GEWICHT"}</div>
                   <div className="mt-auto d-flex gap-2">
-                    <button className="btn btn-sm btn-outline-primary" onClick={() => navigate(`/artikel/${a.id}`)} title="Details">
+                    <button className="btn btn-sm btn-outline-secondary" onClick={() => navigate(`/artikel/${a.id}`)} title="Details">
                       Details
                     </button>
                     <button className="btn btn-sm btn-outline-secondary" onClick={() => setEditItem(a)} title="Bearbeiten">
@@ -509,6 +556,77 @@ export default function ArtikelOverviewAdmin() {
               </div>
             </div>
           ))}
+        </div>
+      ) : (
+        <div className="card border-0 shadow-sm">
+          <div className="card-body p-0">
+            <div className="table-responsive">
+              <table className="table table-sm table-hover align-middle mb-0">
+                <thead className="table-light">
+                  <tr>
+                    <th style={{ width: 60 }}></th>
+                    <th>Artikel</th>
+                    <th>Artikel-Nr.</th>
+                    <th>Kategorie</th>
+                    <th>Erfassungsmodus</th>
+                    <th className="text-end">Preis (€)</th>
+                    <th>Verfügbarkeit</th>
+                    <th className="text-end">Aktionen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((a) => (
+                    <tr key={a.id}>
+                      <td>
+                        <div className="ratio ratio-1x1 bg-light rounded" style={{ width: 48 }}>
+                          {a.bildUrl ? (
+                            <img src={a.bildUrl} alt={a.name} className="rounded" style={{ objectFit: "cover" }} />
+                          ) : (
+                            <img src={"https://cartzilla-html.createx.studio/assets/img/shop/grocery/10.png"} alt={a.name} className="rounded" style={{ objectFit: "cover" }} />
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="fw-semibold text-truncate" title={a.name}>{a.name}</div>
+                        <div className="text-muted small">#{a.artikelNummer}</div>
+                      </td>
+                      <td>{a.artikelNummer}</td>
+                      <td>{a.kategorie || "—"}</td>
+                      <td>{a.erfassungsModus || "GEWICHT"}</td>
+                      <td className="text-end">{a.preis.toFixed(2)} €</td>
+                      <td>
+                        {a.ausverkauft ? (
+                          <span className="badge bg-warning">Ausverkauft</span>
+                        ) : (
+                          <span className="badge bg-success">Verfügbar</span>
+                        )}
+                      </td>
+                      <td className="text-end">
+                        <div className="btn-group btn-group-sm" role="group">
+                          <button className="btn btn-outline-secondary" onClick={() => navigate(`/artikel/${a.id}`)} title="Details">
+                            <i className="ci-eye" />
+                          </button>
+                          <button className="btn btn-outline-secondary" onClick={() => setEditItem(a)} title="Bearbeiten">
+                            <i className="ci-edit" />
+                          </button>
+                          <button className="btn btn-outline-danger" onClick={() => setDelItem(a)} title="Löschen">
+                            <i className="ci-trash" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {items.length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="text-center text-muted py-4">
+                        Keine Artikel im aktuellen Filter.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
 

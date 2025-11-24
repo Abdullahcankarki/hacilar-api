@@ -375,24 +375,62 @@ export default function AuftraegeOverview() {
                 tabIndex={-1}
                 id="auftragFilterDrawer"
                 aria-labelledby="auftragFilterDrawerLabel"
-                style={{ width: '420px', maxWidth: '85vw' }}
+                style={{ width: '420px', maxWidth: '85vw', zIndex: '3000' }}
             >
                 <div className="offcanvas-header border-bottom">
                     <h5 className="offcanvas-title" id="auftragFilterDrawerLabel">Filter</h5>
                     <button type="button" className="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
                 </div>
                 <div className="offcanvas-body">
+                    {/* === LIEFERDATUM (immer offen) === */}
+                    <div className="mb-4">
+                        <div className="d-flex align-items-center justify-content-between mb-2">
+                            <h6 className="mb-0">Lieferdatum</h6>
+                            {(lieferVon || lieferBis) && (
+                                <button
+                                    className="btn btn-sm btn-link text-decoration-none"
+                                    onClick={() => { setLieferVon(""); setLieferBis(""); setPage(1); }}
+                                >
+                                    Zurücksetzen
+                                </button>
+                            )}
+                        </div>
+                        <div className="d-flex flex-wrap gap-2 mb-2">
+                            <button className="btn btn-sm btn-outline-secondary" onClick={() => { const d=new Date(); const s=d.toISOString().slice(0,10); setLieferVon(s); setLieferBis(s); setPage(1); }}>Heute</button>
+                            <button className="btn btn-sm btn-outline-secondary" onClick={() => { const d=new Date(); d.setDate(d.getDate()-1); const s=d.toISOString().slice(0,10); setLieferVon(s); setLieferBis(s); setPage(1); }}>Gestern</button>
+                            <button className="btn btn-sm btn-outline-secondary" onClick={() => { const now=new Date(); const day=now.getDay()||7; const monday=new Date(now); monday.setDate(now.getDate()-day+1); const sunday=new Date(monday); sunday.setDate(monday.getDate()+6); setLieferVon(monday.toISOString().slice(0,10)); setLieferBis(sunday.toISOString().slice(0,10)); setPage(1); }}>Diese Woche</button>
+                            <button className="btn btn-sm btn-outline-secondary" onClick={() => { const now=new Date(); const day=now.getDay()||7; const lastMonday=new Date(now); lastMonday.setDate(now.getDate()-day-6); const lastSunday=new Date(lastMonday); lastSunday.setDate(lastMonday.getDate()+6); setLieferVon(lastMonday.toISOString().slice(0,10)); setLieferBis(lastSunday.toISOString().slice(0,10)); setPage(1); }}>Letzte Woche</button>
+                            <button className="btn btn-sm btn-outline-secondary" onClick={() => { const now=new Date(); const first=new Date(now.getFullYear(), now.getMonth(), 1); const last=new Date(now.getFullYear(), now.getMonth()+1, 0); setLieferVon(first.toISOString().slice(0,10)); setLieferBis(last.toISOString().slice(0,10)); setPage(1); }}>Diesen Monat</button>
+                            <button className="btn btn-sm btn-outline-secondary" onClick={() => { const now=new Date(); const first=new Date(now.getFullYear(), now.getMonth()-1, 1); const last=new Date(now.getFullYear(), now.getMonth(), 0); setLieferVon(first.toISOString().slice(0,10)); setLieferBis(last.toISOString().slice(0,10)); setPage(1); }}>Letzten Monat</button>
+                            <button className="btn btn-sm btn-outline-secondary" onClick={() => { const now=new Date(); const first=new Date(now.getFullYear(),0,1); const last=new Date(now.getFullYear(),11,31); setLieferVon(first.toISOString().slice(0,10)); setLieferBis(last.toISOString().slice(0,10)); setPage(1); }}>Dieses Jahr</button>
+                            <button className="btn btn-sm btn-outline-secondary" onClick={() => { const now=new Date(); const first=new Date(now.getFullYear()-1,0,1); const last=new Date(now.getFullYear()-1,11,31); setLieferVon(first.toISOString().slice(0,10)); setLieferBis(last.toISOString().slice(0,10)); setPage(1); }}>Letztes Jahr</button>
+                        </div>
+                        <div className="d-flex gap-2">
+                            <input type="date" className="form-control" value={lieferVon} onChange={(e) => { setLieferVon(e.target.value); setPage(1); }} />
+                            <input type="date" className="form-control" value={lieferBis} onChange={(e) => { setLieferBis(e.target.value); setPage(1); }} />
+                        </div>
+                    </div>
+
+                    {/* === REST MIT ZUKLAPPEN (Accordion) === */}
                     <div className="accordion" id="auftragFilterAccordion">
                         {/* Status */}
                         <div className="accordion-item">
-                            <h2 className="accordion-header" id="headingStatus">
-                                <button className="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseStatus" aria-expanded="true" aria-controls="collapseStatus">
-                                    Status
+                            <h2 className="accordion-header" id="afh-status">
+                                <button className="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#afc-status" aria-expanded="false" aria-controls="afc-status">
+                                    Status & Bearbeitung
                                 </button>
                             </h2>
-                            <div id="collapseStatus" className="accordion-collapse collapse show" aria-labelledby="headingStatus" data-bs-parent="#auftragFilterAccordion">
+                            <div id="afc-status" className="accordion-collapse collapse" aria-labelledby="afh-status" data-bs-parent="#auftragFilterAccordion">
                                 <div className="accordion-body">
-                                    <div className="d-flex flex-wrap gap-2">
+                                    <div className="d-flex align-items-center justify-content-between mb-2">
+                                        <h6 className="mb-0">Status</h6>
+                                        {statusIn.length > 0 && (
+                                            <button className="btn btn-sm btn-link text-decoration-none" onClick={() => { setStatusIn([]); setPage(1); }}>
+                                                Zurücksetzen
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="d-flex flex-wrap gap-2 mb-3">
                                         {(["offen", "in Bearbeitung", "abgeschlossen", "storniert"] as Status[]).map((s) => {
                                             const active = statusIn.includes(s);
                                             return (
@@ -402,9 +440,7 @@ export default function AuftraegeOverview() {
                                                     className={cls("btn btn-sm", active ? "btn-primary" : "btn-outline-secondary")}
                                                     onClick={() => {
                                                         setPage(1);
-                                                        setStatusIn((prev) =>
-                                                            active ? prev.filter((x) => x !== s) : [...prev, s]
-                                                        );
+                                                        setStatusIn((prev) => active ? prev.filter((x) => x !== s) : [...prev, s]);
                                                     }}
                                                 >
                                                     {s}
@@ -412,72 +448,32 @@ export default function AuftraegeOverview() {
                                             );
                                         })}
                                     </div>
-
-                                    <div className="mt-3">
-                                        <label className="form-label">Kommissioniert-Status</label>
-                                        <select
-                                            className="form-select"
-                                            value={kommissioniertStatus}
-                                            onChange={(e) => { setKommissioniertStatus(e.target.value as KomStatus | ""); setPage(1); }}
-                                        >
-                                            <option value="">Alle</option>
-                                            <option value="offen">offen</option>
-                                            <option value="gestartet">gestartet</option>
-                                            <option value="fertig">fertig</option>
-                                        </select>
-                                    </div>
-
-                                    <div className="mt-3">
-                                        <label className="form-label">Kontroll-Status</label>
-                                        <select
-                                            className="form-select"
-                                            value={kontrolliertStatus}
-                                            onChange={(e) => { setKontrolliertStatus(e.target.value as KontrollStatus | ""); setPage(1); }}
-                                        >
-                                            <option value="">Alle</option>
-                                            <option value="offen">offen</option>
-                                            <option value="geprüft">geprüft</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Personen */}
-                        <div className="accordion-item">
-                            <h2 className="accordion-header" id="headingPeople">
-                                <button className="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePeople" aria-expanded="false" aria-controls="collapsePeople">
-                                    Personen
-                                </button>
-                            </h2>
-                            <div id="collapsePeople" className="accordion-collapse collapse" aria-labelledby="headingPeople" data-bs-parent="#auftragFilterAccordion">
-                                <div className="accordion-body">
-                                    <div className="mb-3">
-                                        <label className="form-label">Kommissioniert von</label>
-                                        <select
-                                            className="form-select"
-                                            value={kommissioniertVon}
-                                            onChange={(e) => { setKommissioniertVon(e.target.value); setPage(1); }}
-                                        >
-                                            <option value="">Alle</option>
-                                            {kommissioniererUsers.map((u) => (
-                                                <option key={u.id} value={u.id!}>{u.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    <div>
-                                        <label className="form-label">Kontrolliert von</label>
-                                        <select
-                                            className="form-select"
-                                            value={kontrolliertVon}
-                                            onChange={(e) => { setKontrolliertVon(e.target.value); setPage(1); }}
-                                        >
-                                            <option value="">Alle</option>
-                                            {kontrolleUsers.map((u) => (
-                                                <option key={u.id} value={u.id!}>{u.name}</option>
-                                            ))}
-                                        </select>
+                                    <div className="row g-2">
+                                        <div className="col-6">
+                                            <label className="form-label">Kommissioniert-Status</label>
+                                            <select
+                                                className="form-select"
+                                                value={kommissioniertStatus}
+                                                onChange={(e) => { setKommissioniertStatus(e.target.value as KomStatus | ""); setPage(1); }}
+                                            >
+                                                <option value="">Alle</option>
+                                                <option value="offen">offen</option>
+                                                <option value="gestartet">gestartet</option>
+                                                <option value="fertig">fertig</option>
+                                            </select>
+                                        </div>
+                                        <div className="col-6">
+                                            <label className="form-label">Kontroll-Status</label>
+                                            <select
+                                                className="form-select"
+                                                value={kontrolliertStatus}
+                                                onChange={(e) => { setKontrolliertStatus(e.target.value as KontrollStatus | ""); setPage(1); }}
+                                            >
+                                                <option value="">Alle</option>
+                                                <option value="offen">offen</option>
+                                                <option value="geprüft">geprüft</option>
+                                            </select>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -485,13 +481,21 @@ export default function AuftraegeOverview() {
 
                         {/* Kunde */}
                         <div className="accordion-item">
-                            <h2 className="accordion-header" id="headingCustomer">
-                                <button className="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCustomer" aria-expanded="false" aria-controls="collapseCustomer">
+                            <h2 className="accordion-header" id="afh-kunde">
+                                <button className="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#afc-kunde" aria-expanded="false" aria-controls="afc-kunde">
                                     Kunde
                                 </button>
                             </h2>
-                            <div id="collapseCustomer" className="accordion-collapse collapse" aria-labelledby="headingCustomer" data-bs-parent="#auftragFilterAccordion">
+                            <div id="afc-kunde" className="accordion-collapse collapse" aria-labelledby="afh-kunde" data-bs-parent="#auftragFilterAccordion">
                                 <div className="accordion-body">
+                                    <div className="d-flex align-items-center justify-content-between mb-2">
+                                        <h6 className="mb-0">Kunde wählen</h6>
+                                        {(ausgewaehlterKunde || kunde) && (
+                                            <button className="btn btn-sm btn-link text-decoration-none" onClick={() => { setAusgewaehlterKunde(''); setKunde(''); setPage(1); }}>
+                                                Zurücksetzen
+                                            </button>
+                                        )}
+                                    </div>
                                     <Select
                                         options={kundenAlphabetisch.map(k => ({ value: k.id!, label: k.name || '' }))}
                                         value={(() => {
@@ -513,10 +517,10 @@ export default function AuftraegeOverview() {
                                         isClearable
                                         styles={{
                                             container: (base) => ({ ...base, width: '100%' }),
-                                            control: (base) => ({ ...base, borderColor: '#6c757d', minHeight: 32, height: 32 }),
-                                            valueContainer: (base) => ({ ...base, height: 32, padding: '0 8px' }),
+                                            control: (base) => ({ ...base, borderColor: '#6c757d', minHeight: 36, height: 36 }),
+                                            valueContainer: (base) => ({ ...base, height: 36, padding: '0 8px' }),
                                             input: (base) => ({ ...base, margin: 0, padding: 0 }),
-                                            indicatorsContainer: (base) => ({ ...base, height: 32 }),
+                                            indicatorsContainer: (base) => ({ ...base, height: 36 }),
                                             menu: (base) => ({ ...base, zIndex: 5 })
                                         }}
                                     />
@@ -524,167 +528,86 @@ export default function AuftraegeOverview() {
                             </div>
                         </div>
 
-                        {/* Daten */}
+                        {/* Personen */}
                         <div className="accordion-item">
-                            <h2 className="accordion-header" id="headingDates">
-                                <button className="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDates" aria-expanded="false" aria-controls="collapseDates">
-                                    Daten
+                            <h2 className="accordion-header" id="afh-personen">
+                                <button className="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#afc-personen" aria-expanded="false" aria-controls="afc-personen">
+                                    Personen
                                 </button>
                             </h2>
-                            <div id="collapseDates" className="accordion-collapse collapse" aria-labelledby="headingDates" data-bs-parent="#auftragFilterAccordion">
+                            <div id="afc-personen" className="accordion-collapse collapse" aria-labelledby="afh-personen" data-bs-parent="#auftragFilterAccordion">
                                 <div className="accordion-body">
-                                    <div className="mb-3">
-                                        <label className="form-label">Lieferdatum von / bis</label>
-                                        <div className="d-flex gap-2">
-                                            <input type="date" className="form-control" value={lieferVon} onChange={(e) => { setLieferVon(e.target.value); setPage(1); }} />
-                                            <input type="date" className="form-control" value={lieferBis} onChange={(e) => { setLieferBis(e.target.value); setPage(1); }} />
+                                    <div className="row g-2">
+                                        <div className="col-6">
+                                            <label className="form-label">Kommissioniert von</label>
+                                            <select className="form-select" value={kommissioniertVon} onChange={(e) => { setKommissioniertVon(e.target.value); setPage(1); }}>
+                                                <option value="">Alle</option>
+                                                {kommissioniererUsers.map((u) => (
+                                                    <option key={u.id} value={u.id!}>{u.name}</option>
+                                                ))}
+                                            </select>
                                         </div>
-                                    </div>
-                                    <div className="mb-3">
-                                        <label className="form-label">Erstellt von / bis</label>
-                                        <div className="d-flex gap-2">
-                                            <input type="date" className="form-control" value={createdVon} onChange={(e) => { setCreatedVon(e.target.value); setPage(1); }} />
-                                            <input type="date" className="form-control" value={createdBis} onChange={(e) => { setCreatedBis(e.target.value); setPage(1); }} />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="form-label">Aktualisiert von / bis</label>
-                                        <div className="d-flex gap-2">
-                                            <input type="date" className="form-control" value={updatedVon} onChange={(e) => { setUpdatedVon(e.target.value); setPage(1); }} />
-                                            <input type="date" className="form-control" value={updatedBis} onChange={(e) => { setUpdatedBis(e.target.value); setPage(1); }} />
+                                        <div className="col-6">
+                                            <label className="form-label">Kontrolliert von</label>
+                                            <select className="form-select" value={kontrolliertVon} onChange={(e) => { setKontrolliertVon(e.target.value); setPage(1); }}>
+                                                <option value="">Alle</option>
+                                                {kontrolleUsers.map((u) => (
+                                                    <option key={u.id} value={u.id!}>{u.name}</option>
+                                                ))}
+                                            </select>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Auftrag */}
+                        {/* Auftrag & Sonstiges */}
                         <div className="accordion-item">
-                            <h2 className="accordion-header" id="headingOrder">
-                                <button className="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOrder" aria-expanded="false" aria-controls="collapseOrder">
-                                    Auftrag
+                            <h2 className="accordion-header" id="afh-auftrag">
+                                <button className="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#afc-auftrag" aria-expanded="false" aria-controls="afc-auftrag">
+                                    Auftrag & Sonstiges
                                 </button>
                             </h2>
-                            <div id="collapseOrder" className="accordion-collapse collapse" aria-labelledby="headingOrder" data-bs-parent="#auftragFilterAccordion">
+                            <div id="afc-auftrag" className="accordion-collapse collapse" aria-labelledby="afh-auftrag" data-bs-parent="#auftragFilterAccordion">
                                 <div className="accordion-body">
-                                    <div className="mb-3">
+                                    <div className="mb-2">
                                         <label className="form-label">Auftragsnummer</label>
-                                        <input
-                                            className="form-control"
-                                            placeholder="z. B. 2025-000123"
-                                            value={auftragsnummer}
-                                            onChange={(e) => { setAuftragsnummer(e.target.value); setPage(1); }}
-                                        />
+                                        <input className="form-control" placeholder="z. B. 2025-000123" value={auftragsnummer} onChange={(e) => { setAuftragsnummer(e.target.value); setPage(1); }} />
                                     </div>
-                                    <div>
+                                    <div className="mb-2">
                                         <label className="form-label">Hat Tour</label>
-                                        <select
-                                            className="form-select"
-                                            value={hasTour}
-                                            onChange={(e) => { setHasTour(e.target.value as any); setPage(1); }}
-                                        >
+                                        <select className="form-select" value={hasTour} onChange={(e) => { setHasTour(e.target.value as any); setPage(1); }}>
                                             <option value="">Alle</option>
                                             <option value="true">Ja</option>
                                             <option value="false">Nein</option>
                                         </select>
                                     </div>
+                                    <div>
+                                        <label className="form-label">Sortierung</label>
+                                        <select className="form-select" value={sort} onChange={(e) => setSort(e.target.value as any)}>
+                                            <option value="createdAtDesc">Neueste zuerst</option>
+                                            <option value="createdAtAsc">Älteste zuerst</option>
+                                            <option value="updatedAtDesc">Zuletzt aktualisiert</option>
+                                            <option value="updatedAtAsc">Früh aktualisiert</option>
+                                            <option value="lieferdatumAsc">Lieferdatum ↑</option>
+                                            <option value="lieferdatumDesc">Lieferdatum ↓</option>
+                                            <option value="auftragsnummerAsc">Auftragsnr. A→Z</option>
+                                            <option value="auftragsnummerDesc">Auftragsnr. Z→A</option>
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        {/* Sortierung */}
-                        <div className="accordion-item">
-                            <h2 className="accordion-header" id="headingSort">
-                                <button className="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSort" aria-expanded="false" aria-controls="collapseSort">
-                                    Sortierung
-                                </button>
-                            </h2>
-                            <div id="collapseSort" className="accordion-collapse collapse" aria-labelledby="headingSort" data-bs-parent="#auftragFilterAccordion">
-                                <div className="accordion-body">
-                                    <select
-                                        className="form-select"
-                                        value={sort}
-                                        onChange={(e) => setSort(e.target.value as any)}
-                                    >
-                                        <option value="createdAtDesc">Neueste zuerst</option>
-                                        <option value="createdAtAsc">Älteste zuerst</option>
-                                        <option value="updatedAtDesc">Zuletzt aktualisiert</option>
-                                        <option value="updatedAtAsc">Früh aktualisiert</option>
-                                        <option value="lieferdatumAsc">Lieferdatum ↑</option>
-                                        <option value="lieferdatumDesc">Lieferdatum ↓</option>
-                                        <option value="auftragsnummerAsc">Auftragsnr. A→Z</option>
-                                        <option value="auftragsnummerDesc">Auftragsnr. Z→A</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Aktive Filter + Aktionen */}
-                        <div className="pt-3">
-                            <div className="d-flex flex-wrap gap-2 mb-3">
-                                {statusIn.map((s) => (
-                                    <span key={s} className="badge rounded-pill bg-primary">
-                                        {s} <button
-                                            type="button"
-                                            className="btn-close btn-close-white btn-sm ms-2"
-                                            aria-label="Remove"
-                                            onClick={() =>
-                                                setStatusIn((prev) => prev.filter((x) => x !== s))
-                                            }
-                                        />
-                                    </span>
-                                ))}
-                                {kommissioniertStatus && (
-                                    <span className="badge rounded-pill bg-info">
-                                        Kommi: {kommissioniertStatus}
-                                        <button
-                                            type="button"
-                                            className="btn-close btn-close-white btn-sm ms-2"
-                                            onClick={() => setKommissioniertStatus("")}
-                                        />
-                                    </span>
-                                )}
-                                {kontrolliertStatus && (
-                                    <span className="badge rounded-pill bg-success">
-                                        Kontrolle: {kontrolliertStatus}
-                                        <button
-                                            type="button"
-                                            className="btn-close btn-close-white btn-sm ms-2"
-                                            onClick={() => setKontrolliertStatus("")}
-                                        />
-                                    </span>
-                                )}
-                                {hasTour !== "" && (
-                                    <span className="badge rounded-pill bg-dark">
-                                        Tour: {hasTour === "true" ? "Ja" : "Nein"}
-                                        <button
-                                            type="button"
-                                            className="btn-close btn-close-white btn-sm ms-2"
-                                            onClick={() => setHasTour("")}
-                                        />
-                                    </span>
-                                )}
-                                {(lieferVon || lieferBis) && (
-                                    <span className="badge rounded-pill bg-secondary">
-                                        Liefer: {lieferVon || "…"} – {lieferBis || "…"}
-                                        <button
-                                            type="button"
-                                            className="btn-close btn-close-white btn-sm ms-2"
-                                            onClick={() => { setLieferVon(""); setLieferBis(""); }}
-                                        />
-                                    </span>
-                                )}
-                            </div>
-                            <div className="d-flex gap-2">
-                                <button className="btn btn-outline-secondary" onClick={clearFilters}>
-                                    <i className="ci-close me-2" />
-                                    Filter zurücksetzen
-                                </button>
-                                <button className="btn btn-primary" data-bs-dismiss="offcanvas">
-                                    Anwenden
-                                </button>
-                            </div>
-                        </div>
+                    {/* Aktionen */}
+                    <div className="border-top pt-3 d-flex gap-2 mt-3">
+                        <button className="btn btn-outline-secondary" onClick={clearFilters}>
+                            <i className="ci-close me-2" /> Zurücksetzen
+                        </button>
+                        <button className="btn btn-primary" data-bs-dismiss="offcanvas">
+                            Anwenden
+                        </button>
                     </div>
                 </div>
             </div>

@@ -517,10 +517,11 @@ const ArtikelListe: React.FC<Props> = ({
   [style*='scrollMarginTop'] { scroll-margin-top: 110px !important; }
   
   /* Sticky toolbar (unter der Navbar) */
-.toolbar-sticky { position: sticky; top: calc(72px + .75rem); z-index: 1020; }
-@media (max-width: 991.98px) {
-  .toolbar-sticky { top: calc(85px + .5rem); }
-}
+  .toolbar-sticky { position: sticky; top: calc(72px + .75rem); z-index: 1020; }
+  /* Auf Handy: nicht sticky, normal scrollen */
+  @media (max-width: 767.98px) {
+    .toolbar-sticky { position: static; top: auto; }
+  }
 `}
             </style>
         </>
