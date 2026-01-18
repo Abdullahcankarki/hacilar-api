@@ -1,6 +1,16 @@
-// istanbul ignore file
-
 import { JSX } from "react";
+
+export class ErrorWithCode extends Error {
+    status: number;
+    code: string;
+
+    constructor(status: number, code: string, message: string) {
+        super(message);
+        this.status = status;
+        this.code = code;
+    }
+}
+// istanbul ignore file
 
 /**
  * Funktioniert wie fetch, erkennt aber auch Validierungsfehler und HTML-Antworten und
@@ -41,6 +51,10 @@ export async function fetchWithErrorHandling(url: string, init?: RequestInit): P
       if (Array.isArray(data.errors)) {
         const validationErrors = data.errors as ValidationError[];
         throw new ErrorFromValidation(response.status, validationErrors);
+      }
+
+      if (data.code && data.message) {
+          throw new ErrorWithCode(response.status, data.code, data.message);
       }
 
       throw new Error(data.message || `Fehler: ${response.status}`);
@@ -123,4 +137,3 @@ export class ErrorWithHTML extends Error {
         this.div = <div dangerouslySetInnerHTML={{__html: html}} />;
     }
 }
-

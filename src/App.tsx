@@ -2,42 +2,43 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './providers/Authcontext';
-import Dashboard from './components/dashboard';
-import KundeEdit from './components/kundeEdit';
-import Profil from './components/profil';
-import KundeDetail from './components/kundeDetails';
-import KundenaufpreisEditor from './components/kundenaufpreiseditor';
-import AuftragDetail from './components/auftragDetail';
-import VerkaeuferDetails from './components/verkaeuferDetails';
-import VerkaeuferEdit from './components/verkaeuferEdit';
-import StatsDashboard from './components/stats';
-import { Layout } from './components/layout';
+import Dashboard from './components/dashboard/dashboard';
+import KundeEdit from './components/verwaltung/kunden/kundeEdit';
+import Profil from './components/profil/profil';
+import KundeDetail from './components/verwaltung/kunden/kundeDetails';
+import AuftragDetail from './components/produktion/auftrag/auftragDetail';
+import VerkaeuferDetails from './components/verwaltung/mitarbeiter/verkaeuferDetails';
+import VerkaeuferEdit from './components/verwaltung/mitarbeiter/verkaeuferEdit';
+import StatsDashboard from './components/verwaltung/statistiken/stats';
+import { Layout } from './components/layout/layout';
 import "./App.css"
 import './Cartzilla/assets/css/theme.min.css';
 import './Cartzilla/assets/icons/cartzilla-icons.min.css';
 import 'leaflet/dist/leaflet.css'
-import ArtikelDetails from './components/artikelDetails';
-import AllArtikel from './components/allArtikel';
-import RegisterForm from './components/register';
-import ZerlegeAuftraege from './components/zerlegeAuftraege';
-import ZerlegeDetail from './components/zerlegeDetail';
-import KomAuftragDetail from './components/komAuftragDetail';
-import FahrzeugUebersicht from './components/fahrzeug';
-import RegionRuleOverview from './components/RegionRuleOverview';
-import KundenOverview from './components/KundenOverview';
-import MitarbeiterVerwaltung from './components/MitarbeiterOverview';
-import ArtikelOverview from './components/artikelOverview';
-import ReihenfolgeVorlageOverview from './components/ReihenfolgeVorlage';
-import { TourManager } from './components/TourManager';
-import DriverTour from './components/DriverTour';
-import AuftraegeOverview from './components/auftragOverview';
-import AuftraegeBoard from './components/AuftragBoard';
-import Login2Form from './components/login2';
-import FleetPage from './components/Fleetpage';
-import SupportHelp from './components/SupportHelp';
-import ForgotPassword from './components/forgot-password';
-import ResetPassword from './components/reset-password';
-import InventoryDashboard from './components/inventoryDashboard';
+import ArtikelDetails from './components/verwaltung/artikel/artikelDetails';
+import AllArtikel from './components/z-old/allArtikel';
+import RegisterForm from './components/login/register';
+import ZerlegeAuftraege from './components/produktion/zerlegung/zerlegeAuftraege';
+import ZerlegeDetail from './components/produktion/zerlegung/zerlegeDetail';
+import KomAuftragDetail from './components/produktion/kommisienierung/komAuftragDetail';
+import FahrzeugUebersicht from './components/verwaltung/fahrzeug/fahrzeug';
+import RegionRuleOverview from './components/verwaltung/region-regel/RegionRuleOverview';
+import KundenOverview from './components/verwaltung/kunden/KundenOverview';
+import MitarbeiterVerwaltung from './components/verwaltung/mitarbeiter/MitarbeiterOverview';
+import ArtikelOverview from './components/verwaltung/artikel/artikelOverview';
+import ReihenfolgeVorlageOverview from './components/verwaltung/reihenfolge-vorlage/ReihenfolgeVorlage';
+import { TourManager } from './components/produktion/tour/TourManager';
+import DriverTour from './components/fahrer/DriverTour';
+import AuftraegeOverview from './components/produktion/auftrag/auftragOverview';
+import AuftraegeBoard from './components/produktion/kommisienierung/AuftragBoard';
+import Login2Form from './components/login/login2';
+import FleetPage from './components/verwaltung/fahrzeug/Fleetpage';
+import SupportHelp from './components/login/SupportHelp';
+import ForgotPassword from './components/login/forgot-password';
+import ResetPassword from './components/login/reset-password';
+import SchnellAuftragWriter from './components/produktion/auftrag/SchnellAuftragWriter';
+import MeineAuftraege from './components/profil/MeineAuftraege';
+// import InventoryDashboard from './components/inventoryDashboard';
 
 
 // 📌 App-Routen
@@ -68,6 +69,7 @@ const AppRoutes: React.FC = () => {
             <>
               <Route path="home" element={<Dashboard />} />
               <Route path="auftraege" element={<AuftraegeOverview />} />
+              <Route path="auftrag-schnell" element={<SchnellAuftragWriter />} />
               <Route path="auftraege/:id" element={<AuftragDetail />} />
               <Route path="kommissionierung" element={<AuftraegeBoard />} />
               <Route path="kommissionierung/:id" element={<KomAuftragDetail />} />
@@ -79,7 +81,6 @@ const AppRoutes: React.FC = () => {
               <Route path="kunden" element={<KundenOverview />} />
               <Route path="kunden/:id" element={<KundeDetail />} />
               <Route path="kunden/edit/:id" element={<KundeEdit />} />
-              <Route path="kundenaufpreise/:artikelId" element={<KundenaufpreisEditor />} />
               <Route path="profil" element={<Profil />} />
               <Route path="mitarbeiter" element={<MitarbeiterVerwaltung />} />
               <Route path="mitarbeiter/:id" element={<VerkaeuferDetails />} />
@@ -91,7 +92,7 @@ const AppRoutes: React.FC = () => {
               <Route path="tour-manager" element={<TourManager />} />
               <Route path="fahrer" element={<DriverTour />} />
               <Route path="fleet" element={<FleetPage />} />
-              <Route path="inventory" element={<InventoryDashboard />} />
+              {/* <Route path="inventory" element={<InventoryDashboard />} /> */}
               <Route path="*" element={<Navigate to="/home" replace />} />
             </>
           ) : roles.includes('zerleger') ? (
@@ -105,6 +106,7 @@ const AppRoutes: React.FC = () => {
             <>
               <Route path="home" element={<Dashboard />} />
               <Route path="profil" element={<Profil />} />
+              <Route path="meine-auftraege" element={<MeineAuftraege />} />
               <Route path="allArtikel" element={<AllArtikel />} />
               <Route path="artikel/:id" element={<ArtikelDetails />} />
               <Route path="auftraege/:id" element={<AuftragDetail />} />

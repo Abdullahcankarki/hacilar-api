@@ -880,6 +880,14 @@ export async function setAuftragInBearbeitung(
   });
 }
 
+export async function setAuftragInFertig(
+  id: string
+): Promise<AuftragResource> {
+  return apiFetch<AuftragResource>(`/api/auftrag/${id}/fertig`, {
+    method: "PUT",
+  });
+}
+
 export async function deleteAuftrag(id: string): Promise<{ message: string }> {
   return apiFetch<{ message: string }>(`/api/auftrag/${id}`, {
     method: "DELETE",
@@ -938,6 +946,7 @@ export async function updateArtikelPosition(
   });
 }
 
+
 export async function updateArtikelPositionKommissionierung(
   id: string,
   data: Partial<ArtikelPositionResource>
@@ -947,6 +956,27 @@ export async function updateArtikelPositionKommissionierung(
     {
       method: "PUT",
       body: JSON.stringify(data),
+    }
+  );
+}
+
+/**
+ * PUT /api/artikelposition/:id/leergut
+ * Aktualisiert Leergut (Art, Anzahl, Gewicht) einer Artikelposition
+ */
+export async function updateArtikelPositionLeergut(
+  id: string,
+  leergut: {
+    leergutArt: string;
+    leergutAnzahl: number;
+    leergutGewicht: number;
+  }[]
+): Promise<ArtikelPositionResource> {
+  return apiFetch<ArtikelPositionResource>(
+    `/api/artikelposition/${id}/leergut`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ leergut }),
     }
   );
 }
@@ -1152,6 +1182,20 @@ export async function createTour(
 
 export async function getTourById(id: string): Promise<TourResource> {
   return apiFetch<TourResource>(`/api/tour/${id}`);
+}
+
+/**
+ * POST /api/tour/by-ids
+ * Body: { ids: string[] }
+ * Liefert TourResource[] für die angegebenen IDs.
+ */
+export async function getToursByIds(ids: string[]): Promise<TourResource[]> {
+  const clean = (ids || []).map((x) => String(x || "").trim()).filter(Boolean);
+  if (!clean.length) return [];
+  return apiFetch<TourResource[]>(`/api/tour/by-ids`, {
+    method: "POST",
+    body: JSON.stringify({ ids: clean }),
+  });
 }
 
 /** Liste / Suche mit Server-Pagination */
@@ -1735,6 +1779,7 @@ export const api = {
   createArtikelPosition,
   updateArtikelPosition,
   updateArtikelPositionKommissionierung,
+  updateArtikelPositionLeergut,
   deleteArtikelPosition,
   // Mitarbeiter
   getAllMitarbeiter,
@@ -1765,6 +1810,7 @@ export const api = {
   // Tour
   createTour,
   getTourById,
+  getToursByIds,
   getAllTours,
   updateTour,
   archiveTour,

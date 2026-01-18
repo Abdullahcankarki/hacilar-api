@@ -1,8 +1,7 @@
 // AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { LoginResponse, LoginResource } from '../Resources';
-import { login as apiLogin } from '../backend/api';
-import { fetchWithErrorHandling } from '../backend/fetchWithErrorHandling';
+import { LoginResponse, LoginResource } from '@/Resources';
+import { login as apiLogin } from '@/backend/api';
 
 interface AuthContextType {
   user: LoginResource | null;
