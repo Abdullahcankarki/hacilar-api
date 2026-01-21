@@ -256,7 +256,7 @@ const NavBar: React.FC<NavBarProps> = ({
               <i className="ci-user fs-4"></i>
             </button>
           )}
-          {isAdminOderVerkauf && (
+          {(isAdminOderVerkauf || isKunde) && (
             <button
               className="btn p-0 border-0 bg-transparent position-relative icon-btn text-secondary"
               onClick={onCartClick}

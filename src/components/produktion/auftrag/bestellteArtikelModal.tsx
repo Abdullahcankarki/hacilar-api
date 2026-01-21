@@ -26,7 +26,7 @@ export default function BestellteArtikelModal({ isOpen, onClose }: Props) {
     const [error, setError] = useState<string | null>(null);
     const [debug, setDebug] = useState<boolean>(false);
 
-    const [sortKey, setSortKey] = useState<"artikelName" | "artikelNummer" | "mengeSum" | "einheit">("mengeSum");
+    const [sortKey, setSortKey] = useState<"artikelName" | "artikelNummer" | "artikelKategorie" | "mengeSum" | "einheit">("mengeSum");
     const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
     const canSearch = useMemo(() => !loading, [loading]);
@@ -72,13 +72,14 @@ export default function BestellteArtikelModal({ isOpen, onClose }: Props) {
     };
 
     const exportCsv = () => {
-        const header = ["artikelId", "artikelName", "artikelNummer", "mengeSum", "einheit"];
+        const header = ["artikelId", "artikelName", "artikelNummer", "artikelKategorie", "mengeSum", "einheit"];
         const lines = [header.join(";")];
         for (const r of rows) {
             lines.push([
                 r.artikelId ?? "",
                 r.artikelName ?? "",
                 r.artikelNummer ?? "",
+                r.artikelKategorie ?? "",
                 String(r.mengeSum ?? ""),
                 r.einheit ?? "",
             ].map(v => (String(v).includes(";") ? `"${String(v).replace(/"/g, '""')}"` : String(v))).join(";"));
@@ -93,10 +94,19 @@ export default function BestellteArtikelModal({ isOpen, onClose }: Props) {
         URL.revokeObjectURL(url);
     };
 
-    const fmt = (d: Date) => d.toISOString().slice(0, 10);
-    const addDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+    const fmt = (d: Date) => {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+    const addDays = (d: Date, n: number) => {
+        const x = new Date(d.getTime());
+        x.setDate(x.getDate() + n);
+        return x;
+    };
     const startOfWeek = (d: Date) => {
-        const x = new Date(d);
+        const x = new Date(d.getTime());
         const day = x.getDay(); // 0=Sun,1=Mon,...  we want Monday as start
         const diff = (day === 0 ? -6 : 1 - day);
         return addDays(x, diff);
@@ -158,7 +168,7 @@ export default function BestellteArtikelModal({ isOpen, onClose }: Props) {
         return data;
     }, [rows, sortKey, sortDir]);
 
-    const onSort = (key: "artikelName" | "artikelNummer" | "mengeSum" | "einheit") => {
+    const onSort = (key: "artikelName" | "artikelNummer" | "artikelKategorie" | "mengeSum" | "einheit") => {
         if (sortKey === key) {
             setSortDir(sortDir === "asc" ? "desc" : "asc");
         } else {
@@ -282,6 +292,7 @@ export default function BestellteArtikelModal({ isOpen, onClose }: Props) {
                                         <tr>
                                             <th role="button" onClick={() => onSort("artikelName")}>Artikel{sortIndicator("artikelName")}</th>
                                             <th role="button" onClick={() => onSort("artikelNummer")}>Artikel-Nr{sortIndicator("artikelNummer")}</th>
+                                            <th role="button" onClick={() => onSort("artikelKategorie")}>Kategorie{sortIndicator("artikelKategorie")}</th>
                                             <th className="text-end" role="button" onClick={() => onSort("mengeSum")}>Menge Σ{sortIndicator("mengeSum")}</th>
                                             <th role="button" onClick={() => onSort("einheit")}>Einheit{sortIndicator("einheit")}</th>
                                         </tr>
@@ -291,13 +302,14 @@ export default function BestellteArtikelModal({ isOpen, onClose }: Props) {
                                             <tr key={idx}>
                                                 <td>{r.artikelName ?? r.artikelId}</td>
                                                 <td>{r.artikelNummer ?? "-"}</td>
+                                                <td>{r.artikelKategorie ?? "-"}</td>
                                                 <td className="text-end">{r.mengeSum}</td>
                                                 <td>{r.einheit ?? "-"}</td>
                                             </tr>
                                         ))}
                                         {!rows.length && !loading && (
                                             <tr>
-                                                <td colSpan={4} className="text-muted py-3">Keine Daten</td>
+                                                <td colSpan={5} className="text-muted py-3">Keine Daten</td>
                                             </tr>
                                         )}
                                     </tbody>

@@ -7,6 +7,7 @@ import {
     getAllKunden,
     generateBelegeBatchPdfs,
     deleteAuftrag,
+    deleteMultipleAuftraege,
 } from "../../../backend/api";
 import { AuftragResource, MitarbeiterResource, KundeResource } from "../../../Resources";
 import BestellteArtikelModal from "./bestellteArtikelModal";
@@ -154,6 +155,54 @@ export default function AuftraegeOverview() {
             setDeleteErr(e?.message || "Fehler beim Löschen");
         } finally {
             setDeleteBusy(false);
+        }
+    };
+
+    // Multiple Delete (Confirm Modal)
+    const [showMultipleDelete, setShowMultipleDelete] = useState(false);
+    const [multipleDeleteBusy, setMultipleDeleteBusy] = useState(false);
+    const [multipleDeleteErr, setMultipleDeleteErr] = useState<string | null>(null);
+
+    const openMultipleDelete = () => {
+        const ids = selectAllFiltered
+            ? items.map(i => i.id!).filter(Boolean)
+            : Array.from(selectedIds);
+        if (ids.length === 0) {
+            alert("Bitte mindestens einen Auftrag auswählen.");
+            return;
+        }
+        setMultipleDeleteErr(null);
+        setShowMultipleDelete(true);
+    };
+
+    const closeMultipleDelete = () => {
+        setShowMultipleDelete(false);
+        setMultipleDeleteBusy(false);
+        setMultipleDeleteErr(null);
+    };
+
+    const confirmMultipleDelete = async () => {
+        const ids = selectAllFiltered
+            ? items.map(i => i.id!).filter(Boolean)
+            : Array.from(selectedIds);
+        if (ids.length === 0) return;
+
+        setMultipleDeleteBusy(true);
+        setMultipleDeleteErr(null);
+        try {
+            await deleteMultipleAuftraege(ids);
+            // optimistic remove
+            setItems((prev) => prev.filter((x) => !ids.includes(x.id!)));
+            // clear selection
+            clearSelection();
+            setSelectionMode(false);
+            // refetch in background for consistency
+            setReloadKey((k) => k + 1);
+            closeMultipleDelete();
+        } catch (e: any) {
+            setMultipleDeleteErr(e?.message || "Fehler beim Löschen");
+        } finally {
+            setMultipleDeleteBusy(false);
         }
     };
 
@@ -319,15 +368,20 @@ export default function AuftraegeOverview() {
     return (
         <div className="container py-3 py-lg-4">
             {/* Header */}
-            <div className="d-flex align-items-center justify-content-between mb-3 flex-wrap">
-                <div>
-                    <h2 className="h4 mb-1">Aufträge</h2>
-                    <div className="text-muted small">
-                        Übersicht &amp; Schnellfilter
+            <div className="mb-3">
+                <div className="d-flex align-items-center justify-content-between mb-3">
+                    <div>
+                        <h2 className="h4 mb-1">Aufträge</h2>
+                        <div className="text-muted small">
+                            Übersicht &amp; Schnellfilter
+                        </div>
                     </div>
                 </div>
-                <div className="d-flex align-items-center gap-2 flex-wrap w-100">
-                    <div className="btn-group me-0 me-sm-1 order-1 flex-shrink-0">
+
+                {/* Action Buttons Row */}
+                <div className="d-flex align-items-center gap-2 flex-wrap">
+                    {/* Left Group - Filter & Create */}
+                    <div className="d-flex align-items-center gap-2 flex-wrap">
                         <button
                             className="btn btn-outline-primary d-flex align-items-center"
                             type="button"
@@ -338,65 +392,76 @@ export default function AuftraegeOverview() {
                         >
                             <i className="ci-filter me-2" /> Filter
                         </button>
-                    </div>
-                    <button
-                        type="button"
-                        className="btn btn-primary d-flex align-items-center"
-                        title="Schnellerfassung"
-                        aria-label="Schnellerfassung öffnen"
-                        onClick={() => navigate('/auftrag-schnell')}
-                    >
-                        <i className="ci-add me-2" />
-                        Schnellerfassung
-                    </button>
-                    <button
-                        type="button"
-                        className="btn btn-dark d-flex align-items-center"
-                        title="Bestellte Artikel anzeigen"
-                        aria-label="Bestellte Artikel anzeigen"
-                        onClick={() => setShowBestellteModal(true)}
-                    >
-                        <i className="ci-check-square me-2" />
-                        Bestellte Artikel
-                    </button>
-                    <div className="btn-group btn-group-sm order-2 flex-shrink-0 mt-2 mt-lg-0">
                         <button
-                            className={cls("btn btn-outline-secondary", limit === undefined && "active")}
-                            title="Alle laden"
-                            onClick={() => { setLimit(undefined); setPage(1); }}
+                            type="button"
+                            className="btn btn-primary d-flex align-items-center"
+                            title="Schnellerfassung"
+                            aria-label="Schnellerfassung öffnen"
+                            onClick={() => navigate('/auftrag-schnell')}
                         >
-                            Alle
+                            <i className="ci-plus me-2" />
+                            Schnellerfassung
                         </button>
-                        {[25, 50, 100].map((n) => (
-                            <button
-                                key={n}
-                                className={cls("btn btn-outline-secondary", limit === n && "active")}
-                                onClick={() => { setLimit(n); setPage(1); }}
-                            >
-                                {n}
-                            </button>
-                        ))}
+                        <button
+                            type="button"
+                            className="btn btn-dark d-flex align-items-center"
+                            title="Bestellte Artikel anzeigen"
+                            aria-label="Bestellte Artikel anzeigen"
+                            onClick={() => setShowBestellteModal(true)}
+                        >
+                            <i className="ci-check-square me-2" />
+                            Bestellte Artikel
+                        </button>
                     </div>
-                    {/* Drucken (Mehrfachauswahl) */}
-                    <div className="ms-auto d-flex align-items-center gap-2 mt-2 mt-lg-0">
+
+                    {/* Right Group - Pagination & Multi-Select */}
+                    <div className="ms-auto d-flex align-items-center gap-2 flex-wrap">
+                        {/* Pagination Limits */}
+                        <div className="btn-group btn-group-sm">
+                            <button
+                                className={cls("btn btn-outline-secondary", limit === undefined && "active")}
+                                title="Alle laden"
+                                onClick={() => { setLimit(undefined); setPage(1); }}
+                            >
+                                Alle
+                            </button>
+                            {[25, 50, 100].map((n) => (
+                                <button
+                                    key={n}
+                                    className={cls("btn btn-outline-secondary", limit === n && "active")}
+                                    onClick={() => { setLimit(n); setPage(1); }}
+                                >
+                                    {n}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Multi-Select Mode */}
                         {!selectionMode ? (
                             <button
-                                className="btn btn-success"
+                                className="btn btn-success d-flex align-items-center"
                                 onClick={() => { setSelectionMode(true); clearSelection(); }}
-                                title="Mehrere Belege drucken"
+                                title="Mehrfachauswahl aktivieren"
                             >
-                                <i className="ci-printer me-2" /> Drucken
+                                <i className="ci-check-square me-2" /> Mehrfachauswahl
                             </button>
                         ) : (
                             <>
                                 <button
-                                    className="btn btn-primary"
+                                    className="btn btn-primary d-flex align-items-center"
                                     onClick={handleBatchPrint}
                                     title="Ausgewählte drucken"
                                 >
-                                    <i className="ci-download me-2" /> Ausgewählte drucken (Rechnung)
+                                    <i className="ci-download me-2" /> Drucken
                                 </button>
-                                <div className="form-check ms-2">
+                                <button
+                                    className="btn btn-danger d-flex align-items-center"
+                                    onClick={openMultipleDelete}
+                                    title="Ausgewählte löschen"
+                                >
+                                    <i className="ci-trash me-2" /> Löschen
+                                </button>
+                                <div className="form-check">
                                     <input
                                         className="form-check-input"
                                         type="checkbox"
@@ -405,17 +470,16 @@ export default function AuftraegeOverview() {
                                         onChange={(e) => {
                                             setSelectAllFiltered(e.target.checked);
                                             if (e.target.checked) {
-                                                // When selecting all filtered, clear individual set to avoid confusion
                                                 setSelectedIds(new Set());
                                             }
                                         }}
                                     />
                                     <label className="form-check-label" htmlFor="selectAllFiltered">
-                                        Alle (gefilterten) auswählen
+                                        Alle auswählen
                                     </label>
                                 </div>
                                 <button
-                                    className="btn btn-outline-secondary"
+                                    className="btn btn-outline-secondary d-flex align-items-center"
                                     onClick={() => { setSelectionMode(false); clearSelection(); }}
                                 >
                                     Abbrechen
@@ -453,14 +517,14 @@ export default function AuftraegeOverview() {
                             )}
                         </div>
                         <div className="d-flex flex-wrap gap-2 mb-2">
-                            <button className="btn btn-sm btn-outline-secondary" onClick={() => { const d=new Date(); const s=d.toISOString().slice(0,10); setLieferVon(s); setLieferBis(s); setPage(1); }}>Heute</button>
-                            <button className="btn btn-sm btn-outline-secondary" onClick={() => { const d=new Date(); d.setDate(d.getDate()-1); const s=d.toISOString().slice(0,10); setLieferVon(s); setLieferBis(s); setPage(1); }}>Gestern</button>
-                            <button className="btn btn-sm btn-outline-secondary" onClick={() => { const now=new Date(); const day=now.getDay()||7; const monday=new Date(now); monday.setDate(now.getDate()-day+1); const sunday=new Date(monday); sunday.setDate(monday.getDate()+6); setLieferVon(monday.toISOString().slice(0,10)); setLieferBis(sunday.toISOString().slice(0,10)); setPage(1); }}>Diese Woche</button>
-                            <button className="btn btn-sm btn-outline-secondary" onClick={() => { const now=new Date(); const day=now.getDay()||7; const lastMonday=new Date(now); lastMonday.setDate(now.getDate()-day-6); const lastSunday=new Date(lastMonday); lastSunday.setDate(lastMonday.getDate()+6); setLieferVon(lastMonday.toISOString().slice(0,10)); setLieferBis(lastSunday.toISOString().slice(0,10)); setPage(1); }}>Letzte Woche</button>
-                            <button className="btn btn-sm btn-outline-secondary" onClick={() => { const now=new Date(); const first=new Date(now.getFullYear(), now.getMonth(), 1); const last=new Date(now.getFullYear(), now.getMonth()+1, 0); setLieferVon(first.toISOString().slice(0,10)); setLieferBis(last.toISOString().slice(0,10)); setPage(1); }}>Diesen Monat</button>
-                            <button className="btn btn-sm btn-outline-secondary" onClick={() => { const now=new Date(); const first=new Date(now.getFullYear(), now.getMonth()-1, 1); const last=new Date(now.getFullYear(), now.getMonth(), 0); setLieferVon(first.toISOString().slice(0,10)); setLieferBis(last.toISOString().slice(0,10)); setPage(1); }}>Letzten Monat</button>
-                            <button className="btn btn-sm btn-outline-secondary" onClick={() => { const now=new Date(); const first=new Date(now.getFullYear(),0,1); const last=new Date(now.getFullYear(),11,31); setLieferVon(first.toISOString().slice(0,10)); setLieferBis(last.toISOString().slice(0,10)); setPage(1); }}>Dieses Jahr</button>
-                            <button className="btn btn-sm btn-outline-secondary" onClick={() => { const now=new Date(); const first=new Date(now.getFullYear()-1,0,1); const last=new Date(now.getFullYear()-1,11,31); setLieferVon(first.toISOString().slice(0,10)); setLieferBis(last.toISOString().slice(0,10)); setPage(1); }}>Letztes Jahr</button>
+                            <button className="btn btn-sm btn-outline-secondary" onClick={() => { const d=new Date(); const s=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; setLieferVon(s); setLieferBis(s); setPage(1); }}>Heute</button>
+                            <button className="btn btn-sm btn-outline-secondary" onClick={() => { const d=new Date(); d.setDate(d.getDate()-1); const s=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; setLieferVon(s); setLieferBis(s); setPage(1); }}>Gestern</button>
+                            <button className="btn btn-sm btn-outline-secondary" onClick={() => { const now=new Date(); const day=now.getDay()||7; const monday=new Date(now.getTime()); monday.setDate(now.getDate()-day+1); const sunday=new Date(monday.getTime()); sunday.setDate(monday.getDate()+6); const from=`${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`; const to=`${sunday.getFullYear()}-${String(sunday.getMonth()+1).padStart(2,'0')}-${String(sunday.getDate()).padStart(2,'0')}`; setLieferVon(from); setLieferBis(to); setPage(1); }}>Diese Woche</button>
+                            <button className="btn btn-sm btn-outline-secondary" onClick={() => { const now=new Date(); const day=now.getDay()||7; const lastMonday=new Date(now.getTime()); lastMonday.setDate(now.getDate()-day-6); const lastSunday=new Date(lastMonday.getTime()); lastSunday.setDate(lastMonday.getDate()+6); const from=`${lastMonday.getFullYear()}-${String(lastMonday.getMonth()+1).padStart(2,'0')}-${String(lastMonday.getDate()).padStart(2,'0')}`; const to=`${lastSunday.getFullYear()}-${String(lastSunday.getMonth()+1).padStart(2,'0')}-${String(lastSunday.getDate()).padStart(2,'0')}`; setLieferVon(from); setLieferBis(to); setPage(1); }}>Letzte Woche</button>
+                            <button className="btn btn-sm btn-outline-secondary" onClick={() => { const now=new Date(); const first=new Date(now.getFullYear(), now.getMonth(), 1); const last=new Date(now.getFullYear(), now.getMonth()+1, 0); const from=`${first.getFullYear()}-${String(first.getMonth()+1).padStart(2,'0')}-${String(first.getDate()).padStart(2,'0')}`; const to=`${last.getFullYear()}-${String(last.getMonth()+1).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`; setLieferVon(from); setLieferBis(to); setPage(1); }}>Diesen Monat</button>
+                            <button className="btn btn-sm btn-outline-secondary" onClick={() => { const now=new Date(); const first=new Date(now.getFullYear(), now.getMonth()-1, 1); const last=new Date(now.getFullYear(), now.getMonth(), 0); const from=`${first.getFullYear()}-${String(first.getMonth()+1).padStart(2,'0')}-${String(first.getDate()).padStart(2,'0')}`; const to=`${last.getFullYear()}-${String(last.getMonth()+1).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`; setLieferVon(from); setLieferBis(to); setPage(1); }}>Letzten Monat</button>
+                            <button className="btn btn-sm btn-outline-secondary" onClick={() => { const now=new Date(); const first=new Date(now.getFullYear(),0,1); const last=new Date(now.getFullYear(),11,31); const from=`${first.getFullYear()}-${String(first.getMonth()+1).padStart(2,'0')}-${String(first.getDate()).padStart(2,'0')}`; const to=`${last.getFullYear()}-${String(last.getMonth()+1).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`; setLieferVon(from); setLieferBis(to); setPage(1); }}>Dieses Jahr</button>
+                            <button className="btn btn-sm btn-outline-secondary" onClick={() => { const now=new Date(); const first=new Date(now.getFullYear()-1,0,1); const last=new Date(now.getFullYear()-1,11,31); const from=`${first.getFullYear()}-${String(first.getMonth()+1).padStart(2,'0')}-${String(first.getDate()).padStart(2,'0')}`; const to=`${last.getFullYear()}-${String(last.getMonth()+1).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`; setLieferVon(from); setLieferBis(to); setPage(1); }}>Letztes Jahr</button>
                         </div>
                         <div className="d-flex gap-2">
                             <input type="date" className="form-control" value={lieferVon} onChange={(e) => { setLieferVon(e.target.value); setPage(1); }} />
@@ -877,6 +941,76 @@ export default function AuftraegeOverview() {
                                 >
                                     {deleteBusy && <span className="spinner-border spinner-border-sm me-2" />}
                                     Löschen
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showMultipleDelete && (
+                <div
+                    className="modal d-block"
+                    tabIndex={-1}
+                    role="dialog"
+                    style={{ background: 'rgba(30,33,37,.6)', zIndex: 4000 }}
+                >
+                    <div className="modal-dialog modal-dialog-centered" role="document">
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <div className="d-flex align-items-center gap-2">
+                                    <i className="ci-trash fs-4 text-danger" />
+                                    <div>
+                                        <h5 className="modal-title mb-0">Mehrere Aufträge löschen</h5>
+                                        <div className="small text-muted">Diese Aktion kann nicht rückgängig gemacht werden.</div>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    className="btn-close"
+                                    onClick={closeMultipleDelete}
+                                    disabled={multipleDeleteBusy}
+                                    aria-label="Close"
+                                />
+                            </div>
+                            <div className="modal-body">
+                                {multipleDeleteErr && (
+                                    <div className="alert alert-danger mb-0">{multipleDeleteErr}</div>
+                                )}
+                                {!multipleDeleteErr && (
+                                    <div>
+                                        <p className="mb-2">
+                                            Möchtest du wirklich <strong>
+                                                {selectAllFiltered
+                                                    ? items.length
+                                                    : selectedIds.size
+                                                } Auftrag{(selectAllFiltered ? items.length : selectedIds.size) === 1 ? '' : 'e'}
+                                            </strong> löschen?
+                                        </p>
+                                        <div className="alert alert-warning mb-0">
+                                            <i className="ci-info-circle me-2"></i>
+                                            Dies wird alle zugehörigen Artikel-Positionen, Zerlegeaufträge und TourStops ebenfalls löschen.
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="modal-footer">
+                                <button
+                                    type="button"
+                                    className="btn btn-outline-secondary"
+                                    onClick={closeMultipleDelete}
+                                    disabled={multipleDeleteBusy}
+                                >
+                                    Abbrechen
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-danger"
+                                    onClick={confirmMultipleDelete}
+                                    disabled={multipleDeleteBusy}
+                                >
+                                    {multipleDeleteBusy && <span className="spinner-border spinner-border-sm me-2" />}
+                                    {(selectAllFiltered ? items.length : selectedIds.size)} Auftrag{(selectAllFiltered ? items.length : selectedIds.size) === 1 ? '' : 'e'} löschen
                                 </button>
                             </div>
                         </div>

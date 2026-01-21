@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Bar, Pie, Chart } from 'react-chartjs-2';
-import { KundeResource, AuftragResource } from '@/Resources';
+import { KundeResource, AuftragResource, ArtikelResource } from '@/Resources';
 import { getKundeById, apiFetch, api } from '@/backend/api';
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Tooltip, Legend);
 
@@ -28,8 +28,8 @@ const formatWeekLabel = (iso: string) => {
   const d = new Date(iso);
   // Simple KW display
   const firstThursday = new Date(d.getFullYear(), 0, 4);
-  const dayOfYear = Math.floor((d.getTime() - new Date(d.getFullYear(),0,1).getTime()) / 86400000) + 1;
-  const week = Math.floor((dayOfYear + ((firstThursday.getDay()+6)%7) - 1) / 7) + 1;
+  const dayOfYear = Math.floor((d.getTime() - new Date(d.getFullYear(), 0, 1).getTime()) / 86400000) + 1;
+  const week = Math.floor((dayOfYear + ((firstThursday.getDay() + 6) % 7) - 1) / 7) + 1;
   return `${d.getFullYear()} · KW ${week}`;
 };
 
@@ -47,7 +47,7 @@ const HEX = [
   '#ffc107', // warning
 ];
 const hexToRgba = (hex: string, a = 0.25) => {
-  const m = hex.replace('#','');
+  const m = hex.replace('#', '');
   const bigint = parseInt(m, 16);
   const r = (bigint >> 16) & 255;
   const g = (bigint >> 8) & 255;
@@ -168,15 +168,15 @@ const BulkEditKundenpreiseModal: React.FC<{
               <label className="form-label d-block mb-2">Aktion</label>
               <div className="d-flex flex-wrap gap-3 align-items-center">
                 <div className="btn-group" role="group" aria-label="Aktion wählen">
-                  <button type="button" className={cx('btn', mode==='set' ? 'btn-primary' : 'btn-outline-primary')} onClick={() => setMode('set')}>Setzen</button>
-                  <button type="button" className={cx('btn', mode==='add' ? 'btn-primary' : 'btn-outline-primary')} onClick={() => setMode('add')}>Addieren</button>
-                  <button type="button" className={cx('btn', mode==='sub' ? 'btn-primary' : 'btn-outline-primary')} onClick={() => setMode('sub')}>Subtrahieren</button>
+                  <button type="button" className={cx('btn', mode === 'set' ? 'btn-primary' : 'btn-outline-primary')} onClick={() => setMode('set')}>Setzen</button>
+                  <button type="button" className={cx('btn', mode === 'add' ? 'btn-primary' : 'btn-outline-primary')} onClick={() => setMode('add')}>Addieren</button>
+                  <button type="button" className={cx('btn', mode === 'sub' ? 'btn-primary' : 'btn-outline-primary')} onClick={() => setMode('sub')}>Subtrahieren</button>
                 </div>
                 <div className="flex-grow-1">
                   <label className="form-label small text-muted mb-1">Wert</label>
                   <div className="input-group">
                     <span className="input-group-text">€</span>
-                    <input type="number" step="0.01" className="form-control" value={value} onChange={(e)=>setValue(e.target.value)} placeholder="z. B. 0.10" />
+                    <input type="number" step="0.01" className="form-control" value={value} onChange={(e) => setValue(e.target.value)} placeholder="z. B. 0.10" />
                   </div>
                   <div className="form-text">Beispiel: 0,10 = zehn Cent. Bei Subtrahieren musst du kein Minus angeben.</div>
                 </div>
@@ -194,23 +194,23 @@ const BulkEditKundenpreiseModal: React.FC<{
             <div className="row g-3">
               <div className="col-md-12">
                 <div className="form-check">
-                  <input className="form-check-input" type="checkbox" id="useSelected" checked={useSelected} onChange={(e)=>setUseSelected(e.target.checked)} />
+                  <input className="form-check-input" type="checkbox" id="useSelected" checked={useSelected} onChange={(e) => setUseSelected(e.target.checked)} />
                   <label className="form-check-label" htmlFor="useSelected">Aktuelle Auswahl verwenden ({preselectedArtikelIds.length})</label>
                 </div>
                 <div className="form-text">Bearbeite nur die im Kundenpreise-Panel ausgewählten Artikel.</div>
               </div>
               <div className="col-md-6">
                 <label className="form-label">Artikel-Kategorie</label>
-                <input className="form-control" placeholder="z. B. Rind" value={artikelKategorie} onChange={(e)=>setArtikelKategorie(e.target.value)} />
+                <input className="form-control" placeholder="z. B. Rind" value={artikelKategorie} onChange={(e) => setArtikelKategorie(e.target.value)} />
                 <div className="form-text">Filtert strikt nach <code>artikel.kategorie</code>.</div>
               </div>
               <div className="col-md-6">
                 <label className="form-label">Artikelnummern-Bereich</label>
                 <div className="input-group">
                   <span className="input-group-text">von</span>
-                  <input className="form-control" placeholder="1000" value={nummerFrom} onChange={(e)=>setNummerFrom(e.target.value)} />
+                  <input className="form-control" placeholder="1000" value={nummerFrom} onChange={(e) => setNummerFrom(e.target.value)} />
                   <span className="input-group-text">bis</span>
-                  <input className="form-control" placeholder="1999" value={nummerTo} onChange={(e)=>setNummerTo(e.target.value)} />
+                  <input className="form-control" placeholder="1999" value={nummerTo} onChange={(e) => setNummerTo(e.target.value)} />
                 </div>
                 <div className="form-text">Optional: Beide Felder kombinierbar oder nur eins davon.</div>
               </div>
@@ -701,6 +701,261 @@ const EditKundeModal: React.FC<{
   );
 };
 
+// Bestimmte Artikel Modal (Kunde -> erlaubte Artikel verwalten)
+const BestimmteArtikelModal: React.FC<{
+  kundeId: string;
+  initialSelected: string[];
+  onClose: () => void;
+  onSaved: () => void; // reload kunde callback
+}> = ({ kundeId, initialSelected, onClose, onSaved }) => {
+  const [selectedIds, setSelectedIds] = useState<string[]>(() =>
+    Array.from(new Set((initialSelected || []).filter(Boolean)))
+  );
+  const [q, setQ] = useState<string>('');
+  const [busy, setBusy] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
+  const [items, setItems] = useState<ArtikelResource[]>([]);
+  const [page, setPage] = useState<number>(1);
+  const [pages, setPages] = useState<number>(1);
+
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+
+  // Artikel laden (server-side Suche, limit standard 500, sort by kategorie)
+  useEffect(() => {
+    let active = true;
+    const t = setTimeout(async () => {
+      try {
+        setLoading(true);
+        setError('');
+
+        const res = await api.getAllArtikelClean({
+          page,
+          limit: 500,
+          name: q.trim() || undefined,
+          sortBy: 'kategorie',
+          sortDir: 'asc',
+        } as any);
+
+        if (!active) return;
+
+        const list = Array.isArray((res as any)?.items)
+          ? (res as any).items
+          : Array.isArray(res)
+            ? (res as any)
+            : [];
+
+        const p = Number((res as any)?.pages || 1);
+
+        setItems(list);
+        setPages(Number.isFinite(p) && p > 0 ? p : 1);
+      } catch (err: any) {
+        if (!active) return;
+        setError(err?.message || 'Fehler beim Laden der Artikel');
+      } finally {
+        if (active) setLoading(false);
+      }
+    }, 250);
+
+    return () => {
+      active = false;
+      clearTimeout(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, page]);
+
+  const add = (id?: string) => {
+    if (!id) return;
+    setSelectedIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  };
+
+  const remove = (id?: string) => {
+    if (!id) return;
+    setSelectedIds((prev) => prev.filter((x) => x !== id));
+  };
+
+  const clearAll = () => setSelectedIds([]);
+
+  const save = async () => {
+    try {
+      setBusy(true);
+      setError('');
+      await api.setBestimmteArtikel(kundeId, selectedIds);
+      onSaved();
+      onClose();
+    } catch (err: any) {
+      setError(err?.message || 'Fehler beim Speichern');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Versuche für Selected-Liste Namen/Nummern aus aktuell geladenen Items zu nutzen
+  const selectedDetails = useMemo(() => {
+    const map = new Map<string, ArtikelResource>();
+    for (const a of items) {
+      if (a?.id) map.set(a.id, a);
+    }
+    return selectedIds.map((id) => map.get(id));
+  }, [items, selectedIds]);
+
+  return (
+    <div className="modal d-block" tabIndex={-1} role="dialog" style={{ background: 'rgba(30,33,37,.6)' }}>
+      <div className="modal-dialog modal-xl modal-dialog-centered" role="document">
+        <div className="modal-content">
+          <div className="modal-header">
+            <div>
+              <h5 className="modal-title mb-0">Bestimmte Artikel</h5>
+              <div className="text-muted small">
+                Lege fest, welche Artikel dieser Kunde sehen/bestellen darf. Wenn leer: alle Artikel erlaubt.
+              </div>
+            </div>
+            <button type="button" className="btn-close" onClick={onClose} disabled={busy} />
+          </div>
+
+          <div className="modal-body">
+            {error && <div className="alert alert-danger">{error}</div>}
+
+            <div className="row g-3">
+              {/* Selected */}
+              <div className="col-md-5">
+                <div className="d-flex align-items-center justify-content-between mb-2">
+                  <div className="fw-semibold">
+                    <i className="ci-check-circle me-2" />
+                    Ausgewählt
+                    <span className="badge bg-secondary ms-2">{selectedIds.length}</span>
+                  </div>
+                  <button type="button" className="btn btn-sm btn-outline-secondary" onClick={clearAll} disabled={busy || selectedIds.length === 0}>
+                    Auswahl löschen
+                  </button>
+                </div>
+
+                <div className="border rounded p-2 bg-light" style={{ maxHeight: 520, overflow: 'auto' }}>
+                  {selectedIds.length === 0 ? (
+                    <div className="text-muted small p-2">Keine Einschränkung gesetzt – der Kunde sieht alle Artikel.</div>
+                  ) : (
+                    <ul className="list-group list-group-flush">
+                      {selectedIds.map((id) => {
+                        const a = selectedDetails.find((x: any) => x?.id === id) as any;
+                        const title = a?.name || a?.artikelNummer || id;
+                        const sub = [a?.kategorie, a?.artikelNummer].filter(Boolean).join(' · ');
+                        return (
+                          <li key={id} className="list-group-item d-flex align-items-center justify-content-between py-2">
+                            <div className="me-2">
+                              <div className="fw-medium">{title}</div>
+                              {sub && <div className="text-muted small">{sub}</div>}
+                            </div>
+                            <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => remove(id)} disabled={busy}>
+                              <i className="ci-close me-1" /> Entfernen
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+
+                <div className="form-text mt-2">
+                  Tipp: Lasse die Auswahl leer, um <strong>keine Einschränkung</strong> zu setzen.
+                </div>
+              </div>
+
+              {/* Search / All Articles */}
+              <div className="col-md-7">
+                <div className="d-flex align-items-center justify-content-between mb-2">
+                  <div className="fw-semibold">
+                    <i className="ci-search me-2" />
+                    Alle Artikel
+                    <span className="text-muted small ms-2">
+                      ({items.length} gefunden)
+                    </span>
+                  </div>
+                  <div className="d-flex align-items-center gap-2">
+                    <div className="input-group input-group-sm" style={{ width: 360 }}>
+                      <span className="input-group-text"><i className="ci-search" /></span>
+                      <input
+                        className="form-control"
+                        placeholder="Suchen nach Name oder Nummer…"
+                        value={q}
+                        onChange={(e) => { setQ(e.target.value); setPage(1); }}
+                        disabled={busy}
+                      />
+                      {q && (
+                        <button className="btn btn-outline-secondary" type="button" onClick={() => { setQ(''); setPage(1); }} disabled={busy}>
+                          <i className="ci-close" />
+                        </button>
+                      )}
+                    </div>
+                    {loading && <span className="spinner-border spinner-border-sm" />}
+                  </div>
+                </div>
+
+                <div className="border rounded p-2" style={{ maxHeight: 520, overflow: 'auto' }}>
+                  {items.length === 0 && !loading ? (
+                    <div className="text-muted small p-2">Keine Artikel gefunden.</div>
+                  ) : (
+                    <ul className="list-group list-group-flush">
+                      {items.map((a) => {
+                        const id = a.id || '';
+                        const already = !!id && selectedSet.has(id);
+                        const title = (a as any).name || (a as any).artikelNummer || '—';
+                        const sub = [(a as any).kategorie, (a as any).artikelNummer].filter(Boolean).join(' · ');
+                        return (
+                          <li key={id || title} className="list-group-item d-flex align-items-center justify-content-between py-2">
+                            <div className="me-2">
+                              <div className="fw-medium">{title}</div>
+                              {sub && <div className="text-muted small">{sub}</div>}
+                            </div>
+                            <button
+                              type="button"
+                              className={cx('btn btn-sm', already ? 'btn-outline-secondary' : 'btn-outline-primary')}
+                              onClick={() => add(id)}
+                              disabled={busy || already || !id}
+                            >
+                              {already ? (<><i className="ci-check me-1" /> Hinzugefügt</>) : (<><i className="ci-plus me-1" /> Hinzufügen</>)}
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+
+                {/* Pagination */}
+                <div className="d-flex align-items-center justify-content-between mt-2">
+                  <div className="text-muted small">Seite {page} / {pages}</div>
+                  <div className="btn-group">
+                    <button className="btn btn-sm btn-outline-secondary" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={busy || page <= 1}>
+                      <i className="ci-arrow-left" />
+                    </button>
+                    <button className="btn btn-sm btn-outline-secondary" onClick={() => setPage((p) => Math.min(pages, p + 1))} disabled={busy || page >= pages}>
+                      <i className="ci-arrow-right" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="alert alert-light border mt-3 mb-0 py-2">
+                  <i className="ci-info me-2" />
+                  Suche ist serverseitig. Standardmäßig werden bis zu <strong>500</strong> Artikel pro Seite geladen (Sortierung nach Kategorie).
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="modal-footer">
+            <button className="btn btn-outline-secondary" onClick={onClose} disabled={busy}>
+              Abbrechen
+            </button>
+            <button className="btn btn-primary" onClick={save} disabled={busy}>
+              {busy && <span className="spinner-border spinner-border-sm me-2" />} Speichern
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ---------- Main Component ----------
 const KundeDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -732,7 +987,8 @@ const KundeDetail: React.FC = () => {
   const [preise, setPreise] = useState<KundenpreisRow[]>([]);
   const [preiseLoading, setPreiseLoading] = useState<boolean>(false);
   const [preiseError, setPreiseError] = useState<string>('');
-  const [preisQ, setPreisQ] = useState<string>('');
+  const [preisQDraft, setPreisQDraft] = useState<string>('');
+  const [preisQ, setPreisQ] = useState<string>(''); // applied
   const [preisIncludeAll, setPreisIncludeAll] = useState<boolean>(false);
   const [preisSort, setPreisSort] = useState<'artikelName' | 'artikelNummer' | 'basispreis' | 'aufpreis' | 'effektivpreis'>('artikelNummer');
   const [preisOrder, setPreisOrder] = useState<'asc' | 'desc'>('asc');
@@ -740,19 +996,31 @@ const KundeDetail: React.FC = () => {
   const [preisLimit, setPreisLimit] = useState<number>(500);
   const [selectedArtikelIds, setSelectedArtikelIds] = useState<string[]>([]);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [bestimmteOpen, setBestimmteOpen] = useState(false);
+
   const loadKundenpreise = async () => {
     if (!id) return;
     try {
       setPreiseLoading(true);
       setPreiseError('');
-      const rows = await api.getKundenpreiseByCustomer(id, {
-        q: preisQ || undefined,
-        sort: preisSort,
-        order: preisOrder,
-        includeAllArticles: preisIncludeAll,
-        page: preisPage,
-        limit: preisLimit,
-      });
+      const useBestimmte = !!(kunde?.bestimmteArtikel && kunde.bestimmteArtikel.length > 0);
+
+      const rows = useBestimmte
+        ? await api.getKundenpreiseByCustomerBestimmteArtikel(id, {
+          q: preisQ || undefined,
+          sort: preisSort,
+          order: preisOrder,
+          page: preisPage,
+          limit: preisLimit,
+        })
+        : await api.getKundenpreiseByCustomer(id, {
+          q: preisQ || undefined,
+          sort: preisSort,
+          order: preisOrder,
+          includeAllArticles: preisIncludeAll,
+          page: preisPage,
+          limit: preisLimit,
+        });
       setPreise(rows);
       setSelectedArtikelIds([]);
     } catch (err: any) {
@@ -761,6 +1029,20 @@ const KundeDetail: React.FC = () => {
       setPreiseLoading(false);
     }
   };
+
+  const applyPreisSearch = async () => {
+  setPreisPage(1);
+  const applied = preisQDraft.trim();
+  setPreisQ(applied);
+  await loadKundenpreise();
+};
+
+const clearPreisSearch = async () => {
+  setPreisQDraft('');
+  setPreisQ('');
+  setPreisPage(1);
+  await loadKundenpreise();
+};
 
   const toggleSelectArtikel = (artikelId: string) => {
     setSelectedArtikelIds((prev) => prev.includes(artikelId) ? prev.filter(id => id !== artikelId) : [...prev, artikelId]);
@@ -771,15 +1053,15 @@ const KundeDetail: React.FC = () => {
   };
   const clearSelection = () => setSelectedArtikelIds([]);
   useEffect(() => {
-    if (activeTab === 'orders') {
+    if (activeTab === 'prices') {
       loadKundenpreise();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, preisQ, preisIncludeAll, preisSort, preisOrder, preisPage, preisLimit, id]);
+  }, [activeTab, preisSort, preisOrder, preisPage, preisLimit, preisIncludeAll, id, kunde?.bestimmteArtikel?.length]);
 
   useEffect(() => {
     setPreisPage(1);
-  }, [preisQ, preisIncludeAll, preisSort, preisOrder]);
+  }, [preisIncludeAll, preisSort, preisOrder]);
 
   useEffect(() => {
     const load = async () => {
@@ -809,7 +1091,7 @@ const KundeDetail: React.FC = () => {
   };
   const [from, setFrom] = useState<string>('');
   const [to, setTo] = useState<string>('');
-  const [granularity, setGranularity] = useState<'day'|'week'|'month'>('week');
+  const [granularity, setGranularity] = useState<'day' | 'week' | 'month'>('week');
   const [analyticsLoading, setAnalyticsLoading] = useState<boolean>(false);
   const [analyticsError, setAnalyticsError] = useState<string>('');
   const [analytics, setAnalytics] = useState<KundeAnalytics | null>(null);
@@ -843,7 +1125,7 @@ const KundeDetail: React.FC = () => {
   }, [activeTab, from, to, granularity, id]);
 
   // ---- Chart builders ----
-  const buildTimelineChart = (rows: Array<{date:string; menge:number; umsatz:number}>, g: 'day'|'week'|'month') => {
+  const buildTimelineChart = (rows: Array<{ date: string; menge: number; umsatz: number }>, g: 'day' | 'week' | 'month') => {
     const labels = rows.map(r => g === 'week' ? formatWeekLabel(r.date) : new Date(r.date).toLocaleDateString('de-DE'));
     const menge = rows.map(r => Number(r.menge || 0));
     const umsatz = rows.map(r => Number(r.umsatz || 0));
@@ -884,7 +1166,7 @@ const KundeDetail: React.FC = () => {
     };
   };
 
-  const buildFulfillmentTimelineChart = (rows: Array<{date:string; bestelltMenge:number; rausMenge:number}>, g:'day'|'week'|'month') => {
+  const buildFulfillmentTimelineChart = (rows: Array<{ date: string; bestelltMenge: number; rausMenge: number }>, g: 'day' | 'week' | 'month') => {
     const labels = rows.map(r => g === 'week' ? formatWeekLabel(r.date) : new Date(r.date).toLocaleDateString('de-DE'));
     return {
       data: {
@@ -892,7 +1174,7 @@ const KundeDetail: React.FC = () => {
         datasets: [
           {
             label: 'Bestellt (kg)',
-            data: rows.map(r => Number(r.bestelltMenge||0)),
+            data: rows.map(r => Number(r.bestelltMenge || 0)),
             borderWidth: 1,
             borderRadius: 4,
             backgroundColor: hexToRgba(HEX[2], 0.25),
@@ -900,7 +1182,7 @@ const KundeDetail: React.FC = () => {
           },
           {
             label: 'Raus (kg)',
-            data: rows.map(r => Number(r.rausMenge||0)),
+            data: rows.map(r => Number(r.rausMenge || 0)),
             borderWidth: 1,
             borderRadius: 4,
             backgroundColor: hexToRgba(HEX[3], 0.25),
@@ -912,7 +1194,7 @@ const KundeDetail: React.FC = () => {
     };
   };
 
-  const buildTopArticlesPieChart = (rows: Array<{artikelName?:string; artikelNummer?:string; menge:number}>) => {
+  const buildTopArticlesPieChart = (rows: Array<{ artikelName?: string; artikelNummer?: string; menge: number }>) => {
     const top = rows.slice(0, 10);
     const labels = top.map(r => r.artikelName || r.artikelNummer || '—');
     const data = top.map(r => Number(r.menge || 0));
@@ -987,9 +1269,9 @@ const KundeDetail: React.FC = () => {
     };
   };
 
-  const buildPriceExactByDateChart = (rows: Array<{date:string; preis:number; count:number}>, g:'day'|'week'|'month') => {
+  const buildPriceExactByDateChart = (rows: Array<{ date: string; preis: number; count: number }>, g: 'day' | 'week' | 'month') => {
     const labels = rows.map(r => g === 'week' ? formatWeekLabel(r.date) : new Date(r.date).toLocaleDateString('de-DE'));
-    const data = rows.map(r => Number(r.preis||0));
+    const data = rows.map(r => Number(r.preis || 0));
     return {
       data: { labels, datasets: [{ label: 'Preis (€)', data, borderWidth: 1, borderRadius: 4, backgroundColor: hexToRgba(HEX[4], 0.35), borderColor: HEX[4] }] },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' as const } }, scales: { y: { beginAtZero: true } } }
@@ -1150,332 +1432,332 @@ const KundeDetail: React.FC = () => {
 
       <div className="tab-content pt-3">
         {activeTab === 'dashboard' && (
-                <div className="card border-0 shadow-sm mb-3">
-                    <div className="card-body">
-                        <div className="d-flex align-items-center justify-content-between mb-3">
-                            <h6 className="mb-0"><i className="ci-analytics me-2" />Kunden-Dashboard</h6>
-                            <div className="d-flex gap-2">
-                                <button className="btn btn-sm btn-outline-secondary" onClick={loadAnalytics} disabled={analyticsLoading}>
-                                    {analyticsLoading ? <span className="spinner-border spinner-border-sm me-2" /> : <div></div>}
-                                    Aktualisieren
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Filterleiste */}
-                        <div className="row g-3 align-items-end mb-3">
-                            <div className="col-md-3">
-                                <label className="form-label small text-muted"><i className="ci-calendar me-2" />Von</label>
-                                <input type="date" className="form-control" value={from} onChange={(e) => setFrom(e.target.value)} />
-                            </div>
-                            <div className="col-md-3">
-                                <label className="form-label small text-muted"><i className="ci-calendar me-2" />Bis</label>
-                                <input type="date" className="form-control" value={to} onChange={(e) => setTo(e.target.value)} />
-                            </div>
-                            <div className="col-md-3">
-                                <label className="form-label small text-muted"><i className="ci-trending-up me-2" />Granularität</label>
-                                <select className="form-select" value={granularity} onChange={(e) => setGranularity(e.target.value as any)}>
-                                    <option value="day">Tag</option>
-                                    <option value="week">Woche</option>
-                                    <option value="month">Monat</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        {/* Quick Date Range Presets */}
-                        <div className="mb-3 d-flex flex-wrap gap-2">
-                          <button className="btn btn-sm btn-outline-secondary" onClick={() => {
-                            const d = new Date(); setFrom(d.toISOString().slice(0,10)); setTo(d.toISOString().slice(0,10));
-                          }}>Heute</button>
-                          <button className="btn btn-sm btn-outline-secondary" onClick={() => {
-                            const d = new Date(); d.setDate(d.getDate() - 1); setFrom(d.toISOString().slice(0,10)); setTo(d.toISOString().slice(0,10));
-                          }}>Gestern</button>
-                          <button className="btn btn-sm btn-outline-secondary" onClick={() => {
-                            const now = new Date();
-                            const monday = new Date(now); const day = now.getDay() || 7;
-                            monday.setDate(now.getDate() - day + 1);
-                            const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
-                            setFrom(monday.toISOString().slice(0,10)); setTo(sunday.toISOString().slice(0,10));
-                          }}>Diese Woche</button>
-                          <button className="btn btn-sm btn-outline-secondary" onClick={() => {
-                            const now = new Date();
-                            const monday = new Date(now); const day = now.getDay() || 7;
-                            monday.setDate(now.getDate() - day - 6);
-                            const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
-                            setFrom(monday.toISOString().slice(0,10)); setTo(sunday.toISOString().slice(0,10));
-                          }}>Letzte Woche</button>
-                          <button className="btn btn-sm btn-outline-secondary" onClick={() => {
-                            const now = new Date();
-                            const first = new Date(now.getFullYear(), now.getMonth(), 1);
-                            const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-                            setFrom(first.toISOString().slice(0,10)); setTo(last.toISOString().slice(0,10));
-                          }}>Diesen Monat</button>
-                          <button className="btn btn-sm btn-outline-secondary" onClick={() => {
-                            const now = new Date();
-                            const first = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-                            const last = new Date(now.getFullYear(), now.getMonth(), 0);
-                            setFrom(first.toISOString().slice(0,10)); setTo(last.toISOString().slice(0,10));
-                          }}>Letzten Monat</button>
-                          <button className="btn btn-sm btn-outline-secondary" onClick={() => {
-                            const now = new Date();
-                            const first = new Date(now.getFullYear(), 0, 1);
-                            const last = new Date(now.getFullYear(), 11, 31);
-                            setFrom(first.toISOString().slice(0,10)); setTo(last.toISOString().slice(0,10));
-                          }}>Dieses Jahr</button>
-                          <button className="btn btn-sm btn-outline-secondary" onClick={() => {
-                            const now = new Date();
-                            const first = new Date(now.getFullYear() - 1, 0, 1);
-                            const last = new Date(now.getFullYear() - 1, 11, 31);
-                            setFrom(first.toISOString().slice(0,10)); setTo(last.toISOString().slice(0,10));
-                          }}>Letztes Jahr</button>
-                        </div>
-
-                        {analyticsError && <div className="alert alert-danger">{analyticsError}</div>}
-
-                        {analyticsLoading ? (
-                            <div className="d-flex flex-column align-items-center justify-content-center py-5 my-3 border rounded bg-light">
-                                <span className="spinner-border mb-3" style={{ width: '3rem', height: '3rem' }} />
-                                <div className="fw-medium text-muted">Analytics werden geladen…</div>
-                            </div>
-                        ) : analytics ? (
-                            <>
-                                {/* KPI-Zeile */}
-                                <div className="row g-3 mb-3">
-                                    <div className="col-md-3">
-                                        <div className="p-3 border rounded bg-light h-100">
-                                            <div className="text-muted small">Menge gesamt</div>
-                                            <div className="h5 mb-0">{(analytics.totals?.totalMenge ?? 0).toLocaleString('de-DE')} kg</div>
-                                        </div>
-                                    </div>
-                                    <div className="col-md-3">
-                                        <div className="p-3 border rounded bg-light h-100">
-                                            <div className="text-muted small">Umsatz gesamt</div>
-                                            <div className="h5 mb-0">{(analytics.totals?.totalUmsatz ?? 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</div>
-                                        </div>
-                                    </div>
-                                    <div className="col-md-3">
-                                        <div className="p-3 border rounded bg-light h-100">
-                                            <div className="text-muted small">Ø-Preis</div>
-                                            <div className="h5 mb-0">{(analytics.totals?.avgPreisGewichtet ?? 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</div>
-                                        </div>
-                                    </div>
-                                    <div className="col-md-3">
-                                        <div className="p-3 border rounded bg-light h-100">
-                                            <div className="text-muted small">Artikelanzahl</div>
-                                            <div className="h5 mb-0">{analytics.totals?.artikelCount ?? 0}</div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Zeitverlauf (Chart rechts von Tabelle) */}
-                                <div className="mb-4">
-                                  <h6 className="mb-2">Zeitverlauf</h6>
-                                  <div className="row g-3 align-items-stretch">
-                                    <div className="col-md-7">
-                                      <div className="table-responsive">
-                                        <table className="table table-sm">
-                                          <thead>
-                                            <tr>
-                                              <th>Periode</th>
-                                              <th className="text-end">Menge</th>
-                                              <th className="text-end">Umsatz</th>
-                                            </tr>
-                                          </thead>
-                                          <tbody>
-                                            {analytics.timeline?.map((t: any, i: number) => (
-                                              <tr key={i}>
-                                                <td>
-                                                  {granularity === 'week'
-                                                    ? formatWeekLabel(t.date)
-                                                    : new Date(t.date).toLocaleDateString('de-DE')}
-                                                </td>
-                                                <td className="text-end">{t.menge?.toLocaleString('de-DE')}</td>
-                                                <td className="text-end">{t.umsatz?.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
-                                              </tr>
-                                            ))}
-                                            {(!analytics.timeline || analytics.timeline.length === 0) && (
-                                              <tr><td colSpan={3} className="text-muted">Keine Daten im Zeitraum.</td></tr>
-                                            )}
-                                          </tbody>
-                                        </table>
-                                      </div>
-                                    </div>
-                                    <div className="col-md-5">
-                                      <div className="card border-0 h-100">
-                                        <div className="card-body">
-                                          <div style={{ height: 240 }}>
-                                            {(() => {
-                                              const cfg = buildTimelineChart(analytics.timeline || [], granularity);
-                                              // Mixed chart (bar + line) must use the generic <Chart> component
-                                              return <Chart type="bar" data={cfg.data as any} options={cfg.options} />;
-                                            })()}
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Erfüllung: Bestellt vs. Raus (Chart rechts von Tabelle) */}
-                                <div className="mb-4">
-                                  <h6 className="mb-2"><i className="ci-check-circle me-2" />Erfüllung (Bestellt vs. Raus)</h6>
-                                  <div className="row g-3 align-items-stretch">
-                                    <div className="col-md-7">
-                                      <div className="table-responsive">
-                                        <table className="table table-sm">
-                                          <thead>
-                                            <tr>
-                                              <th>Periode</th>
-                                              <th className="text-end">Bestellt (kg)</th>
-                                              <th className="text-end">Raus (kg)</th>
-                                              <th className="text-end">Differenz</th>
-                                            </tr>
-                                          </thead>
-                                          <tbody>
-                                            {(analytics.fulfillmentTimeline || []).map((r:any, idx:number) => (
-                                              <tr key={idx}>
-                                                <td>{granularity === 'week' ? formatWeekLabel(r.date) : new Date(r.date).toLocaleDateString('de-DE')}</td>
-                                                <td className="text-end">{Number(r.bestelltMenge ?? 0).toLocaleString('de-DE')}</td>
-                                                <td className="text-end">{Number(r.rausMenge ?? 0).toLocaleString('de-DE')}</td>
-                                                <td className={cx('text-end', Number(r.differenz ?? 0) < 0 && 'text-danger')}>
-                                                  {Number(r.differenz ?? 0).toLocaleString('de-DE')}
-                                                </td>
-                                              </tr>
-                                            ))}
-                                            {(!analytics.fulfillmentTimeline || analytics.fulfillmentTimeline.length === 0) && (
-                                              <tr><td colSpan={4} className="text-muted">Keine Daten (nur Positionen mit Nettogewicht werden berücksichtigt).</td></tr>
-                                            )}
-                                          </tbody>
-                                        </table>
-                                      </div>
-                                      {/* Totals row */}
-                                      {analytics.fulfillment && (
-                                        <div className="mt-2 text-muted small">
-                                          <span className="me-3"><strong>Summe bestellt:</strong> {Number(analytics.fulfillment.bestelltMenge ?? 0).toLocaleString('de-DE')} kg</span>
-                                          <span className="me-3"><strong>Summe raus:</strong> {Number(analytics.fulfillment.rausMenge ?? 0).toLocaleString('de-DE')} kg</span>
-                                          <span className={cx(Number(analytics.fulfillment.differenz ?? 0) < 0 && 'text-danger')}>
-                                            <strong>Diff:</strong> {Number(analytics.fulfillment.differenz ?? 0).toLocaleString('de-DE')} kg
-                                          </span>
-                                          {analytics.fulfillment.rate != null && (
-                                            <span className="ms-3"><strong>Erfüllungsquote:</strong> {(Number(analytics.fulfillment.rate) * 100).toFixed(1)}%</span>
-                                          )}
-                                        </div>
-                                      )}
-                                    </div>
-                                    <div className="col-md-5">
-                                      <div className="card border-0 h-100">
-                                        <div className="card-body">
-                                          <div style={{ height: 260 }}>
-                                            {(() => {
-                                              const cfg = buildFulfillmentTimelineChart(analytics.fulfillmentTimeline || [], granularity);
-                                              return <Bar data={cfg.data} options={cfg.options} />;
-                                            })()}
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Top-Artikel (Pie rechts von Tabelle) */}
-                                <div className="mb-4">
-                                  <h6 className="mb-2"><i className="ci-cube me-2" />Top-Artikel (Menge)</h6>
-                                  <div className="row g-3 align-items-stretch">
-                                    <div className="col-md-7">
-                                      <div className="table-responsive">
-                                        <table className="table table-sm align-middle">
-                                          <thead>
-                                            <tr>
-                                              <th>Artikel</th>
-                                              <th className="text-end">Menge</th>
-                                              <th className="text-end">Umsatz</th>
-                                              <th className="text-end">Ø-Preis (gew.)</th>
-                                            </tr>
-                                          </thead>
-                                          <tbody>
-                                            {analytics.byArtikel?.map((a: any) => (
-                                              <tr key={a.artikelId}>
-                                                <td>
-                                                  <div className="fw-medium">{a.artikelName || a.artikelNummer || '—'}</div>
-                                                  <div className="text-muted small">{a.artikelNummer}</div>
-                                                </td>
-                                                <td className="text-end">{Number(a.menge ?? 0).toLocaleString('de-DE')}</td>
-                                                <td className="text-end">{Number(a.umsatz ?? 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
-                                                <td className="text-end">{a.avgPreisGewichtet != null ? Number(a.avgPreisGewichtet).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'} {a.avgPreisGewichtet!=null && '€'}</td>
-                                              </tr>
-                                            ))}
-                                            {(!analytics.byArtikel || analytics.byArtikel.length === 0) && (
-                                              <tr><td colSpan={4} className="text-muted">Keine Artikel im Zeitraum.</td></tr>
-                                            )}
-                                          </tbody>
-                                        </table>
-                                      </div>
-                                    </div>
-                                    <div className="col-md-5">
-                                      <div className="card border-0 h-100">
-                                        <div className="card-body">
-                                          <div style={{ height: 260 }}>
-                                            {(() => {
-                                              const cfg = buildTopArticlesPieChart(analytics.byArtikel || []);
-                                              return <Pie data={cfg.data} options={cfg.options} />;
-                                            })()}
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Preis × Zeitraum (exakt) */}
-                                <div className="mt-4">
-                                  <h6 className="mb-2"><i className="ci-timeline me-2" />Preis × Zeitraum (exakt)</h6>
-                                  <div className="row g-3 align-items-stretch">
-                                    <div className="col-md-7">
-                                      <div className="table-responsive">
-                                        <table className="table table-sm">
-                                          <thead>
-                                            <tr>
-                                              <th>Periode</th>
-                                              <th className="text-end">Preis (€)</th>
-                                              <th className="text-end">Anzahl</th>
-                                            </tr>
-                                          </thead>
-                                          <tbody>
-                                            {(analytics.priceExactByDate || []).map((r:any, idx:number) => (
-                                              <tr key={idx}>
-                                                <td>{granularity === 'week' ? formatWeekLabel(r.date) : new Date(r.date).toLocaleDateString('de-DE')}</td>
-                                                <td className="text-end">{(Number(r.preis) || 0).toFixed(2)}</td>
-                                                <td className="text-end">{r.count}</td>
-                                              </tr>
-                                            ))}
-                                            {(!analytics.priceExactByDate || analytics.priceExactByDate.length === 0) && (
-                                              <tr><td colSpan={3} className="text-muted">Keine Daten.</td></tr>
-                                            )}
-                                          </tbody>
-                                        </table>
-                                      </div>
-                                    </div>
-                                    <div className="col-md-5">
-                                      <div className="card border-0 h-100">
-                                        <div className="card-body">
-                                          <div style={{ height: 260 }}>
-                                            {(() => {
-                                              const cfg = buildPriceExactByDateChart(analytics.priceExactByDate || [], granularity);
-                                              return <Bar data={cfg.data} options={cfg.options} />;
-                                            })()}
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                            </>
-                        ) : (
-                            <div className="text-muted">Keine Daten.</div>
-                        )}
-                    </div>
+          <div className="card border-0 shadow-sm mb-3">
+            <div className="card-body">
+              <div className="d-flex align-items-center justify-content-between mb-3">
+                <h6 className="mb-0"><i className="ci-analytics me-2" />Kunden-Dashboard</h6>
+                <div className="d-flex gap-2">
+                  <button className="btn btn-sm btn-outline-secondary" onClick={loadAnalytics} disabled={analyticsLoading}>
+                    {analyticsLoading ? <span className="spinner-border spinner-border-sm me-2" /> : <div></div>}
+                    Aktualisieren
+                  </button>
                 </div>
-            )}
+              </div>
+
+              {/* Filterleiste */}
+              <div className="row g-3 align-items-end mb-3">
+                <div className="col-md-3">
+                  <label className="form-label small text-muted"><i className="ci-calendar me-2" />Von</label>
+                  <input type="date" className="form-control" value={from} onChange={(e) => setFrom(e.target.value)} />
+                </div>
+                <div className="col-md-3">
+                  <label className="form-label small text-muted"><i className="ci-calendar me-2" />Bis</label>
+                  <input type="date" className="form-control" value={to} onChange={(e) => setTo(e.target.value)} />
+                </div>
+                <div className="col-md-3">
+                  <label className="form-label small text-muted"><i className="ci-trending-up me-2" />Granularität</label>
+                  <select className="form-select" value={granularity} onChange={(e) => setGranularity(e.target.value as any)}>
+                    <option value="day">Tag</option>
+                    <option value="week">Woche</option>
+                    <option value="month">Monat</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Quick Date Range Presets */}
+              <div className="mb-3 d-flex flex-wrap gap-2">
+                <button className="btn btn-sm btn-outline-secondary" onClick={() => {
+                  const d = new Date(); setFrom(d.toISOString().slice(0, 10)); setTo(d.toISOString().slice(0, 10));
+                }}>Heute</button>
+                <button className="btn btn-sm btn-outline-secondary" onClick={() => {
+                  const d = new Date(); d.setDate(d.getDate() - 1); setFrom(d.toISOString().slice(0, 10)); setTo(d.toISOString().slice(0, 10));
+                }}>Gestern</button>
+                <button className="btn btn-sm btn-outline-secondary" onClick={() => {
+                  const now = new Date();
+                  const monday = new Date(now); const day = now.getDay() || 7;
+                  monday.setDate(now.getDate() - day + 1);
+                  const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+                  setFrom(monday.toISOString().slice(0, 10)); setTo(sunday.toISOString().slice(0, 10));
+                }}>Diese Woche</button>
+                <button className="btn btn-sm btn-outline-secondary" onClick={() => {
+                  const now = new Date();
+                  const monday = new Date(now); const day = now.getDay() || 7;
+                  monday.setDate(now.getDate() - day - 6);
+                  const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+                  setFrom(monday.toISOString().slice(0, 10)); setTo(sunday.toISOString().slice(0, 10));
+                }}>Letzte Woche</button>
+                <button className="btn btn-sm btn-outline-secondary" onClick={() => {
+                  const now = new Date();
+                  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+                  const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                  setFrom(first.toISOString().slice(0, 10)); setTo(last.toISOString().slice(0, 10));
+                }}>Diesen Monat</button>
+                <button className="btn btn-sm btn-outline-secondary" onClick={() => {
+                  const now = new Date();
+                  const first = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                  const last = new Date(now.getFullYear(), now.getMonth(), 0);
+                  setFrom(first.toISOString().slice(0, 10)); setTo(last.toISOString().slice(0, 10));
+                }}>Letzten Monat</button>
+                <button className="btn btn-sm btn-outline-secondary" onClick={() => {
+                  const now = new Date();
+                  const first = new Date(now.getFullYear(), 0, 1);
+                  const last = new Date(now.getFullYear(), 11, 31);
+                  setFrom(first.toISOString().slice(0, 10)); setTo(last.toISOString().slice(0, 10));
+                }}>Dieses Jahr</button>
+                <button className="btn btn-sm btn-outline-secondary" onClick={() => {
+                  const now = new Date();
+                  const first = new Date(now.getFullYear() - 1, 0, 1);
+                  const last = new Date(now.getFullYear() - 1, 11, 31);
+                  setFrom(first.toISOString().slice(0, 10)); setTo(last.toISOString().slice(0, 10));
+                }}>Letztes Jahr</button>
+              </div>
+
+              {analyticsError && <div className="alert alert-danger">{analyticsError}</div>}
+
+              {analyticsLoading ? (
+                <div className="d-flex flex-column align-items-center justify-content-center py-5 my-3 border rounded bg-light">
+                  <span className="spinner-border mb-3" style={{ width: '3rem', height: '3rem' }} />
+                  <div className="fw-medium text-muted">Analytics werden geladen…</div>
+                </div>
+              ) : analytics ? (
+                <>
+                  {/* KPI-Zeile */}
+                  <div className="row g-3 mb-3">
+                    <div className="col-md-3">
+                      <div className="p-3 border rounded bg-light h-100">
+                        <div className="text-muted small">Menge gesamt</div>
+                        <div className="h5 mb-0">{(analytics.totals?.totalMenge ?? 0).toLocaleString('de-DE')} kg</div>
+                      </div>
+                    </div>
+                    <div className="col-md-3">
+                      <div className="p-3 border rounded bg-light h-100">
+                        <div className="text-muted small">Umsatz gesamt</div>
+                        <div className="h5 mb-0">{(analytics.totals?.totalUmsatz ?? 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</div>
+                      </div>
+                    </div>
+                    <div className="col-md-3">
+                      <div className="p-3 border rounded bg-light h-100">
+                        <div className="text-muted small">Ø-Preis</div>
+                        <div className="h5 mb-0">{(analytics.totals?.avgPreisGewichtet ?? 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</div>
+                      </div>
+                    </div>
+                    <div className="col-md-3">
+                      <div className="p-3 border rounded bg-light h-100">
+                        <div className="text-muted small">Artikelanzahl</div>
+                        <div className="h5 mb-0">{analytics.totals?.artikelCount ?? 0}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Zeitverlauf (Chart rechts von Tabelle) */}
+                  <div className="mb-4">
+                    <h6 className="mb-2">Zeitverlauf</h6>
+                    <div className="row g-3 align-items-stretch">
+                      <div className="col-md-7">
+                        <div className="table-responsive">
+                          <table className="table table-sm">
+                            <thead>
+                              <tr>
+                                <th>Periode</th>
+                                <th className="text-end">Menge</th>
+                                <th className="text-end">Umsatz</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {analytics.timeline?.map((t: any, i: number) => (
+                                <tr key={i}>
+                                  <td>
+                                    {granularity === 'week'
+                                      ? formatWeekLabel(t.date)
+                                      : new Date(t.date).toLocaleDateString('de-DE')}
+                                  </td>
+                                  <td className="text-end">{t.menge?.toLocaleString('de-DE')}</td>
+                                  <td className="text-end">{t.umsatz?.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                                </tr>
+                              ))}
+                              {(!analytics.timeline || analytics.timeline.length === 0) && (
+                                <tr><td colSpan={3} className="text-muted">Keine Daten im Zeitraum.</td></tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                      <div className="col-md-5">
+                        <div className="card border-0 h-100">
+                          <div className="card-body">
+                            <div style={{ height: 240 }}>
+                              {(() => {
+                                const cfg = buildTimelineChart(analytics.timeline || [], granularity);
+                                // Mixed chart (bar + line) must use the generic <Chart> component
+                                return <Chart type="bar" data={cfg.data as any} options={cfg.options} />;
+                              })()}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Erfüllung: Bestellt vs. Raus (Chart rechts von Tabelle) */}
+                  <div className="mb-4">
+                    <h6 className="mb-2"><i className="ci-check-circle me-2" />Erfüllung (Bestellt vs. Raus)</h6>
+                    <div className="row g-3 align-items-stretch">
+                      <div className="col-md-7">
+                        <div className="table-responsive">
+                          <table className="table table-sm">
+                            <thead>
+                              <tr>
+                                <th>Periode</th>
+                                <th className="text-end">Bestellt (kg)</th>
+                                <th className="text-end">Raus (kg)</th>
+                                <th className="text-end">Differenz</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(analytics.fulfillmentTimeline || []).map((r: any, idx: number) => (
+                                <tr key={idx}>
+                                  <td>{granularity === 'week' ? formatWeekLabel(r.date) : new Date(r.date).toLocaleDateString('de-DE')}</td>
+                                  <td className="text-end">{Number(r.bestelltMenge ?? 0).toLocaleString('de-DE')}</td>
+                                  <td className="text-end">{Number(r.rausMenge ?? 0).toLocaleString('de-DE')}</td>
+                                  <td className={cx('text-end', Number(r.differenz ?? 0) < 0 && 'text-danger')}>
+                                    {Number(r.differenz ?? 0).toLocaleString('de-DE')}
+                                  </td>
+                                </tr>
+                              ))}
+                              {(!analytics.fulfillmentTimeline || analytics.fulfillmentTimeline.length === 0) && (
+                                <tr><td colSpan={4} className="text-muted">Keine Daten (nur Positionen mit Nettogewicht werden berücksichtigt).</td></tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                        {/* Totals row */}
+                        {analytics.fulfillment && (
+                          <div className="mt-2 text-muted small">
+                            <span className="me-3"><strong>Summe bestellt:</strong> {Number(analytics.fulfillment.bestelltMenge ?? 0).toLocaleString('de-DE')} kg</span>
+                            <span className="me-3"><strong>Summe raus:</strong> {Number(analytics.fulfillment.rausMenge ?? 0).toLocaleString('de-DE')} kg</span>
+                            <span className={cx(Number(analytics.fulfillment.differenz ?? 0) < 0 && 'text-danger')}>
+                              <strong>Diff:</strong> {Number(analytics.fulfillment.differenz ?? 0).toLocaleString('de-DE')} kg
+                            </span>
+                            {analytics.fulfillment.rate != null && (
+                              <span className="ms-3"><strong>Erfüllungsquote:</strong> {(Number(analytics.fulfillment.rate) * 100).toFixed(1)}%</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <div className="col-md-5">
+                        <div className="card border-0 h-100">
+                          <div className="card-body">
+                            <div style={{ height: 260 }}>
+                              {(() => {
+                                const cfg = buildFulfillmentTimelineChart(analytics.fulfillmentTimeline || [], granularity);
+                                return <Bar data={cfg.data} options={cfg.options} />;
+                              })()}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Top-Artikel (Pie rechts von Tabelle) */}
+                  <div className="mb-4">
+                    <h6 className="mb-2"><i className="ci-cube me-2" />Top-Artikel (Menge)</h6>
+                    <div className="row g-3 align-items-stretch">
+                      <div className="col-md-7">
+                        <div className="table-responsive">
+                          <table className="table table-sm align-middle">
+                            <thead>
+                              <tr>
+                                <th>Artikel</th>
+                                <th className="text-end">Menge</th>
+                                <th className="text-end">Umsatz</th>
+                                <th className="text-end">Ø-Preis (gew.)</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {analytics.byArtikel?.map((a: any) => (
+                                <tr key={a.artikelId}>
+                                  <td>
+                                    <div className="fw-medium">{a.artikelName || a.artikelNummer || '—'}</div>
+                                    <div className="text-muted small">{a.artikelNummer}</div>
+                                  </td>
+                                  <td className="text-end">{Number(a.menge ?? 0).toLocaleString('de-DE')}</td>
+                                  <td className="text-end">{Number(a.umsatz ?? 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                                  <td className="text-end">{a.avgPreisGewichtet != null ? Number(a.avgPreisGewichtet).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'} {a.avgPreisGewichtet != null && '€'}</td>
+                                </tr>
+                              ))}
+                              {(!analytics.byArtikel || analytics.byArtikel.length === 0) && (
+                                <tr><td colSpan={4} className="text-muted">Keine Artikel im Zeitraum.</td></tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                      <div className="col-md-5">
+                        <div className="card border-0 h-100">
+                          <div className="card-body">
+                            <div style={{ height: 260 }}>
+                              {(() => {
+                                const cfg = buildTopArticlesPieChart(analytics.byArtikel || []);
+                                return <Pie data={cfg.data} options={cfg.options} />;
+                              })()}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Preis × Zeitraum (exakt) */}
+                  <div className="mt-4">
+                    <h6 className="mb-2"><i className="ci-timeline me-2" />Preis × Zeitraum (exakt)</h6>
+                    <div className="row g-3 align-items-stretch">
+                      <div className="col-md-7">
+                        <div className="table-responsive">
+                          <table className="table table-sm">
+                            <thead>
+                              <tr>
+                                <th>Periode</th>
+                                <th className="text-end">Preis (€)</th>
+                                <th className="text-end">Anzahl</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(analytics.priceExactByDate || []).map((r: any, idx: number) => (
+                                <tr key={idx}>
+                                  <td>{granularity === 'week' ? formatWeekLabel(r.date) : new Date(r.date).toLocaleDateString('de-DE')}</td>
+                                  <td className="text-end">{(Number(r.preis) || 0).toFixed(2)}</td>
+                                  <td className="text-end">{r.count}</td>
+                                </tr>
+                              ))}
+                              {(!analytics.priceExactByDate || analytics.priceExactByDate.length === 0) && (
+                                <tr><td colSpan={3} className="text-muted">Keine Daten.</td></tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                      <div className="col-md-5">
+                        <div className="card border-0 h-100">
+                          <div className="card-body">
+                            <div style={{ height: 260 }}>
+                              {(() => {
+                                const cfg = buildPriceExactByDateChart(analytics.priceExactByDate || [], granularity);
+                                return <Bar data={cfg.data} options={cfg.options} />;
+                              })()}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="text-muted">Keine Daten.</div>
+              )}
+            </div>
+          </div>
+        )}
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <div className="tab-pane fade show active">
@@ -1503,6 +1785,21 @@ const KundeDetail: React.FC = () => {
                   <InfoRow label="E-Mail (Lieferschein)" value={kunde.emailLieferschein || '—'} />
                   <InfoRow label="E-Mail (Buchhaltung)" value={kunde.emailBuchhaltung || '—'} />
                   <InfoRow label="E-Mail (Spedition)" value={kunde.emailSpedition || '—'} />
+                  {/* Bestimmte Artikel */}
+                  <div className="col-12">
+                    <hr className="text-muted" />
+                    <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                      <h6 className="text-muted mb-0">Bestimmte Artikel</h6>
+                      <button className="btn btn-sm btn-outline-primary" onClick={() => setBestimmteOpen(true)}>
+                        <i className="ci-edit me-1" /> Bearbeiten
+                      </button>
+                    </div>
+                    <div className="text-muted small mt-2">
+                      {kunde.bestimmteArtikel && kunde.bestimmteArtikel.length > 0
+                        ? `${kunde.bestimmteArtikel.length} Artikel ausgewählt`
+                        : 'Keine Einschränkung – alle Artikel erlaubt.'}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1512,49 +1809,49 @@ const KundeDetail: React.FC = () => {
         {/* Orders Tab */}
         {activeTab === 'orders' && (
           <div className="tab-pane fade show active">
-                {/* Status Pills */}
-                <div className="d-flex flex-wrap gap-2 mb-3">
-                  <span className="badge bg-light text-dark border"><i className="ci-clock me-1" /> Offen: {counts.offen}</span>
-                  <span className="badge bg-light text-dark border"><i className="ci-gear me-1" /> In Bearbeitung: {counts.ib}</span>
-                  <span className="badge bg-light text-dark border"><i className="ci-check me-1" /> Abgeschlossen: {counts.abgeschlossen}</span>
-                  <span className="badge bg-light text-dark border"><i className="ci-close-circle me-1" /> Storniert: {counts.storniert}</span>
-                </div>
+            {/* Status Pills */}
+            <div className="d-flex flex-wrap gap-2 mb-3">
+              <span className="badge bg-light text-dark border"><i className="ci-clock me-1" /> Offen: {counts.offen}</span>
+              <span className="badge bg-light text-dark border"><i className="ci-gear me-1" /> In Bearbeitung: {counts.ib}</span>
+              <span className="badge bg-light text-dark border"><i className="ci-check me-1" /> Abgeschlossen: {counts.abgeschlossen}</span>
+              <span className="badge bg-light text-dark border"><i className="ci-close-circle me-1" /> Storniert: {counts.storniert}</span>
+            </div>
 
-                {auftraege.length === 0 ? (
-                  <div className="alert alert-light border">Keine Aufträge vorhanden.</div>
-                ) : (
-                  <div className="list-group list-group-flush">
-                    {auftraege.map((a) => (
-                      <Link
-                        key={a.id}
-                        to={`/auftraege/${a.id}`}
-                        className="list-group-item list-group-item-action py-3"
-                      >
-                        <div className="d-flex justify-content-between align-items-start">
-                          <div>
-                            <div className="d-flex align-items-center gap-2">
-                              <strong>Auftrag #{a.auftragsnummer}</strong>
-                              {a.status === 'offen' && <Badge variant="warning">Offen</Badge>}
-                              {a.status === 'in Bearbeitung' && <Badge variant="secondary">In Bearbeitung</Badge>}
-                              {a.status === 'abgeschlossen' && <Badge variant="success">Abgeschlossen</Badge>}
-                              {a.status === 'storniert' && <Badge variant="danger">Storniert</Badge>}
-                            </div>
-                            <div className="text-muted small mt-1">
-                              Erstellt: {a.createdAt ? new Date(a.createdAt).toLocaleDateString('de-DE') : '—'}
-                              {a.lieferdatum && <> · Lieferung: {new Date(a.lieferdatum).toLocaleDateString('de-DE')}</>}
-                            </div>
-                            <div className="text-muted small d-flex flex-wrap gap-3 mt-1">
-                              {a.gewicht != null && <span>Gewicht: {a.gewicht} kg</span>}
-                              {a.preis != null && <span>Wert: {a.preis.toFixed(2)} €</span>}
-                              {a.bemerkungen && <span className="text-truncate" style={{ maxWidth: 240 }} title={a.bemerkungen}><i className="ci-note me-1" /> Bemerkung</span>}
-                            </div>
-                          </div>
-                          <i className="ci-chevron-right text-muted"></i>
+            {auftraege.length === 0 ? (
+              <div className="alert alert-light border">Keine Aufträge vorhanden.</div>
+            ) : (
+              <div className="list-group list-group-flush">
+                {auftraege.map((a) => (
+                  <Link
+                    key={a.id}
+                    to={`/auftraege/${a.id}`}
+                    className="list-group-item list-group-item-action py-3"
+                  >
+                    <div className="d-flex justify-content-between align-items-start">
+                      <div>
+                        <div className="d-flex align-items-center gap-2">
+                          <strong>Auftrag #{a.auftragsnummer}</strong>
+                          {a.status === 'offen' && <Badge variant="warning">Offen</Badge>}
+                          {a.status === 'in Bearbeitung' && <Badge variant="secondary">In Bearbeitung</Badge>}
+                          {a.status === 'abgeschlossen' && <Badge variant="success">Abgeschlossen</Badge>}
+                          {a.status === 'storniert' && <Badge variant="danger">Storniert</Badge>}
                         </div>
-                      </Link>
-                    ))}
-                  </div>
-                )}
+                        <div className="text-muted small mt-1">
+                          Erstellt: {a.createdAt ? new Date(a.createdAt).toLocaleDateString('de-DE') : '—'}
+                          {a.lieferdatum && <> · Lieferung: {new Date(a.lieferdatum).toLocaleDateString('de-DE')}</>}
+                        </div>
+                        <div className="text-muted small d-flex flex-wrap gap-3 mt-1">
+                          {a.gewicht != null && <span>Gewicht: {a.gewicht} kg</span>}
+                          {a.preis != null && <span>Wert: {a.preis.toFixed(2)} €</span>}
+                          {a.bemerkungen && <span className="text-truncate" style={{ maxWidth: 240 }} title={a.bemerkungen}><i className="ci-note me-1" /> Bemerkung</span>}
+                        </div>
+                      </div>
+                      <i className="ci-chevron-right text-muted"></i>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -1572,7 +1869,7 @@ const KundeDetail: React.FC = () => {
                 <div className="row g-2 align-items-end mb-3">
                   <div className="col-md-4">
                     <label className="form-label small text-muted">Suche</label>
-                    <input className="form-control" placeholder="Artikel suchen…" value={preisQ} onChange={(e) => setPreisQ(e.target.value)} />
+                    <input className="form-control" placeholder="Artikel suchen…" value={preisQDraft} onChange={(e) => setPreisQDraft(e.target.value)} />
                   </div>
                   <div className="col-md-3">
                     <div className="form-check mt-4">
@@ -1620,8 +1917,8 @@ const KundeDetail: React.FC = () => {
                   <table className="table align-middle">
                     <thead>
                       <tr>
-                        <th style={{width: 36}}>
-                          <input className="form-check-input" type="checkbox" onChange={(e)=> e.target.checked ? selectAllVisible() : clearSelection()} />
+                        <th style={{ width: 36 }}>
+                          <input className="form-check-input" type="checkbox" onChange={(e) => e.target.checked ? selectAllVisible() : clearSelection()} />
                         </th>
                         <th>Artikel</th>
                         <th className="text-end">Basis</th>
@@ -1696,6 +1993,18 @@ const KundeDetail: React.FC = () => {
           kunde={kunde}
           onCancel={() => setEditOpen(false)}
           onSave={handleSaveEdit}
+        />
+      )}
+
+      {bestimmteOpen && kunde?.id && (
+        <BestimmteArtikelModal
+          kundeId={kunde.id}
+          initialSelected={kunde.bestimmteArtikel || []}
+          onClose={() => setBestimmteOpen(false)}
+          onSaved={async () => {
+            const fresh = await getKundeById(kunde.id!);
+            setKunde(fresh);
+          }}
         />
       )}
 

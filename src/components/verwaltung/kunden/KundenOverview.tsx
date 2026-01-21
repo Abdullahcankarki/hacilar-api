@@ -590,6 +590,7 @@ const EditKundeModal: React.FC<{
   const [emailLieferschein, setEmailLieferschein] = useState(initial.emailLieferschein || "");
   const [emailBuchhaltung, setEmailBuchhaltung] = useState(initial.emailBuchhaltung || "");
   const [emailSpedition, setEmailSpedition] = useState(initial.emailSpedition || "");
+  const [fehlmengenBenachrichtigung, setFehlmengenBenachrichtigung] = useState(initial.fehlmengenBenachrichtigung ?? false);
 
   // Datei-URLs
   const [gewerbeDateiUrl, setGewerbeDateiUrl] = useState(initial.gewerbeDateiUrl || "");
@@ -649,6 +650,7 @@ const EditKundeModal: React.FC<{
         emailLieferschein: emailLieferschein.trim() || undefined,
         emailBuchhaltung: emailBuchhaltung.trim() || undefined,
         emailSpedition: emailSpedition.trim() || undefined,
+        fehlmengenBenachrichtigung,
 
         // Dateien
         gewerbeDateiUrl: gewerbeDateiUrl.trim() || undefined,
@@ -921,6 +923,30 @@ const EditKundeModal: React.FC<{
                           <label className="form-label">Zusatz‑Datei URL</label>
                           <input className="form-control" value={zusatzDateiUrl} onChange={(e) => setZusatzDateiUrl(e.target.value)} />
                         </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Benachrichtigungen */}
+                <div className="col-12">
+                  <div className="card border-0">
+                    <div className="card-body p-0">
+                      <div className="fw-semibold"><i className="ci-bell me-2" />Benachrichtigungen</div>
+                      <div className="mt-3">
+                        <div className="form-check form-switch">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            id="fehlmengenBenachrichtigungSwitch"
+                            checked={fehlmengenBenachrichtigung}
+                            onChange={(e) => setFehlmengenBenachrichtigung(e.target.checked)}
+                          />
+                          <label className="form-check-label" htmlFor="fehlmengenBenachrichtigungSwitch">
+                            Fehlmengen-Benachrichtigung aktivieren
+                          </label>
+                        </div>
+                        <div className="form-text">Wenn aktiviert, erhält der Kunde eine E-Mail bei Fehlmengen während der Kommissionierung.</div>
                       </div>
                     </div>
                   </div>

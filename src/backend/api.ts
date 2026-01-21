@@ -321,6 +321,23 @@ export async function approveKunde(
   });
 }
 
+/**
+ * PATCH /api/kunde/:id/bestimmte-artikel
+ * Setzt die erlaubten/bestimmten Artikel eines Kunden (Admin).
+ * Body: { artikelIds: string[] }
+ */
+export async function setBestimmteArtikel(
+  kundenId: string,
+  artikelIds: string[]
+): Promise<KundeResource> {
+  if (!kundenId) throw new Error("kundenId fehlt");
+  const clean = (artikelIds || []).map((x) => String(x || "").trim()).filter(Boolean);
+  return apiFetch<KundeResource>(`/api/kunde/${kundenId}/bestimmte-artikel`, {
+    method: "PATCH",
+    body: JSON.stringify({ artikelIds: clean }),
+  });
+}
+
 export async function deleteKunde(id: string): Promise<{ message: string }> {
   return apiFetch<{ message: string }>(`/api/kunde/${id}`, {
     method: "DELETE",
@@ -365,6 +382,47 @@ export async function deleteMitarbeiter(
   });
 }
 /* Artikel-Funktionen */
+/**
+ * GET /api/artikel/bestimmte
+ * Liefert die für einen Kunden erlaubten/bestimmten Artikel.
+ * - Für Admin kann ?kunde=... genutzt werden (wir übergeben automatisch den ausgewählten Kunden, falls vorhanden).
+ * - Für Kunden-Login liefert der Server automatisch die eigenen Artikel.
+ */
+export async function getBestimmteArtikel(params?: {
+  page?: number;
+  limit?: number;
+  kategorie?: string | string[];
+  ausverkauft?: boolean;
+  name?: string;
+  erfassungsModus?: string | string[];
+  sortBy?: "name" | "preis" | "kategorie" | "artikelNummer";
+  sortDir?: "asc" | "desc";
+  kunde?: string; // optional: explizite KundenId (Admin)
+}): Promise<{
+  items: ArtikelResource[];
+  page: number;
+  limit: number;
+  total: number;
+  pages: number;
+}> {
+  const base = "/api/artikel/bestimmte";
+  const queryObj: Record<string, any> = { ...(params || {}) };
+
+  // Falls kein expliziter kunde übergeben wurde: versuche ausgewählten Kunden (Admin/Verkäufer-Workflows)
+  if (!queryObj.kunde) {
+    const kundeId = localStorage.getItem("ausgewaehlterKunde");
+    if (kundeId) queryObj.kunde = kundeId;
+  }
+
+  const q = toQueryArtikel(queryObj);
+  return apiFetch<{
+    items: ArtikelResource[];
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  }>(`${base}${q}`);
+}
 
 export async function getAuswahlArtikel(): Promise<ArtikelResource[]> {
   const kundeId = localStorage.getItem("ausgewaehlterKunde");
@@ -574,6 +632,34 @@ export async function getKundenpreiseByCustomer(
 }
 
 /**
+ * GET /api/kundenpreis/customer/:customerId/bestimmte-artikel
+ * Liefert eine kundenzentrierte Übersicht der Artikelpreise, aber NUR für die beim Kunden hinterlegten bestimmten Artikel.
+ * (Admin-only Route im Backend)
+ */
+export async function getKundenpreiseByCustomerBestimmteArtikel(
+  customerId: string,
+  params?: {
+    q?: string;
+    sort?: 'artikelNummer' | 'artikelName' | 'basispreis' | 'aufpreis' | 'effektivpreis';
+    order?: 'asc' | 'desc';
+    page?: number;
+    limit?: number;
+  }
+): Promise<Array<{
+  id: string;
+  artikel: string;
+  artikelNummer?: string;
+  artikelName?: string;
+  einheit?: string;
+  basispreis: number;
+  aufpreis: number;
+  effektivpreis: number;
+}>> {
+  const q = toQuery(params);
+  return apiFetch(`/api/kundenpreis/customer/${customerId}/bestimmte-artikel${q}`);
+}
+
+/**
  * GET /api/kundenpreis/artikel/:artikelId/overview
  * Liefert eine artikelzentrierte Übersicht der Kunden mit Basispreis, Aufpreis und Effektivpreis.
  */
@@ -692,6 +778,7 @@ export type BestellteArtikelAggRow = {
   artikelId: string;
   artikelName?: string;
   artikelNummer?: string;
+  artikelKategorie?: string;
   mengeSum: number;
   einheit?: string;
 };
@@ -891,6 +978,13 @@ export async function setAuftragInFertig(
 export async function deleteAuftrag(id: string): Promise<{ message: string }> {
   return apiFetch<{ message: string }>(`/api/auftrag/${id}`, {
     method: "DELETE",
+  });
+}
+
+export async function deleteMultipleAuftraege(ids: string[]): Promise<{ message: string; deletedCount: number }> {
+  return apiFetch<{ message: string; deletedCount: number }>(`/api/auftrag/multiple`, {
+    method: "DELETE",
+    body: JSON.stringify({ ids }),
   });
 }
 
@@ -1721,6 +1815,8 @@ export const api = {
   updateKunde,
   deleteKunde,
   getKundeAnalyticsApi,
+  approveKunde,
+  setBestimmteArtikel,
   // Artikel
   getAllArtikel,
   getAuswahlArtikel,
@@ -1731,14 +1827,15 @@ export const api = {
   createArtikel,
   updateArtikel,
   deleteArtikel,
+  getBestimmteArtikel,
   // Kundenpreis
   getKundenpreiseByArtikel,
   updateKundenpreis,
-  approveKunde,
   createKundenpreis,
   deleteKundenpreis,
   createMassKundenpreis,
   getKundenpreiseByCustomer,
+  getKundenpreiseByCustomerBestimmteArtikel,
   getKundenpreiseArtikelOverview,
   bulkEditKundenpreiseByCustomer,
   bulkEditKundenpreiseByArtikel,
@@ -1766,7 +1863,6 @@ export const api = {
   getStatsTourOverview,
   getStatsZerlegeOverview,
   getStatsCompare,
-  // Zerlegeauftrag
   // Zerlegeauftrag
   getAllZerlegeauftraege,
   getZerlegeauftragById,
