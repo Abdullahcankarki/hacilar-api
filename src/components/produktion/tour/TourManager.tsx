@@ -20,7 +20,8 @@ import {
     getAllMitarbeiter,
     getAllReihenfolgeVorlages,
     moveTourStop,
-    getCustomerStopsToday
+    getCustomerStopsToday,
+    updateTourStop
 } from "@/backend/api";
 
 import { useNavigate } from "react-router-dom";
@@ -563,14 +564,40 @@ const StopDetailsModal: React.FC<{
     onClose: () => void;
     etaLabel?: string | null;
     etaLoading?: boolean;
-}> = ({ show, stop, onClose, etaLabel, etaLoading }) => {
-    useEffect(() => { document.body.style.overflow = show ? "hidden" : ""; }, [show]);
+    onSaveBemerkung?: (stopId: string, bemerkung: string) => Promise<void>;
+}> = ({ show, stop, onClose, etaLabel, etaLoading, onSaveBemerkung }) => {
+    const [bemerkung, setBemerkung] = useState<string>("");
+    const [savingBemerkung, setSavingBemerkung] = useState(false);
+    const [bemerkungSaved, setBemerkungSaved] = useState(false);
+
+    useEffect(() => {
+        document.body.style.overflow = show ? "hidden" : "";
+        if (show && stop) {
+            setBemerkung(stop.bemerkung ?? "");
+            setBemerkungSaved(false);
+        }
+    }, [show, stop]);
+
     if (!show || !stop) return null;
     const ts = stop.signTimestampUtc ? dayjs(stop.signTimestampUtc).format("DD.MM.YYYY HH:mm") : "—";
     const doneAt = stop.abgeschlossenAm ? dayjs(stop.abgeschlossenAm).format("DD.MM.YYYY HH:mm") : "—";
     const sigSrc = stop.signaturPngBase64 ? (
         stop.signaturPngBase64.startsWith("data:") ? stop.signaturPngBase64 : `data:image/png;base64,${stop.signaturPngBase64}`
     ) : null;
+
+    const handleSaveBemerkung = async () => {
+        if (!onSaveBemerkung || !stop.id) return;
+        setSavingBemerkung(true);
+        try {
+            await onSaveBemerkung(stop.id, bemerkung);
+            setBemerkungSaved(true);
+            setTimeout(() => setBemerkungSaved(false), 2000);
+        } finally {
+            setSavingBemerkung(false);
+        }
+    };
+
+    const hasChanges = bemerkung !== (stop.bemerkung ?? "");
 
     return createPortal(
         <div className="modal show d-block" tabIndex={-1} role="dialog" aria-modal="true" style={{ zIndex: 1055 }} onTransitionEnd={(e) => e.stopPropagation()}>
@@ -597,6 +624,35 @@ const StopDetailsModal: React.FC<{
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Bemerkung / Talimat */}
+                            <div className="col-12">
+                                <div className="card border-0 shadow-sm">
+                                    <div className="card-body">
+                                        <div className="d-flex align-items-center justify-content-between mb-2">
+                                            <div className="fw-semibold">Bemerkung / Talimat</div>
+                                            {bemerkungSaved && <span className="badge text-bg-success">Gespeichert</span>}
+                                        </div>
+                                        <textarea
+                                            className="form-control"
+                                            rows={3}
+                                            placeholder="Anweisungen für den Fahrer..."
+                                            value={bemerkung}
+                                            onChange={(e) => setBemerkung(e.target.value)}
+                                        />
+                                        <div className="d-flex justify-content-end mt-2">
+                                            <button
+                                                className="btn btn-sm btn-secondary"
+                                                disabled={!hasChanges || savingBemerkung}
+                                                onClick={handleSaveBemerkung}
+                                            >
+                                                {savingBemerkung ? "Speichern…" : "Bemerkung speichern"}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             {String(stop.status) === 'unterwegs' && (
                                 <div className="col-12">
                                     <div className="alert alert-info mb-0" role="alert">
@@ -1562,6 +1618,26 @@ export const TourManager: React.FC = () => {
                 onClose={() => { setShowStopDetails(false); setSelectedStop(null); setSelectedStopEta(null); setEtaLoading(false); etaReqIdRef.current++; }}
                 etaLabel={selectedStopEta}
                 etaLoading={etaLoading}
+                onSaveBemerkung={async (stopId, bemerkung) => {
+                    try {
+                        const updated = await updateTourStop(stopId, { bemerkung });
+                        // Update local state
+                        setStopsByTour(prev => {
+                            const next = { ...prev };
+                            for (const tid of Object.keys(next)) {
+                                next[tid] = next[tid].map(s => s.id === stopId ? { ...s, bemerkung: updated.bemerkung } : s);
+                            }
+                            return next;
+                        });
+                        // Update selected stop
+                        setSelectedStop(prev => prev?.id === stopId ? { ...prev, bemerkung: updated.bemerkung } : prev);
+                        setToast({ type: "success", msg: "Bemerkung gespeichert." });
+                    } catch (e) {
+                        console.error("Bemerkung speichern fehlgeschlagen", e);
+                        setToast({ type: "danger", msg: "Bemerkung konnte nicht gespeichert werden." });
+                        throw e;
+                    }
+                }}
             />
             <Toast toast={toast} onClose={() => setToast(null)} />
         </div>

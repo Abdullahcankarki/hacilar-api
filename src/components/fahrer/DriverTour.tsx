@@ -161,6 +161,7 @@ export default function DriverTour() {
     const [showSigModal, setShowSigModal] = useState(false);
     const [showLeergutModal, setShowLeergutModal] = useState(false);
     const [showFailModal, setShowFailModal] = useState(false);
+    const [showTalimatModal, setShowTalimatModal] = useState(false);
 
     const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
 
@@ -429,6 +430,9 @@ export default function DriverTour() {
                     </div>
                 </div>
                 <div className="d-flex gap-2">
+                    <button className="btn btn-outline-secondary" onClick={() => setShowTalimatModal(true)}>
+                        <i className="ci-document me-2" /> Talimat Liste
+                    </button>
                     {!tourRunning && (
                         <button className="btn btn-primary" onClick={onStartTour}>
                             <i className="ci-play-circle me-2" /> Fahrt starten
@@ -860,6 +864,43 @@ export default function DriverTour() {
                         onChange={(e) => setFehlgrundText(e.target.value)}
                     />
                 </div>
+            </Modal>
+
+            {/* Modal: Talimat Liste */}
+            <Modal
+                show={showTalimatModal}
+                title="Talimat Liste"
+                onClose={() => setShowTalimatModal(false)}
+                footer={
+                    <button type="button" className="btn btn-secondary" onClick={() => setShowTalimatModal(false)}>
+                        Schließen
+                    </button>
+                }
+            >
+                {stops.length === 0 ? (
+                    <div className="text-muted">Keine Stops in dieser Tour.</div>
+                ) : (
+                    <div className="table-responsive">
+                        <table className="table table-sm table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th style={{ width: "10%" }}>#</th>
+                                    <th style={{ width: "35%" }}>Kunde</th>
+                                    <th style={{ width: "55%" }}>Bemerkung / Talimat</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {stops.map((s) => (
+                                    <tr key={s.id} className={s.bemerkung ? "" : "text-muted"}>
+                                        <td>{s.position}</td>
+                                        <td>{s.kundeName || `Kunde #${s.kundeId}`}</td>
+                                        <td>{s.bemerkung || "—"}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </Modal>
 
             {/* Toast */}

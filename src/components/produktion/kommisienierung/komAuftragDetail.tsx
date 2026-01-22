@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Alert, Button, Form, Modal, Spinner } from 'react-bootstrap';
 import { AuftragResource, ArtikelPositionResource, ArtikelResource } from '@/Resources';
-import { api } from '@/backend/api';
+import { api, FehlmengenStatusResponse } from '@/backend/api';
 import { useAuth } from '@/providers/Authcontext';
 import KomAuftragPositionenTabelle from './komAuftragsPositionenTabelle';
 
@@ -69,6 +69,11 @@ const KomAuftragDetail: React.FC = () => {
     const [editingBoxen, setEditingBoxen] = useState(false);
     const [showKontrolleModal, setShowKontrolleModal] = useState(false);
 
+    // Fehlmengen-Timer State
+    const [fehlmengenStatus, setFehlmengenStatus] = useState<FehlmengenStatusResponse | null>(null);
+    const [fehlmengenLoading, setFehlmengenLoading] = useState(false);
+    const [fehlmengenSending, setFehlmengenSending] = useState(false);
+
     // Hilfsfunktion: entfernt Felder, die nicht vom Frontend überschrieben werden sollen (z.B. artikelPosition)
     const ohneLieferdatum = (obj: any) => {
         if (!obj) return obj;
@@ -124,6 +129,75 @@ const KomAuftragDetail: React.FC = () => {
             return () => clearTimeout(timeout);
         }
     }, [statusError]);
+
+    // Fehlmengen-Status laden
+    const loadFehlmengenStatus = useCallback(async () => {
+        if (!id) return;
+        try {
+            setFehlmengenLoading(true);
+            const status = await api.getFehlmengenStatus(id);
+            setFehlmengenStatus(status);
+        } catch {
+            // Fehler ignorieren - Status nicht verfügbar
+        } finally {
+            setFehlmengenLoading(false);
+        }
+    }, [id]);
+
+    useEffect(() => {
+        loadFehlmengenStatus();
+        // Timer alle 30 Sekunden aktualisieren
+        const interval = setInterval(loadFehlmengenStatus, 30000);
+        return () => clearInterval(interval);
+    }, [loadFehlmengenStatus]);
+
+    // Fehlmengen sofort senden
+    const handleSendFehlmengenNow = async () => {
+        if (!id) return;
+        try {
+            setFehlmengenSending(true);
+            const result = await api.sendFehlmengenNow(id);
+            if (result.success) {
+                setStatusSuccess('Fehlmengen-Benachrichtigung wurde gesendet.');
+                setFehlmengenStatus(null);
+            } else {
+                setStatusError(result.message || 'Fehler beim Senden der Benachrichtigung');
+            }
+        } catch (err: any) {
+            setStatusError(err.message || 'Fehler beim Senden der Benachrichtigung');
+        } finally {
+            setFehlmengenSending(false);
+        }
+    };
+
+    // Timer abbrechen
+    const handleCancelFehlmengenTimer = async () => {
+        if (!id) return;
+        try {
+            const result = await api.cancelFehlmengenTimer(id);
+            if (result.success) {
+                setStatusSuccess('Fehlmengen-Timer wurde abgebrochen.');
+                setFehlmengenStatus(null);
+            }
+        } catch (err: any) {
+            setStatusError(err.message || 'Fehler beim Abbrechen des Timers');
+        }
+    };
+
+    // Formatiert verbleibende Zeit
+    const formatRemainingTime = (ms: number): string => {
+        const totalSeconds = Math.floor(ms / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        if (hours > 0) {
+            return `${hours}h ${minutes}min`;
+        }
+        if (minutes > 0) {
+            return `${minutes}min ${seconds}s`;
+        }
+        return `${seconds}s`;
+    };
 
     // Automatische Berechnung der Leergut-Summen, solange keine manuelle Bearbeitung aktiv ist
     useEffect(() => {
@@ -420,6 +494,78 @@ const KomAuftragDetail: React.FC = () => {
                         <strong>Kommissionierungsstatus:</strong>{' '}
                         <span className={`badge bg-${statusColor} ms-2`}>{auftrag.kommissioniertStatus || 'offen'}</span>
                     </p>
+                </div>
+            )}
+
+            {/* Fehlmengen-Timer Anzeige - nur für Admin, nach Kommissionierung beendet */}
+            {isAdmin && auftrag.kommissioniertStatus === 'fertig' && fehlmengenStatus?.hasPending && (
+                <div className="card mb-3 border-warning">
+                    <div className="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                        <span><i className="bi bi-clock-history me-2"></i>Fehlmengen-Benachrichtigung ausstehend</span>
+                        {fehlmengenLoading && <Spinner animation="border" size="sm" />}
+                    </div>
+                    <div className="card-body">
+                        <p className="mb-2">
+                            <strong>Verbleibende Zeit bis zum automatischen Versand:</strong>{' '}
+                            <span className="badge bg-warning text-dark fs-6">
+                                {formatRemainingTime(fehlmengenStatus.remainingMs || 0)}
+                            </span>
+                        </p>
+
+                        {fehlmengenStatus.positionen && fehlmengenStatus.positionen.length > 0 && (
+                            <div className="mb-3">
+                                <strong>Betroffene Positionen:</strong>
+                                <table className="table table-sm table-bordered mt-2">
+                                    <thead className="table-light">
+                                        <tr>
+                                            <th>Artikel</th>
+                                            <th>Bestellt</th>
+                                            <th>Geliefert</th>
+                                            <th>Differenz</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {fehlmengenStatus.positionen.map((pos, idx) => (
+                                            <tr key={idx}>
+                                                <td>{pos.artikelName}</td>
+                                                <td>{pos.bestellteMenge} {pos.einheit}</td>
+                                                <td>{pos.gelieferteMenge} {pos.einheit}</td>
+                                                <td className="text-danger fw-bold">-{pos.differenz} {pos.einheit}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+
+                        <div className="d-flex gap-2">
+                            <Button
+                                variant="primary"
+                                onClick={handleSendFehlmengenNow}
+                                disabled={fehlmengenSending}
+                            >
+                                {fehlmengenSending ? (
+                                    <>
+                                        <Spinner animation="border" size="sm" className="me-2" />
+                                        Wird gesendet...
+                                    </>
+                                ) : (
+                                    <>
+                                        <i className="bi bi-send me-2"></i>
+                                        Jetzt senden
+                                    </>
+                                )}
+                            </Button>
+                            <Button
+                                variant="outline-secondary"
+                                onClick={handleCancelFehlmengenTimer}
+                                disabled={fehlmengenSending}
+                            >
+                                <i className="bi bi-x-circle me-2"></i>
+                                Timer abbrechen
+                            </Button>
+                        </div>
+                    </div>
                 </div>
             )}
 

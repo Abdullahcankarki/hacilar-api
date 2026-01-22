@@ -988,6 +988,35 @@ export async function deleteMultipleAuftraege(ids: string[]): Promise<{ message:
   });
 }
 
+// Fehlmengen-Timer Funktionen
+export type FehlmengenStatusResponse = {
+  hasPending: boolean;
+  remainingMs?: number;
+  positionen?: Array<{
+    artikelName: string;
+    bestellteMenge: number;
+    gelieferteMenge: number;
+    einheit: string;
+    differenz: number;
+  }>;
+};
+
+export async function getFehlmengenStatus(auftragId: string): Promise<FehlmengenStatusResponse> {
+  return apiFetch<FehlmengenStatusResponse>(`/api/auftrag/${auftragId}/fehlmengen-status`);
+}
+
+export async function sendFehlmengenNow(auftragId: string): Promise<{ success: boolean; message: string }> {
+  return apiFetch<{ success: boolean; message: string }>(`/api/auftrag/${auftragId}/fehlmengen-senden`, {
+    method: "POST",
+  });
+}
+
+export async function cancelFehlmengenTimer(auftragId: string): Promise<{ success: boolean; message: string }> {
+  return apiFetch<{ success: boolean; message: string }>(`/api/auftrag/${auftragId}/fehlmengen-timer`, {
+    method: "DELETE",
+  });
+}
+
 /**
  * GET /api/auftrag/in-bearbeitung/tour-infos
  * Liefert Mapping für die aktuell sichtbaren in-Bearbeitung-Aufträge.
@@ -1438,13 +1467,13 @@ export async function listTourStops(params?: {
   return apiFetch<TourStopResource[]>(`/api/tour-stop${q}`);
 }
 
-/** Patch einzelner Felder (position, gewichtKg, status, fehlgrund, signatur..., leergutMitnahme, abgeschlossenAm) */
+/** Patch einzelner Felder (position, gewichtKg, status, fehlgrund, signatur..., leergutMitnahme, abgeschlossenAm, bemerkung) */
 export async function updateTourStop(
   id: string,
   data: Partial<Pick<TourStopResource,
     "position" | "gewichtKg" | "status" | "fehlgrund" |
     "signaturPngBase64" | "signTimestampUtc" | "signedByName" |
-    "leergutMitnahme" | "abgeschlossenAm"
+    "leergutMitnahme" | "abgeschlossenAm" | "bemerkung"
   >>
 ): Promise<TourStopResource> {
   return apiFetch<TourStopResource>(`/api/tour-stop/${id}`, {
@@ -1853,6 +1882,10 @@ export const api = {
   setAuftragInBearbeitung,
   deleteAuftrag,
   getBestellteArtikelAggregiertApi,
+  // Fehlmengen
+  getFehlmengenStatus,
+  sendFehlmengenNow,
+  cancelFehlmengenTimer,
   // Stats
   getStatsAuftragsOverview,
   getStatsUmsatzByRegion,
