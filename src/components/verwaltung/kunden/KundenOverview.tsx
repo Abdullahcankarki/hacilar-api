@@ -93,6 +93,7 @@ const CreateKundeModal: React.FC<{
   const [adresseStrasse, setAdresseStrasse] = useState("");
   const [adressePlz, setAdressePlz] = useState("");
   const [adresseOrt, setAdresseOrt] = useState("");
+  const [land, setLand] = useState("Deutschland");
   const [telefon, setTelefon] = useState("");
 
   // Zugang
@@ -147,6 +148,9 @@ const CreateKundeModal: React.FC<{
   const [gewerbeDateiUrl, setGewerbeDateiUrl] = useState("");
   const [zusatzDateiUrl, setZusatzDateiUrl] = useState("");
 
+  // Benachrichtigungen
+  const [fehlmengenBenachrichtigung, setFehlmengenBenachrichtigung] = useState(false);
+
   const [error, setError] = useState<string>("");
 
   const nameInvalid = !name.trim();
@@ -178,6 +182,7 @@ const CreateKundeModal: React.FC<{
         region: region.trim() || undefined,
         kategorie: kategorie.trim() || undefined,
         adresse: composeAdresse(adresseStrasse, adressePlz, adresseOrt).trim() || undefined,
+        land: land || "Deutschland",
         telefon: telefon.trim() || undefined,
 
         ustId: ustId.trim() || undefined,
@@ -193,6 +198,8 @@ const CreateKundeModal: React.FC<{
 
         gewerbeDateiUrl: gewerbeDateiUrl.trim() || undefined,
         zusatzDateiUrl: zusatzDateiUrl.trim() || undefined,
+
+        fehlmengenBenachrichtigung,
       };
 
       const created = await createKunde(payload as any);
@@ -308,6 +315,27 @@ const CreateKundeModal: React.FC<{
                             </div>
                           </div>
                           <div className="form-text">Wird beim Speichern als ein Feld gespeichert.</div>
+                        </div>
+                        <div className="col-md-6">
+                          <label className="form-label">Land</label>
+                          <select
+                            className="form-select"
+                            value={land}
+                            onChange={(e) => setLand(e.target.value)}
+                          >
+                            <option value="Deutschland">Deutschland</option>
+                            <option value="Österreich">Österreich</option>
+                            <option value="Schweiz">Schweiz</option>
+                            <option value="Niederlande">Niederlande</option>
+                            <option value="Belgien">Belgien</option>
+                            <option value="Frankreich">Frankreich</option>
+                            <option value="Polen">Polen</option>
+                            <option value="Tschechien">Tschechien</option>
+                            <option value="Dänemark">Dänemark</option>
+                            <option value="Luxemburg">Luxemburg</option>
+                            <option value="Türkei">Türkei</option>
+                          </select>
+                          <div className="form-text">Für Kunden außerhalb Deutschlands wird keine MwSt berechnet.</div>
                         </div>
                       </div>
                     </div>
@@ -501,6 +529,30 @@ const CreateKundeModal: React.FC<{
                     </div>
                   </div>
                 </div>
+
+                {/* Benachrichtigungen */}
+                <div className="col-12">
+                  <div className="card border-0">
+                    <div className="card-body p-0">
+                      <div className="fw-semibold"><i className="ci-bell me-2" />Benachrichtigungen</div>
+                      <div className="mt-3">
+                        <div className="form-check form-switch">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            id="fehlmengenBenachrichtigungSwitchCreate"
+                            checked={fehlmengenBenachrichtigung}
+                            onChange={(e) => setFehlmengenBenachrichtigung(e.target.checked)}
+                          />
+                          <label className="form-check-label" htmlFor="fehlmengenBenachrichtigungSwitchCreate">
+                            Fehlmengen-Benachrichtigung aktivieren
+                          </label>
+                        </div>
+                        <div className="form-text">Wenn aktiviert, erhält der Kunde eine E-Mail bei Fehlmengen während der Kommissionierung.</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
               {error && (
                 <div className="px-1">
@@ -539,6 +591,7 @@ const EditKundeModal: React.FC<{
   const [adresseStrasse, setAdresseStrasse] = useState(_parsedAdresse.street);
   const [adressePlz, setAdressePlz] = useState(_parsedAdresse.plz);
   const [adresseOrt, setAdresseOrt] = useState(_parsedAdresse.ort);
+  const [land, setLand] = useState(initial.land || "Deutschland");
   const [kategorie, setKategorie] = useState(initial.kategorie || "");
 
   // Firmendaten
@@ -636,6 +689,7 @@ const EditKundeModal: React.FC<{
         region: region.trim() || undefined,
         telefon: telefon.trim() || undefined,
         adresse: composeAdresse(adresseStrasse, adressePlz, adresseOrt).trim() || undefined,
+        land: land || "Deutschland",
         kategorie: kategorie.trim() || undefined,
 
         // Firmendaten
@@ -772,6 +826,27 @@ const EditKundeModal: React.FC<{
                             </div>
                           </div>
                           <div className="form-text">Wird beim Speichern als ein Feld gespeichert.</div>
+                        </div>
+                        <div className="col-md-6">
+                          <label className="form-label">Land</label>
+                          <select
+                            className="form-select"
+                            value={land}
+                            onChange={(e) => setLand(e.target.value)}
+                          >
+                            <option value="Deutschland">Deutschland</option>
+                            <option value="Österreich">Österreich</option>
+                            <option value="Schweiz">Schweiz</option>
+                            <option value="Niederlande">Niederlande</option>
+                            <option value="Belgien">Belgien</option>
+                            <option value="Frankreich">Frankreich</option>
+                            <option value="Polen">Polen</option>
+                            <option value="Tschechien">Tschechien</option>
+                            <option value="Dänemark">Dänemark</option>
+                            <option value="Luxemburg">Luxemburg</option>
+                            <option value="Türkei">Türkei</option>
+                          </select>
+                          <div className="form-text">Für Kunden außerhalb Deutschlands wird keine MwSt berechnet.</div>
                         </div>
                       </div>
                     </div>

@@ -254,6 +254,7 @@ const EditKundeModal: React.FC<{
   const [region, setRegion] = useState(kunde.region || '');
   const [kategorie, setKategorie] = useState(kunde.kategorie || '');
   const [adresse, setAdresse] = useState(kunde.adresse || '');
+  const [land, setLand] = useState(kunde.land || 'Deutschland');
 
   // Firmendaten
   const [ustId, setUstId] = useState(kunde.ustId || '');
@@ -323,6 +324,9 @@ const EditKundeModal: React.FC<{
   const [gewerbeDateiUrl, setGewerbeDateiUrl] = useState(kunde.gewerbeDateiUrl || '');
   const [zusatzDateiUrl, setZusatzDateiUrl] = useState(kunde.zusatzDateiUrl || '');
 
+  // Benachrichtigungen
+  const [fehlmengenBenachrichtigung, setFehlmengenBenachrichtigung] = useState(kunde.fehlmengenBenachrichtigung ?? false);
+
   // Passwort ändern
   const [changePassword, setChangePassword] = useState(false);
   const [password, setPassword] = useState('');
@@ -353,6 +357,7 @@ const EditKundeModal: React.FC<{
         region: region.trim() || undefined,
         kategorie: kategorie.trim() || undefined,
         adresse: adresse.trim() || undefined,
+        land: land || 'Deutschland',
 
         // Firmendaten
         ustId: ustId.trim() || undefined,
@@ -370,6 +375,9 @@ const EditKundeModal: React.FC<{
         // Dateien
         gewerbeDateiUrl: gewerbeDateiUrl.trim() || undefined,
         zusatzDateiUrl: zusatzDateiUrl.trim() || undefined,
+
+        // Benachrichtigungen
+        fehlmengenBenachrichtigung,
       };
 
       if (changePassword) {
@@ -447,6 +455,23 @@ const EditKundeModal: React.FC<{
                       <div className="col-12">
                         <label className="form-label">Adresse</label>
                         <input className="form-control" value={adresse} onChange={(e) => setAdresse(e.target.value)} disabled={busy} />
+                      </div>
+                      <div className="col-md-6">
+                        <label className="form-label">Land</label>
+                        <select className="form-select" value={land} onChange={(e) => setLand(e.target.value)} disabled={busy}>
+                          <option value="Deutschland">Deutschland</option>
+                          <option value="Österreich">Österreich</option>
+                          <option value="Schweiz">Schweiz</option>
+                          <option value="Niederlande">Niederlande</option>
+                          <option value="Belgien">Belgien</option>
+                          <option value="Frankreich">Frankreich</option>
+                          <option value="Polen">Polen</option>
+                          <option value="Tschechien">Tschechien</option>
+                          <option value="Dänemark">Dänemark</option>
+                          <option value="Luxemburg">Luxemburg</option>
+                          <option value="Türkei">Türkei</option>
+                        </select>
+                        <small className="text-muted">Für Kunden außerhalb Deutschlands wird keine MwSt berechnet.</small>
                       </div>
                     </div>
                   </div>
@@ -610,6 +635,31 @@ const EditKundeModal: React.FC<{
                         <label className="form-label">Zusatz‑Datei URL</label>
                         <input className="form-control" value={zusatzDateiUrl} onChange={(e) => setZusatzDateiUrl(e.target.value)} disabled={busy} />
                       </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Benachrichtigungen */}
+              <div className="col-12">
+                <div className="card border-0">
+                  <div className="card-body p-0">
+                    <div className="fw-semibold"><i className="ci-bell me-2" />Benachrichtigungen</div>
+                    <div className="mt-3">
+                      <div className="form-check form-switch">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          id="fehlmengenBenachrichtigungSwitchEdit"
+                          checked={fehlmengenBenachrichtigung}
+                          onChange={(e) => setFehlmengenBenachrichtigung(e.target.checked)}
+                          disabled={busy}
+                        />
+                        <label className="form-check-label" htmlFor="fehlmengenBenachrichtigungSwitchEdit">
+                          Fehlmengen-Benachrichtigung aktivieren
+                        </label>
+                      </div>
+                      <div className="form-text">Wenn aktiviert, erhält der Kunde eine E-Mail bei Fehlmengen während der Kommissionierung.</div>
                     </div>
                   </div>
                 </div>
@@ -1767,6 +1817,7 @@ const clearPreisSearch = async () => {
                   <InfoRow label="Email" value={kunde.email} />
                   <InfoRow label="Telefon" value={kunde.telefon} />
                   <InfoRow label="Adresse" value={kunde.adresse} />
+                  <InfoRow label="Land" value={kunde.land || 'Deutschland'} />
                   <InfoRow label="Lieferzeit" value={kunde.lieferzeit} />
                   <InfoRow label="USt-ID" value={kunde.ustId} />
                   <InfoRow label="Handelsregister-Nr." value={kunde.handelsregisterNr} />

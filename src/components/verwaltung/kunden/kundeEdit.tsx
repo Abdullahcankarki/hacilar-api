@@ -19,6 +19,7 @@ const KundeEdit: React.FC = () => {
     password: '',
     email: '',
     adresse: '',
+    land: 'Deutschland',
     telefon: '',
     lieferzeit: '',
     ustId: '',
@@ -44,6 +45,7 @@ const KundeEdit: React.FC = () => {
           password: '', // Passwort nicht vorab anzeigen
           email: data.email || '',
           adresse: data.adresse || '',
+          land: data.land || 'Deutschland',
           telefon: data.telefon || '',
           lieferzeit: data.lieferzeit || '',
           ustId: data.ustId || '',
@@ -65,12 +67,12 @@ const KundeEdit: React.FC = () => {
     fetchKunde();
   }, [id]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
-    if (name === 'isApproved') {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    if (name === 'isApproved' && e.target instanceof HTMLInputElement) {
       setFormData({
         ...formData,
-        isApproved: checked,
+        isApproved: e.target.checked,
       });
     } else {
       setFormData({
@@ -216,6 +218,28 @@ const KundeEdit: React.FC = () => {
                   onChange={handleChange}
                   required
                 />
+              </div>
+              <div className="col-md-6 mb-3">
+                <label className="form-label">Land</label>
+                <select
+                  name="land"
+                  className="form-select"
+                  value={formData.land || 'Deutschland'}
+                  onChange={handleChange}
+                >
+                  <option value="Deutschland">Deutschland</option>
+                  <option value="Österreich">Österreich</option>
+                  <option value="Schweiz">Schweiz</option>
+                  <option value="Niederlande">Niederlande</option>
+                  <option value="Belgien">Belgien</option>
+                  <option value="Frankreich">Frankreich</option>
+                  <option value="Polen">Polen</option>
+                  <option value="Tschechien">Tschechien</option>
+                  <option value="Dänemark">Dänemark</option>
+                  <option value="Luxemburg">Luxemburg</option>
+                  <option value="Türkei">Türkei</option>
+                </select>
+                <small className="text-muted">Für Kunden außerhalb Deutschlands wird keine MwSt berechnet.</small>
               </div>
               <div className="col-md-6 mb-3">
                 <label className="form-label">Telefon</label>

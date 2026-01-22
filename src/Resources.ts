@@ -34,6 +34,7 @@ export type KundeResource = {
   password?: string;
   email?: string;
   adresse?: string;
+  land?: string; // Land des Kunden (für MwSt-Berechnung, Standard: "Deutschland")
   telefon?: string;
   updatedAt?: string;
   ustId?: string;
