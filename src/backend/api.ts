@@ -659,6 +659,12 @@ export async function getKundenpreiseByCustomerBestimmteArtikel(
   return apiFetch(`/api/kundenpreis/customer/${customerId}/bestimmte-artikel${q}`);
 }
 
+export async function sendAngebotEmail(customerId: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(`/api/kundenPreis/customer/${customerId}/send-angebot`, {
+    method: "POST",
+  });
+}
+
 /**
  * GET /api/kundenpreis/artikel/:artikelId/overview
  * Liefert eine artikelzentrierte Übersicht der Kunden mit Basispreis, Aufpreis und Effektivpreis.
@@ -1832,6 +1838,41 @@ export async function getBelegEmailLogs(auftragId: string): Promise<any[]> {
   return apiFetch<any[]>(`/api/beleg/${auftragId}/email-logs`);
 }
 
+// --- Email-Logs (global) ---
+export async function getGlobalEmailLogs(params?: {
+  page?: number;
+  limit?: number;
+  typ?: string;
+  status?: string;
+  search?: string;
+  from?: string;
+  to?: string;
+}): Promise<{ items: any[]; total: number; page: number; limit: number }> {
+  const q = new URLSearchParams();
+  if (params?.page) q.set("page", String(params.page));
+  if (params?.limit) q.set("limit", String(params.limit));
+  if (params?.typ) q.set("typ", params.typ);
+  if (params?.status) q.set("status", params.status);
+  if (params?.search) q.set("search", params.search);
+  if (params?.from) q.set("from", params.from);
+  if (params?.to) q.set("to", params.to);
+  const qs = q.toString();
+  return apiFetch<{ items: any[]; total: number; page: number; limit: number }>(
+    `/api/email-logs${qs ? `?${qs}` : ""}`
+  );
+}
+
+export async function downloadEmailLogPdf(logId: string): Promise<{ base64: string; filename: string } | null> {
+  const res = await fetch(`${API_URL}/api/email-logs/${logId}/pdf`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
+    },
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
 /* Exportiere ein Objekt, das alle Funktionen zusammenfasst */
 export const api = {
   apiFetch,
@@ -1865,6 +1906,7 @@ export const api = {
   createMassKundenpreis,
   getKundenpreiseByCustomer,
   getKundenpreiseByCustomerBestimmteArtikel,
+  sendAngebotEmail,
   getKundenpreiseArtikelOverview,
   bulkEditKundenpreiseByCustomer,
   bulkEditKundenpreiseByArtikel,
@@ -1964,6 +2006,9 @@ export const api = {
   logBelegEmail,
   getBelege,
   getBelegEmailLogs,
+  // Email-Logs (global)
+  getGlobalEmailLogs,
+  downloadEmailLogPdf,
   // Charges
   listCharges,
   getChargeByIdApi,

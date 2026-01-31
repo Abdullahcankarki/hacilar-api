@@ -178,6 +178,7 @@ const NavBar: React.FC<NavBarProps> = ({
                       <li><NavLink className="dropdown-item" to="/reihenfolge-vorlage">Reihenfolge-Vorlagen</NavLink></li>
                       {/* <li><NavLink className="dropdown-item" to="/inventory">Bestand</NavLink></li> */}
                       <li><NavLink className="dropdown-item" to="/stats">Statistiken</NavLink></li>
+                      <li><NavLink className="dropdown-item" to="/email-log">E-Mail-Protokoll</NavLink></li>
                     </ul>
                   </li>
                 </>

@@ -91,12 +91,21 @@ const ConfirmModal: React.FC<{
 );
 
 // BulkEdit Kundenpreise Modal
+type PreiseDataItem = {
+  artikel: string;
+  artikelNummer?: string;
+  artikelName?: string;
+  basispreis: number;
+  aufpreis: number;
+  effektivpreis: number;
+};
 const BulkEditKundenpreiseModal: React.FC<{
   customerId: string;
   preselectedArtikelIds: string[];
+  preiseData?: PreiseDataItem[];
   onClose: () => void;
   onDone: () => void; // reload callback
-}> = ({ customerId, preselectedArtikelIds, onClose, onDone }) => {
+}> = ({ customerId, preselectedArtikelIds, preiseData = [], onClose, onDone }) => {
   const [mode, setMode] = useState<'set' | 'add' | 'sub'>('set');
   const [value, setValue] = useState<string>('0');
   const [artikelKategorie, setArtikelKategorie] = useState<string>('');
@@ -166,7 +175,7 @@ const BulkEditKundenpreiseModal: React.FC<{
             {/* Aktion & Wert */}
             <div className="mb-4">
               <label className="form-label d-block mb-2">Aktion</label>
-              <div className="d-flex flex-wrap gap-3 align-items-center">
+              <div className="d-flex gap-3 align-items-center">
                 <div className="btn-group" role="group" aria-label="Aktion wählen">
                   <button type="button" className={cx('btn', mode === 'set' ? 'btn-primary' : 'btn-outline-primary')} onClick={() => setMode('set')}>Setzen</button>
                   <button type="button" className={cx('btn', mode === 'add' ? 'btn-primary' : 'btn-outline-primary')} onClick={() => setMode('add')}>Addieren</button>
@@ -178,10 +187,62 @@ const BulkEditKundenpreiseModal: React.FC<{
                     <span className="input-group-text">€</span>
                     <input type="number" step="0.01" className="form-control" value={value} onChange={(e) => setValue(e.target.value)} placeholder="z. B. 0.10" />
                   </div>
-                  <div className="form-text">Beispiel: 0,10 = zehn Cent. Bei Subtrahieren musst du kein Minus angeben.</div>
+                  <div className="form-text">
+                    {mode === 'set' && 'Der eingegebene Wert wird als neuer Aufpreis (relativ zum Basispreis) gesetzt.'}
+                    {mode === 'add' && 'Der eingegebene Wert wird zum bestehenden Aufpreis addiert.'}
+                    {mode === 'sub' && 'Der eingegebene Wert wird vom bestehenden Aufpreis subtrahiert (kein Minus nötig).'}
+                  </div>
                 </div>
               </div>
             </div>
+
+            <hr className="text-muted" />
+
+            {/* Ausgewählte Artikel mit Basispreis und Vorschau */}
+            {useSelected && preselectedArtikelIds.length > 0 && preiseData.length > 0 && (
+              <div className="mb-4">
+                <label className="form-label d-block mb-2">Ausgewählte Artikel – Vorschau</label>
+                <div className="table-responsive" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                  <table className="table table-sm table-striped mb-0">
+                    <thead className="table-light sticky-top">
+                      <tr>
+                        <th>Art.-Nr.</th>
+                        <th>Bezeichnung</th>
+                        <th className="text-end">Basispreis</th>
+                        <th className="text-end">Aufpreis</th>
+                        <th className="text-end">Effektiv</th>
+                        <th className="text-end text-primary">Neu Aufpreis</th>
+                        <th className="text-end text-primary">Neu Effektiv</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {preiseData
+                        .filter(p => preselectedArtikelIds.includes(p.artikel))
+                        .map(p => {
+                          const numVal = Number(value) || 0;
+                          let neuAufpreis = p.aufpreis;
+                          if (mode === 'set') neuAufpreis = numVal;
+                          else if (mode === 'add') neuAufpreis = p.aufpreis + numVal;
+                          else if (mode === 'sub') neuAufpreis = p.aufpreis - numVal;
+                          const neuEffektiv = p.basispreis + neuAufpreis;
+                          const hasChange = neuAufpreis !== p.aufpreis;
+                          return (
+                            <tr key={p.artikel}>
+                              <td>{p.artikelNummer || '—'}</td>
+                              <td>{p.artikelName || '—'}</td>
+                              <td className="text-end">{p.basispreis.toFixed(2)} €</td>
+                              <td className="text-end text-muted">{p.aufpreis.toFixed(2)} €</td>
+                              <td className="text-end text-muted">{p.effektivpreis.toFixed(2)} €</td>
+                              <td className={cx('text-end fw-semibold', hasChange ? 'text-primary' : '')}>{neuAufpreis.toFixed(2)} €</td>
+                              <td className={cx('text-end fw-semibold', hasChange ? 'text-success' : '')}>{neuEffektiv.toFixed(2)} €</td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             <hr className="text-muted" />
 
@@ -1046,6 +1107,9 @@ const KundeDetail: React.FC = () => {
   const [preisLimit, setPreisLimit] = useState<number>(500);
   const [selectedArtikelIds, setSelectedArtikelIds] = useState<string[]>([]);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [angebotConfirmOpen, setAngebotConfirmOpen] = useState(false);
+  const [angebotSending, setAngebotSending] = useState(false);
+  const [angebotToast, setAngebotToast] = useState<{ type: 'success' | 'danger'; msg: string } | null>(null);
   const [bestimmteOpen, setBestimmteOpen] = useState(false);
 
   const loadKundenpreise = async () => {
@@ -1077,6 +1141,22 @@ const KundeDetail: React.FC = () => {
       setPreiseError(err?.message || 'Fehler beim Laden der Preise');
     } finally {
       setPreiseLoading(false);
+    }
+  };
+
+  const handleSendAngebot = async () => {
+    if (!id) return;
+    try {
+      setAngebotSending(true);
+      await api.sendAngebotEmail(id);
+      setAngebotConfirmOpen(false);
+      setAngebotToast({ type: 'success', msg: 'Angebot-E-Mail wurde erfolgreich gesendet.' });
+      setTimeout(() => setAngebotToast(null), 3000);
+    } catch (err: any) {
+      setAngebotToast({ type: 'danger', msg: err?.message || 'Fehler beim Senden der E-Mail' });
+      setTimeout(() => setAngebotToast(null), 4000);
+    } finally {
+      setAngebotSending(false);
     }
   };
 
@@ -1957,6 +2037,14 @@ const clearPreisSearch = async () => {
                     <div className="d-flex align-items-center gap-2">
                       {/* Massenbearbeitung Button */}
                       <button className="btn btn-sm btn-primary" onClick={() => setBulkOpen(true)} disabled={selectedArtikelIds.length === 0 && !preisIncludeAll && !preisQ}>Massenbearbeitung</button>
+                      <button
+                        className="btn btn-sm btn-outline-primary"
+                        onClick={() => setAngebotConfirmOpen(true)}
+                        disabled={!kunde?.email || preise.length === 0}
+                        title={!kunde?.email ? 'Kunde hat keine E-Mail-Adresse' : 'Angebot per E-Mail senden'}
+                      >
+                        <i className="ci-mail me-1" />Angebot senden
+                      </button>
                     </div>
                   </div>
                   <button className="btn btn-sm btn-outline-secondary" onClick={loadKundenpreise} disabled={preiseLoading}>
@@ -2064,9 +2152,54 @@ const clearPreisSearch = async () => {
         <BulkEditKundenpreiseModal
           customerId={id}
           preselectedArtikelIds={selectedArtikelIds}
+          preiseData={preise}
           onClose={() => setBulkOpen(false)}
           onDone={() => loadKundenpreise()}
         />
+      )}
+
+      {/* Angebot senden Bestätigung */}
+      {angebotConfirmOpen && (
+        <div className="modal d-block" tabIndex={-1} role="dialog" style={{ background: 'rgba(30,33,37,.6)' }}>
+          <div className="modal-dialog modal-dialog-centered" role="document">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Angebot per E-Mail senden?</h5>
+                <button type="button" className="btn-close" onClick={() => !angebotSending && setAngebotConfirmOpen(false)} />
+              </div>
+              <div className="modal-body">
+                <div className="d-flex align-items-start">
+                  <i className="ci-mail fs-4 me-3 text-primary" />
+                  <div>
+                    Preisangebot wird an <strong>{kunde?.email}</strong> gesendet.
+                    <div className="text-muted small mt-2">
+                      Es werden alle bestimmten Artikel mit dem aktuellen Endpreis per E-Mail versendet.
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-outline-secondary" onClick={() => setAngebotConfirmOpen(false)} disabled={angebotSending}>Abbrechen</button>
+                <button className="btn btn-primary" onClick={handleSendAngebot} disabled={angebotSending}>
+                  {angebotSending && <span className="spinner-border spinner-border-sm me-2" />} Senden
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast */}
+      {angebotToast && (
+        <div
+          className={cx('toast align-items-center border-0 position-fixed bottom-0 end-0 m-3 show', `text-bg-${angebotToast.type}`)}
+          role="alert"
+        >
+          <div className="d-flex">
+            <div className="toast-body">{angebotToast.msg}</div>
+            <button type="button" className="btn-close btn-close-white me-2 m-auto" onClick={() => setAngebotToast(null)} />
+          </div>
+        </div>
       )}
     </div>
   );

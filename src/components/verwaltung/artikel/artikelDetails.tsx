@@ -405,10 +405,12 @@ const Badge: React.FC<{ children: React.ReactNode; variant?: 'secondary' | 'succ
 // Modal: Bulk edit Kundenpreise for a given Artikel using Kunden-Filter
 const BulkEditKundenpreiseForArtikelModal: React.FC<{
     artikelId: string;
+    artikelBasispreis?: number;
+    artikelName?: string;
     preselectedCustomerIds: string[];
     onClose: () => void;
     onDone: () => void;
-}> = ({ artikelId, preselectedCustomerIds, onClose, onDone }) => {
+}> = ({ artikelId, artikelBasispreis, artikelName, preselectedCustomerIds, onClose, onDone }) => {
     const [mode, setMode] = useState<'set' | 'add' | 'sub'>('set');
     const [value, setValue] = useState<string>('0');
     const [kundenKategorie, setKundenKategorie] = useState<string>('');
@@ -467,6 +469,14 @@ const BulkEditKundenpreiseForArtikelModal: React.FC<{
                         <div>
                             <h5 className="modal-title mb-0"><i className="ci-edit me-2" />Massenbearbeitung · Kundenpreise (Artikel)</h5>
                             <div className="text-muted small"><i className="ci-tune me-2" />Setzen / Addieren / Subtrahieren für ausgewählte Kunden oder per Filter.</div>
+                            {artikelBasispreis !== undefined && (
+                              <div className="mt-1">
+                                <span className="badge bg-light text-dark border">
+                                  {artikelName && <span className="me-2">{artikelName}</span>}
+                                  Basispreis: <strong>{artikelBasispreis.toFixed(2)} €</strong>
+                                </span>
+                              </div>
+                            )}
                         </div>
                         <button type="button" className="btn-close" onClick={onClose} disabled={busy} />
                     </div>
@@ -487,6 +497,11 @@ const BulkEditKundenpreiseForArtikelModal: React.FC<{
                                     <div className="input-group">
                                         <span className="input-group-text">€</span>
                                         <input type="number" step="0.01" className="form-control" value={value} onChange={(e) => setValue(e.target.value)} placeholder="z. B. 0.10" />
+                                    </div>
+                                    <div className="form-text">
+                                      {mode === 'set' && 'Der eingegebene Wert wird als neuer Aufpreis (relativ zum Basispreis) gesetzt.'}
+                                      {mode === 'add' && 'Der eingegebene Wert wird zum bestehenden Aufpreis addiert.'}
+                                      {mode === 'sub' && 'Der eingegebene Wert wird vom bestehenden Aufpreis subtrahiert (kein Minus nötig).'}
                                     </div>
                                 </div>
                             </div>
@@ -1167,6 +1182,8 @@ const ArtikelDetails: React.FC = () => {
             {bulkOpen && id && (
                 <BulkEditKundenpreiseForArtikelModal
                     artikelId={id}
+                    artikelBasispreis={artikel?.preis}
+                    artikelName={artikel?.name}
                     preselectedCustomerIds={selectedCustomerIds}
                     onClose={() => setBulkOpen(false)}
                     onDone={() => loadPreise()}

@@ -38,6 +38,7 @@ import ForgotPassword from './components/login/forgot-password';
 import ResetPassword from './components/login/reset-password';
 import SchnellAuftragWriter from './components/produktion/auftrag/SchnellAuftragWriter';
 import MeineAuftraege from './components/profil/MeineAuftraege';
+import EmailLogOverview from './components/verwaltung/email-log/EmailLogOverview';
 // import InventoryDashboard from './components/inventoryDashboard';
 
 
@@ -92,6 +93,7 @@ const AppRoutes: React.FC = () => {
               <Route path="tour-manager" element={<TourManager />} />
               <Route path="fahrer" element={<DriverTour />} />
               <Route path="fleet" element={<FleetPage />} />
+              <Route path="email-log" element={<EmailLogOverview />} />
               {/* <Route path="inventory" element={<InventoryDashboard />} /> */}
               <Route path="*" element={<Navigate to="/home" replace />} />
             </>

@@ -200,6 +200,23 @@ export type EmailLogResource = {
   messageId?: string; // Provider-Nachweis
 };
 
+export type GlobalEmailLogResource = {
+  id?: string;
+  empfaenger: string[];
+  betreff: string;
+  typ: "auftragsbestaetigung" | "fehlmengen" | "lieferschein";
+  status: "gesendet" | "fehlgeschlagen";
+  fehler?: string;
+  auftragId?: string;
+  auftragNummer?: string;
+  kundenName?: string;
+  belegTyp?: string;
+  messageId?: string;
+  pdfFilename?: string;
+  hasPdf?: boolean;
+  createdAt?: string;
+};
+
 export type ZerlegeArtikelPosition = {
   artikelPositionId: string;
   artikelName: string;
