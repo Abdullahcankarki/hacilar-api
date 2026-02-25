@@ -501,13 +501,13 @@ const SchnellAuftragWriter: React.FC = () => {
 
     return (
         <div className="container-fluid py-3">
-            <div className="d-flex justify-content-between align-items-center mb-3">
+            <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                 <h4 className="mb-0">Schnellauftrag</h4>
                 <div className="d-flex align-items-center gap-2">
-                    <small className="text-muted">Ctrl+Enter</small>
+                    <small className="text-muted d-none d-sm-inline">Ctrl+Enter</small>
                     <button className="btn btn-primary btn-sm" disabled={!canCreate || creating} onClick={handleCreateAuftrag}>
                         {creating ? <span className="spinner-border spinner-border-sm me-1"></span> : null}
-                        Auftrag erstellen
+                        <span className="d-none d-sm-inline">Auftrag erstellen</span><span className="d-sm-none">Erstellen</span>
                     </button>
                 </div>
             </div>
@@ -558,18 +558,20 @@ const SchnellAuftragWriter: React.FC = () => {
                 </div>
                 <div className="col-md-6">
                     <label className="form-label fw-bold">Lieferdatum (TT.MM.JJJJ)</label>
-                    <div className="d-flex gap-2">
+                    <div className="d-flex flex-wrap gap-2">
                         <input
                             ref={lieferdatumInputRef}
                             type="text"
                             className="form-control form-control-sm"
+                            style={{ minWidth: 120, flex: '1 1 120px' }}
                             value={lieferdatumInput}
                             onChange={(e) => handleLieferdatumChange(e.target.value)}
                             placeholder="TT.MM.JJJJ"
                         />
                         <button className="btn btn-sm btn-outline-secondary" onClick={() => setLieferdatumShortcut(0)}>Heute</button>
                         <button className="btn btn-sm btn-outline-secondary" onClick={() => setLieferdatumShortcut(1)}>Morgen</button>
-                        <button className="btn btn-sm btn-outline-secondary" onClick={setLieferdatumNextBusinessDay}>Nächster Werktag</button>
+                        <button className="btn btn-sm btn-outline-secondary d-none d-sm-inline-block" onClick={setLieferdatumNextBusinessDay}>Nächster Werktag</button>
+                        <button className="btn btn-sm btn-outline-secondary d-sm-none" onClick={setLieferdatumNextBusinessDay}>Werktag</button>
                     </div>
                 </div>
             </div>

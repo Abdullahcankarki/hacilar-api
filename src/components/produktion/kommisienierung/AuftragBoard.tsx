@@ -72,11 +72,13 @@ type TableViewProps = {
   tourInfoMap: Record<string, any>;
   onOpen: (a: AuftragResource) => void;
   onUebernehmen: (auftragId: string) => void;
+  onBeladen: (a: AuftragResource) => void;
   darfUebernehmen: (a: AuftragResource) => boolean;
+  darfBeladen: (a: AuftragResource) => boolean;
   loadingId: string | null;
 };
 
-function TableView({ items, toursMap, tourInfoMap, onOpen, onUebernehmen, darfUebernehmen, loadingId }: TableViewProps) {
+function TableView({ items, toursMap, tourInfoMap, onOpen, onUebernehmen, onBeladen, darfUebernehmen, darfBeladen, loadingId }: TableViewProps) {
   const groups = useMemo(() => {
     const map: Record<string, AuftragResource[]> = {};
     for (const a of items || []) {
@@ -180,12 +182,13 @@ function TableView({ items, toursMap, tourInfoMap, onOpen, onUebernehmen, darfUe
                           <th>Kunde</th>
                           <th className="text-end" style={{ width: 70 }}>Pal.</th>
                           <th style={{ width: 140 }}>Status</th>
-                          <th style={{ width: 44 }} />
+                          <th style={{ width: 88 }} />
                         </tr>
                       </thead>
                       <tbody>
                         {list.map((a) => {
                           const kommi = (a.kommissioniertStatus as KomStatus) || "offen";
+                          const beladen = (a as any).beladeStatus === "beladen";
                           return (
                             <tr
                               key={String(a.id)}
@@ -200,37 +203,63 @@ function TableView({ items, toursMap, tourInfoMap, onOpen, onUebernehmen, darfUe
                                 {typeof (a as any).gesamtPaletten === "number" ? (a as any).gesamtPaletten : "—"}
                               </td>
                               <td style={{ paddingTop: 6, paddingBottom: 6 }}>
-                                <span
-                                  className={cls(
-                                    "badge",
-                                    kommiBadgeClass(kommi),
-                                    "d-block w-100 text-center py-2 fw-semibold rounded-2"
-                                  )}
-                                  style={{ fontSize: 12, letterSpacing: 0.2 }}
-                                >
-                                  {kommi}
-                                </span>
-                              </td>
-                              <td className="text-end" style={{ width: 44 }}>
-                                {darfUebernehmen(a) ? (
-                                  <button
-                                    type="button"
-                                    className="btn btn-sm btn-primary"
-                                    title="Übernehmen"
-                                    disabled={loadingId === String(a.id)}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onUebernehmen(String(a.id));
-                                    }}
-                                    style={{ padding: '0.25rem 0.4rem' }}
+                                {beladen ? (
+                                  <span
+                                    className="badge bg-success d-block w-100 text-center py-2 fw-semibold rounded-2"
+                                    style={{ fontSize: 12, letterSpacing: 0.2 }}
                                   >
-                                    {loadingId === String(a.id) ? (
-                                      <span className="spinner-border spinner-border-sm" role="status" />
-                                    ) : (
-                                      <i className="ci-check" />
+                                    beladen
+                                  </span>
+                                ) : (
+                                  <span
+                                    className={cls(
+                                      "badge",
+                                      kommiBadgeClass(kommi),
+                                      "d-block w-100 text-center py-2 fw-semibold rounded-2"
                                     )}
-                                  </button>
-                                ) : null}
+                                    style={{ fontSize: 12, letterSpacing: 0.2 }}
+                                  >
+                                    {kommi}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="text-end" style={{ width: 88, paddingRight: 8 }}>
+                                <div className="d-flex gap-1 justify-content-end">
+                                  {darfUebernehmen(a) && (
+                                    <button
+                                      type="button"
+                                      className="btn btn-sm btn-primary"
+                                      title="Übernehmen"
+                                      disabled={loadingId === String(a.id)}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onUebernehmen(String(a.id));
+                                      }}
+                                      style={{ padding: '0.25rem 0.4rem' }}
+                                    >
+                                      {loadingId === String(a.id) ? (
+                                        <span className="spinner-border spinner-border-sm" role="status" />
+                                      ) : (
+                                        <i className="ci-check" />
+                                      )}
+                                    </button>
+                                  )}
+                                  {darfBeladen(a) && (
+                                    <button
+                                      type="button"
+                                      className="btn btn-sm btn-success"
+                                      title="Beladen"
+                                      disabled={loadingId === String(a.id)}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onBeladen(a);
+                                      }}
+                                      style={{ padding: '0.25rem 0.4rem' }}
+                                    >
+                                      <i className="ci-package" />
+                                    </button>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           );
@@ -265,8 +294,10 @@ type BoardViewProps = {
   onOpen: (a: AuftragResource) => void;
   onUebernehmen: (id: string) => void;
   onKontrollieren: (id: string) => void;
+  onBeladen: (a: AuftragResource) => void;
   darfUebernehmen: (a: AuftragResource) => boolean;
   darfKontrollieren: (a: AuftragResource) => boolean;
+  darfBeladen: (a: AuftragResource) => boolean;
   loadingId: string | null;
 };
 
@@ -275,23 +306,27 @@ function BoardView({
   onOpen,
   onUebernehmen,
   onKontrollieren,
+  onBeladen,
   darfUebernehmen,
   darfKontrollieren,
+  darfBeladen,
   loadingId,
 }: BoardViewProps) {
   const lanes = useMemo(() => {
     const offen = items.filter((a) => (a.kommissioniertStatus as KomStatus) !== "gestartet" && (a.kommissioniertStatus as KomStatus) !== "fertig");
     const gestartet = items.filter((a) => (a.kommissioniertStatus as KomStatus) === "gestartet");
-    const fertig = items.filter((a) => (a.kommissioniertStatus as KomStatus) === "fertig" && ((a.kontrolliertStatus as KontrollStatus) === "offen" || !a.kontrolliertVon));
-    const inKontrolle = items.filter((a) => (a.kontrolliertStatus as KontrollStatus) === "in Kontrolle");
-    const geprueft = items.filter((a) => (a.kontrolliertStatus as KontrollStatus) === "geprüft");
+    const fertig = items.filter((a) => (a.kommissioniertStatus as KomStatus) === "fertig" && (a as any).beladeStatus !== "beladen" && ((a.kontrolliertStatus as KontrollStatus) === "offen" || !a.kontrolliertVon));
+    const inKontrolle = items.filter((a) => (a.kontrolliertStatus as KontrollStatus) === "in Kontrolle" && (a as any).beladeStatus !== "beladen");
+    const geprueft = items.filter((a) => (a.kontrolliertStatus as KontrollStatus) === "geprüft" && (a as any).beladeStatus !== "beladen");
+    const beladen = items.filter((a) => (a as any).beladeStatus === "beladen");
 
     return [
       { key: "offen", title: "Offen", hint: "noch nicht gestartet", items: offen },
       { key: "gestartet", title: "Gestartet", hint: "Kommissionierung läuft", items: gestartet },
-      { key: "fertig", title: "Fertig", hint: "bereit für Kontrolle", items: fertig },
+      { key: "fertig", title: "Fertig", hint: "bereit für Kontrolle/Beladen", items: fertig },
       { key: "inkontrolle", title: "In Kontrolle", hint: "Kontrolle läuft", items: inKontrolle },
-      { key: "geprueft", title: "Geprüft", hint: "abgeschlossen", items: geprueft },
+      { key: "geprueft", title: "Geprüft", hint: "kontrolliert", items: geprueft },
+      { key: "beladen", title: "Beladen", hint: "verladen und abfahrbereit", items: beladen },
     ];
   }, [items]);
 
@@ -348,7 +383,7 @@ function BoardView({
                           </span>
                         </div>
 
-                        {(darfUebernehmen(a) || darfKontrollieren(a)) && (
+                        {(darfUebernehmen(a) || darfKontrollieren(a) || darfBeladen(a)) && (
                           <div className="d-flex gap-2 mt-2">
                             {darfUebernehmen(a) && (
                               <button
@@ -368,6 +403,16 @@ function BoardView({
                               >
                                 {isLoading ? <span className="spinner-border spinner-border-sm me-2" /> : <i className="ci-eye me-2" />}
                                 Kontrollieren
+                              </button>
+                            )}
+                            {darfBeladen(a) && (
+                              <button
+                                className="btn btn-sm btn-success flex-grow-1"
+                                disabled={isLoading}
+                                onClick={() => onBeladen(a)}
+                              >
+                                {isLoading ? <span className="spinner-border spinner-border-sm me-2" /> : <i className="ci-package me-2" />}
+                                Beladen
                               </button>
                             )}
                           </div>
@@ -402,6 +447,9 @@ export default function AuftraegeBoard() {
   const [tourInfoMap, setTourInfoMap] = useState<Record<string, any>>({});
   const [toursMap, setToursMap] = useState<Record<string, TourResource>>({});
   const [viewMode, setViewMode] = useState<"table" | "board">("table");
+  const [beladeFahrer, setBeladeFahrer] = useState("");
+  const [beladeFahrzeug, setBeladeFahrzeug] = useState("");
+  const [beladeLoading, setBeladeLoading] = useState(false);
 
   // Auto-Refresh alle 20 Sekunden
   useEffect(() => {
@@ -489,6 +537,41 @@ export default function AuftraegeBoard() {
     );
   };
 
+  const darfBeladen = (auftrag: AuftragResource) => {
+    return (
+      (hasRole("kommissionierung") || hasRole("kontrolle") || hasRole("admin")) &&
+      auftrag.kommissioniertStatus === "fertig" &&
+      (auftrag as any).beladeStatus !== "beladen"
+    );
+  };
+
+  const handleBeladen = (auftrag: AuftragResource) => {
+    setSelectedAuftrag(auftrag);
+    setBeladeFahrer("");
+    setBeladeFahrzeug("");
+    setShowBelade(true);
+  };
+
+  const handleBeladeBestaetigen = async () => {
+    if (!selectedAuftrag?.id) return;
+    try {
+      setBeladeLoading(true);
+      await api.beladeAuftrag(String(selectedAuftrag.id), {
+        fahrer: beladeFahrer || undefined,
+        fahrzeug: beladeFahrzeug || undefined,
+      });
+      setShowBelade(false);
+      setSelectedAuftrag(null);
+      setBeladeFahrer("");
+      setBeladeFahrzeug("");
+      // Daten werden durch Auto-Refresh aktualisiert
+    } catch (err: any) {
+      alert(err?.message || "Fehler beim Beladen");
+    } finally {
+      setBeladeLoading(false);
+    }
+  };
+
   const handleUebernehmen = async (auftragId: string) => {
     try {
       setLoadingId(auftragId);
@@ -519,7 +602,7 @@ export default function AuftraegeBoard() {
   // --- UI ---
   return (
     <div className="container py-3 py-lg-4">
-      <div className="d-flex align-items-center justify-content-between mb-3 flex-wrap">
+      <div className="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
         <div>
           <h2 className="h4 mb-1">Bearbeitungs-Board</h2>
           <div className="text-muted small">Live-Übersicht aller Aufträge in Bearbeitung</div>
@@ -527,23 +610,23 @@ export default function AuftraegeBoard() {
         <div className="d-flex align-items-center gap-2">
           <div className="btn-group" role="group" aria-label="Ansicht">
             <button
-              className={cls("btn", viewMode === "table" ? "btn-dark" : "btn-outline-dark")}
+              className={cls("btn btn-sm", viewMode === "table" ? "btn-dark" : "btn-outline-dark")}
               onClick={() => setViewMode("table")}
               title="Tour-Tabellenansicht"
             >
-              <i className="ci-list me-2" /> Touren
+              <i className="ci-list me-1" /><span className="d-none d-sm-inline"> Touren</span>
             </button>
             <button
-              className={cls("btn", viewMode === "board" ? "btn-dark" : "btn-outline-dark")}
+              className={cls("btn btn-sm", viewMode === "board" ? "btn-dark" : "btn-outline-dark")}
               onClick={() => setViewMode("board")}
               title="Boardansicht"
             >
-              <i className="ci-layout-grid me-2" /> Board
+              <i className="ci-grid me-1" /><span className="d-none d-sm-inline"> Board</span>
             </button>
           </div>
 
-          <button className="btn btn-outline-secondary" onClick={() => window.location.reload()}>
-            <i className="ci-corner-down-left me-2" /> Aktualisieren
+          <button className="btn btn-sm btn-outline-secondary" onClick={() => window.location.reload()}>
+            <i className="ci-corner-down-left" /><span className="d-none d-sm-inline ms-2">Aktualisieren</span>
           </button>
         </div>
       </div>
@@ -568,7 +651,9 @@ export default function AuftraegeBoard() {
           tourInfoMap={tourInfoMap}
           onOpen={(a) => navigate(`/kommissionierung/${a.id}`)}
           onUebernehmen={handleUebernehmen}
+          onBeladen={handleBeladen}
           darfUebernehmen={darfUebernehmen}
+          darfBeladen={darfBeladen}
           loadingId={loadingId}
         />
       ) : (
@@ -577,31 +662,84 @@ export default function AuftraegeBoard() {
           onOpen={(a) => navigate(`/kommissionierung/${a.id}`)}
           onUebernehmen={handleUebernehmen}
           onKontrollieren={handleKontrollieren}
+          onBeladen={handleBeladen}
           darfUebernehmen={darfUebernehmen}
           darfKontrollieren={darfKontrollieren}
+          darfBeladen={darfBeladen}
           loadingId={loadingId}
         />
       )}
 
-      {showBelade && selectedAuftrag && (
-        <div className="modal fade show d-block" tabIndex={-1} role="dialog">
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Beladeinfos Auftrag {selectedAuftrag.auftragsnummer}</h5>
-                <button type="button" className="btn-close" onClick={() => setShowBelade(false)} />
-              </div>
-              <div className="modal-body">
-                <p><strong>Reihenfolge:</strong> {tourInfos?.reihenfolge ?? "nicht bekannt"}</p>
-                <p><strong>Fahrzeug-Kennzeichen:</strong> {tourInfos?.kennzeichen ?? "nicht bekannt"}</p>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowBelade(false)}>Schließen</button>
+      {showBelade && selectedAuftrag && (() => {
+        const tourInfo = selectedAuftrag.id ? tourInfoMap[String(selectedAuftrag.id)] : undefined;
+        const kennzeichen = tourInfo?.kennzeichen || "Unbekannt";
+
+        return (
+          <>
+            <div className="modal fade show d-block" tabIndex={-1} role="dialog" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+              <div className="modal-dialog modal-dialog-centered">
+                <div className="modal-content">
+                  <div className="modal-header bg-success text-white">
+                    <h5 className="modal-title">
+                      <i className="ci-package me-2" />
+                      Auftrag beladen
+                    </h5>
+                    <button type="button" className="btn-close btn-close-white" onClick={() => setShowBelade(false)} aria-label="Schließen" />
+                  </div>
+                  <div className="modal-body">
+                    <div className="mb-3">
+                      <div className="fw-semibold mb-1">Auftrag: {selectedAuftrag.auftragsnummer}</div>
+                      <div className="text-muted" style={{ fontSize: 14 }}>Kunde: {selectedAuftrag.kundeName}</div>
+                    </div>
+
+                    <div className="alert alert-info mb-3" style={{ fontSize: 15 }}>
+                      <div className="d-flex align-items-center">
+                        <i className="ci-delivery me-3" style={{ fontSize: 28 }} />
+                        <div>
+                          <div className="fw-bold mb-1">Bitte hier beladen:</div>
+                          <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: 1 }}>
+                            {kennzeichen}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <hr />
+                  </div>
+                  <div className="modal-footer">
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => setShowBelade(false)}
+                      disabled={beladeLoading}
+                    >
+                      Abbrechen
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-success"
+                      onClick={handleBeladeBestaetigen}
+                      disabled={beladeLoading}
+                    >
+                      {beladeLoading ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status" />
+                          Wird beladen...
+                        </>
+                      ) : (
+                        <>
+                          <i className="ci-check me-2" />
+                          Fertig beladen
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        );
+      })()}
     </div>
   );
 }

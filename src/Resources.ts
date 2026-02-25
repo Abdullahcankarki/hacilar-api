@@ -80,6 +80,12 @@ export type AuftragResource = {
   kommissioniertStartzeit?: string;
   kommissioniertEndzeit?: string;
   kontrolliertZeit?: string;
+  beladeStatus?: "offen" | "beladen";
+  beladeVon?: string;
+  beladeVonName?: string;
+  beladeZeit?: string;
+  fahrer?: string;
+  fahrzeug?: string;
   createdAt?: string;
   updatedAt?: string;
   tourId?: string;

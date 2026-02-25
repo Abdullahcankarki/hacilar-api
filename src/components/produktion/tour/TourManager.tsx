@@ -260,7 +260,7 @@ const TourColumn: React.FC<{
     return (
         <div id={tour.id} ref={setContainerRef} data-tour-container style={{ minHeight: 24 }}>
             <div className="card h-100 border-0 shadow-sm">
-                <div className="card-header bg-transparent d-flex align-items-center justify-content-between">
+                <div className="card-header bg-transparent d-flex flex-wrap align-items-center justify-content-between gap-2">
                     <div>
                         <div className="d-flex align-items-center gap-2">
                             <h5 className="mb-0">{tour.name || `Tour ${formatRegion(tour.region || "", 'capitalized')}`}</h5>
@@ -1209,12 +1209,12 @@ export const TourManager: React.FC = () => {
     return (
         <div className="container py-3">
             {/* Header */}
-            <div className="d-flex align-items-center justify-content-between mb-3">
+            <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
                 <div>
                     <h2 className="h4 mb-1">Tourenverwaltung</h2>
                     <div className="text-muted small">{tours.length} Touren gesamt · Sichtbar: {filteredTours.length}</div>
                 </div>
-                <div className="d-flex gap-2 align-items-center">
+                <div className="d-flex flex-wrap gap-2 align-items-center">
                     <button
                         className={cx("btn", viewMode === "table" ? "btn-dark" : "btn-outline-dark")}
                         onClick={() => setViewMode((v) => (v === "table" ? "cards" : "table"))}
@@ -1240,7 +1240,7 @@ export const TourManager: React.FC = () => {
             {/* Filters / Sorting */}
             <div className="card shadow-sm border-0 mb-3">
                 {/* Filters Toolbar */}
-                <div className="d-flex align-items-center justify-content-between mb-3">
+                <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
                     <div className="text-muted small d-flex flex-wrap gap-2">
                         {dateFrom && <span className="badge text-bg-light">Von {dayjs(dateFrom, DATE_FMT_IN).format("DD.MM.YYYY")}</span>}
                         {dateTo && <span className="badge text-bg-light">Bis {dayjs(dateTo, DATE_FMT_IN).format("DD.MM.YYYY")}</span>}
@@ -1249,9 +1249,9 @@ export const TourManager: React.FC = () => {
                         {fahrzeugIdFilter && <span className="badge text-bg-light">Fahrzeug</span>}
                         {fahrerIdFilter && <span className="badge text-bg-light">Fahrer</span>}
                         {isStandardFilter !== "" && <span className="badge text-bg-light">{isStandardFilter ? "Standard" : "Nicht-Standard"}</span>}
-                        {q && <span className="badge text-bg-light">q: “{q}”</span>}
+                        {q && <span className="badge text-bg-light">q: "{q}"</span>}
                     </div>
-                    <div className="d-flex gap-2">
+                    <div className="d-flex flex-wrap gap-2">
                         <button className="btn btn-outline-dark" onClick={() => setShowFilterModal(true)}>
                             <i className="ci-filter me-2" /> Filtern & Sortieren
                         </button>
@@ -1573,7 +1573,7 @@ export const TourManager: React.FC = () => {
             </DndContext>
             }
             {/* Pagination */}
-            <div className="card-footer bg-transparent d-flex justify-content-between align-items-center">
+            <div className="card-footer bg-transparent d-flex flex-wrap justify-content-between align-items-center gap-2">
                 <div className="text-muted small">
                     {total} Einträge · Seite {page} von {Math.max(1, Math.ceil(total / Math.max(1, limit)))}
                 </div>

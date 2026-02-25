@@ -1220,7 +1220,7 @@ const KundenOverview: React.FC = () => {
         </div>
         <div className="d-flex gap-2">
           <button className="btn btn-dark rounded-3" onClick={() => setCreateOpen(true)}>
-            <i className="ci-plus me-2" /> Kunde erstellen
+            <i className="ci-plus me-2" /><span className="d-none d-sm-inline">Kunde erstellen</span><span className="d-sm-none">Neu</span>
           </button>
         </div>
       </div>
@@ -1304,8 +1304,45 @@ const KundenOverview: React.FC = () => {
         </div>
       </div>
 
-      {/* Table/Card */}
-      <div className="card border-0 shadow-sm">
+      {/* Mobile Card View */}
+      <div className="d-md-none">
+        {loadingState && <div className="text-center py-4"><div className="spinner-border" role="status" /></div>}
+        {state === "error" && <div className="alert alert-danger">{error || "Fehler beim Laden"}</div>}
+        {emptyState && <div className="text-center py-4 text-muted">Keine Kunden gefunden.</div>}
+        {state === "success" && items.map(k => (
+          <div key={k.id} className="mobile-card-item" onClick={() => navigate(`/kunden/${k.id}`)}>
+            <div className="mobile-card-item-header">
+              <span className="fw-bold">{k.name || "—"}</span>
+              {k.isApproved
+                ? <span className="badge bg-success">freigeschaltet</span>
+                : <span className="badge bg-secondary">gesperrt</span>}
+            </div>
+            <div className="text-muted small mb-1">{k.email || "—"}</div>
+            <div className="mobile-card-item-body">
+              <div><span className="label">Kundennr.</span><br/><span className="value">{k.kundenNummer || "—"}</span></div>
+              <div><span className="label">Region</span><br/><span className="value">{k.region || "—"}</span></div>
+              <div><span className="label">Kategorie</span><br/><span className="value">{k.kategorie || "—"}</span></div>
+            </div>
+            <div className="mobile-card-item-footer" onClick={(e) => e.stopPropagation()}>
+              <button className="btn btn-sm btn-outline-secondary" onClick={() => setEditItem(k)}>
+                <i className="ci-edit me-1" />Bearbeiten
+              </button>
+              <button className="btn btn-sm btn-outline-danger" onClick={() => requestDelete(k)}>
+                <i className="ci-trash me-1" />Löschen
+              </button>
+            </div>
+          </div>
+        ))}
+        {/* Mobile Pagination */}
+        <div className="d-flex gap-2 mt-2">
+          <button className="btn btn-outline-secondary flex-fill" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Zurück</button>
+          <button className="btn btn-outline-secondary flex-fill" disabled={page >= pages} onClick={() => setPage(p => Math.min(pages, p + 1))}>Weiter</button>
+        </div>
+        <div className="text-center text-muted small mt-2">Seite {page} / {pages}</div>
+      </div>
+
+      {/* Desktop Table/Card */}
+      <div className="card border-0 shadow-sm d-none d-md-block">
         <div className="table-responsive">
           <table className="table align-middle mb-0">
             <thead className="table-light">

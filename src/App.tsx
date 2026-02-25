@@ -12,6 +12,7 @@ import VerkaeuferEdit from './components/verwaltung/mitarbeiter/verkaeuferEdit';
 import StatsDashboard from './components/verwaltung/statistiken/stats';
 import { Layout } from './components/layout/layout';
 import "./App.css"
+import "./mobile.css"
 import './Cartzilla/assets/css/theme.min.css';
 import './Cartzilla/assets/icons/cartzilla-icons.min.css';
 import 'leaflet/dist/leaflet.css'

@@ -358,7 +358,7 @@ const RegionRuleOverview: React.FC = () => {
     return (
         <div className="container py-4">
             {/* Header */}
-            <div className="d-flex align-items-center justify-content-between mb-3">
+            <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
                 <div>
                     <h2 className="h4 mb-0">Region‑Regeln</h2>
                     <div className="text-muted small">{state === "loading" ? "Lade…" : `${total} Einträge`}</div>
@@ -367,7 +367,7 @@ const RegionRuleOverview: React.FC = () => {
                     className="btn btn-dark rounded-3"
                     onClick={() => { setPrefillForCreate(null); setShowCreate(true); }}
                 >
-                    <i className="ci-plus me-2" /> Neue Regel
+                    <i className="ci-plus me-2" /><span className="d-none d-sm-inline">Neue Regel</span><span className="d-sm-none">Neu</span>
                 </button>
             </div>
 
@@ -458,31 +458,29 @@ const RegionRuleOverview: React.FC = () => {
                                     </td>
                                     <td>{r.isActive ? <span className="badge bg-success">aktiv</span> : <span className="badge bg-secondary">inaktiv</span>}</td>
                                     <td className="text-end">
-                                        {/* ...innerhalb der Actions-Zelle (td className="text-end") */}
                                         <div className="btn-group">
                                             <button className="btn btn-sm btn-outline-secondary" onClick={() => setEditRule(r)}>
-                                                <i className="ci-edit me-1" /> Bearbeiten
+                                                <i className="ci-edit" /><span className="d-none d-md-inline ms-1">Bearbeiten</span>
                                             </button>
                                             <button
                                                 className="btn btn-sm btn-outline-success"
                                                 onClick={() => {
-                                                    // Create-Modal mit vorbefüllten Werten öffnen:
-                                                    setEditRule(null);            // sicherstellen, dass wir im Create-Modus sind
+                                                    setEditRule(null);
                                                     setShowCreate(true);
                                                     setPrefillForCreate({
                                                         region: r.region,
                                                         allowedWeekdays: [...(r.allowedWeekdays ?? [])],
                                                         orderCutoff: r.orderCutoff,
                                                         exceptionDates: [...(r.exceptionDates ?? [])],
-                                                        isActive: r.isActive, // du kannst hier auch immer true setzen, wenn gewünscht
+                                                        isActive: r.isActive,
                                                     });
                                                 }}
                                                 title="Regel duplizieren"
                                             >
-                                                <i className="ci-copy me-1" /> Duplizieren
+                                                <i className="ci-copy" /><span className="d-none d-md-inline ms-1">Duplizieren</span>
                                             </button>
                                             <button className="btn btn-sm btn-outline-danger" onClick={() => requestDelete(r)}>
-                                                <i className="ci-trash me-1" /> Löschen
+                                                <i className="ci-trash" /><span className="d-none d-md-inline ms-1">Löschen</span>
                                             </button>
                                         </div>
                                     </td>
@@ -494,7 +492,7 @@ const RegionRuleOverview: React.FC = () => {
 
                 {/* Pagination */}
                 {pages > 1 && (
-                    <div className="card-footer d-flex align-items-center justify-content-between">
+                    <div className="card-footer d-flex flex-wrap align-items-center justify-content-between gap-2">
                         <small className="text-muted">Seite {page} / {pages} — {total.toLocaleString()} Einträge</small>
                         <div className="btn-group">
                             <button className="btn btn-outline-secondary btn-sm" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>

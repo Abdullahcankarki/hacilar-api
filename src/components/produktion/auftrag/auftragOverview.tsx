@@ -379,7 +379,7 @@ export default function AuftraegeOverview() {
                 </div>
 
                 {/* Action Buttons Row */}
-                <div className="d-flex align-items-center gap-2 flex-wrap">
+                <div className="d-flex align-items-center gap-2 flex-wrap mobile-toolbar">
                     {/* Left Group - Filter & Create */}
                     <div className="d-flex align-items-center gap-2 flex-wrap">
                         <button
@@ -733,8 +733,49 @@ export default function AuftraegeOverview() {
                 </div>
             </div>
 
-            {/* Content */}
-            <div className="card shadow-sm border-0">
+            {/* Content - Mobile Card View */}
+            <div className="d-md-none">
+                {loading && <div className="text-center py-4"><div className="spinner-border" role="status" /></div>}
+                {!loading && error && <div className="text-center py-4 text-danger">{error}</div>}
+                {!loading && !error && items.length === 0 && <div className="text-center py-4 text-muted">Keine Aufträge gefunden.</div>}
+                {!loading && !error && items.map((a) => (
+                    <div
+                        key={a.id}
+                        className="mobile-card-item"
+                        onClick={() => selectionMode ? toggleSelect(a.id) : handleRowClick(a.id)}
+                    >
+                        <div className="mobile-card-item-header">
+                            <span className="fw-bold">{a.auftragsnummer || "—"}</span>
+                            <span className={cls("badge", STATUS_BADGE[(a.status as Status) || "offen"])}>{a.status}</span>
+                        </div>
+                        <div className="fw-medium mb-2">{a.kundeName || "—"}</div>
+                        <div className="mobile-card-item-body">
+                            <div><span className="label">Lieferdatum</span><br/><span className="value">{formatDate(a.lieferdatum)}</span></div>
+                            <div><span className="label">Gewicht</span><br/><span className="value">{typeof a.gewicht === "number" ? `${a.gewicht.toLocaleString("de-DE")} kg` : "—"}</span></div>
+                            <div><span className="label">Kommissioniert</span><br/><span className={cls("badge", K_STATUS_BADGE[(a.kommissioniertStatus as KomStatus) || "offen"])}>{a.kommissioniertStatus || "—"}</span></div>
+                            <div><span className="label">Kontrolle</span><br/><span className={cls("badge", KO_STATUS_BADGE[(a.kontrolliertStatus as KontrollStatus) || "offen"])}>{a.kontrolliertStatus || "—"}</span></div>
+                        </div>
+                        <div className="mobile-card-item-footer">
+                            <span className="text-muted small">{typeof a.preis === "number" ? a.preis.toLocaleString("de-DE", { style: "currency", currency: "EUR" }) : ""}</span>
+                            {a.gesamtPaletten ? <span className="badge bg-white text-secondary border">{a.gesamtPaletten} Pal.</span> : null}
+                        </div>
+                    </div>
+                ))}
+                {/* Mobile Pagination */}
+                {limit && (
+                    <div className="d-flex gap-2 mt-2">
+                        <button className="btn btn-outline-secondary flex-fill" disabled={page <= 1 || loading} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                            Zurück
+                        </button>
+                        <button className="btn btn-outline-secondary flex-fill" disabled={loading || items.length < limit} onClick={() => setPage((p) => p + 1)}>
+                            Weiter
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {/* Content - Desktop Table View */}
+            <div className="card shadow-sm border-0 d-none d-md-block">
                 <div className="card-body p-0">
                     <div className="table-responsive">
                         <table className="table table-hover align-middle mb-0">

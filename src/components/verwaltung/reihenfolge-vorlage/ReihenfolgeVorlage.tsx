@@ -181,13 +181,13 @@ function KundenSelector({
             <div className="col-md-6">
                 <div className="card h-100 border-0 shadow-sm">
                     <div className="card-header bg-body">
-                        <div className="d-flex align-items-center justify-content-between">
+                        <div className="d-flex flex-wrap align-items-center justify-content-between gap-2">
                             <div>
                                 <h6 className="mb-0">Kunden suchen & hinzufügen</h6>
                                 <small className="text-muted">{available.length} verfügbar</small>
                             </div>
                             <button className="btn btn-outline-secondary btn-sm" type="button" onClick={() => addMany(available.map((k) => k.id))}>
-                                <i className="ci-add me-2" /> Alle hinzufügen
+                                <i className="ci-add" /><span className="d-none d-sm-inline ms-2">Alle hinzufügen</span><span className="d-sm-none ms-1">Alle</span>
                             </button>
                         </div>
                     </div>
@@ -487,14 +487,14 @@ export default function ReihenfolgeVorlageOverview() {
     return (
         <div className="container py-4">
             {/* Header */}
-            <div className="d-flex align-items-center justify-content-between mb-3">
+            <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
                 <div>
                     <h2 className="h4 mb-1">Reihenfolge-Vorlagen</h2>
                     <div className="text-muted small">{total} Vorlagen gesamt</div>
                 </div>
                 <div className="d-flex gap-2">
                     <button className="btn btn-dark rounded-3" onClick={() => setShowCreate(true)} disabled={kundenLoading}>
-                        <i className="ci-plus me-2" /> Neue Vorlage
+                        <i className="ci-plus me-2" /><span className="d-none d-sm-inline">Neue Vorlage</span><span className="d-sm-none">Neu</span>
                     </button>
                 </div>
             </div>
@@ -527,12 +527,12 @@ export default function ReihenfolgeVorlageOverview() {
                                 ))}
                             </select>
                         </div>
-                        <div className="col-md-5 d-flex align-items-end justify-content-end gap-2">
+                        <div className="col-md-5 d-flex flex-wrap align-items-end justify-content-end gap-2">
                             <button className="btn btn-outline-secondary" onClick={() => { setQ(""); setRegionFilter(""); }}>
-                                <i className="ci-close me-2" /> Zurücksetzen
+                                <i className="ci-close" /><span className="d-none d-sm-inline ms-2">Zurücksetzen</span>
                             </button>
                             <button className="btn btn-outline-secondary" onClick={load}>
-                                <i className="ci-corner-down-left me-2" /> Aktualisieren
+                                <i className="ci-corner-down-left" /><span className="d-none d-sm-inline ms-2">Aktualisieren</span>
                             </button>
                         </div>
                     </div>
@@ -587,10 +587,10 @@ export default function ReihenfolgeVorlageOverview() {
                                         <td className="text-end">
                                             <div className="btn-group">
                                                 <button className="btn btn-sm btn-outline-secondary" onClick={() => setEditItem(it)}>
-                                                    <i className="ci-edit me-1" /> Bearbeiten
+                                                    <i className="ci-edit" /><span className="d-none d-md-inline ms-1">Bearbeiten</span>
                                                 </button>
                                                 <button className="btn btn-sm btn-outline-danger" onClick={() => setDeleteItem(it)}>
-                                                    <i className="ci-trash me-1" /> Löschen
+                                                    <i className="ci-trash" /><span className="d-none d-md-inline ms-1">Löschen</span>
                                                 </button>
                                             </div>
                                         </td>

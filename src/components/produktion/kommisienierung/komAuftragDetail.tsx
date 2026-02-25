@@ -90,8 +90,14 @@ const KomAuftragDetail: React.FC = () => {
         const fetchData = async () => {
             try {
                 if (!id) throw new Error('Keine Auftrag-ID angegeben.');
-                const auftragData = await api.getAuftragById(id);
+
+                // Auftrag + Artikel parallel laden (keine gegenseitige Abhängigkeit)
+                const [auftragData, artikelData] = await Promise.all([
+                    api.getAuftragById(id),
+                    api.getAllArtikelClean(),
+                ]);
                 setAuftrag(auftragData);
+                setAlleArtikel(artikelData.items);
 
                 if (auftragData.artikelPosition?.length) {
                     const pos = await Promise.all(
@@ -103,9 +109,6 @@ const KomAuftragDetail: React.FC = () => {
 
                     setPositions(sichtbarePositionen);
                 }
-
-                const artikelData = await api.getAllArtikelClean(); // API: alle Artikel laden
-                setAlleArtikel(artikelData.items);
             } catch (err: any) {
                 setError(err.message || 'Fehler beim Laden der Daten');
             } finally {
@@ -292,12 +295,12 @@ const KomAuftragDetail: React.FC = () => {
     );
     if (error) return (
         <div className="d-flex justify-content-center align-items-center my-5" style={{ minHeight: '200px' }}>
-            <Alert variant="danger" className="w-50 text-center">{error}</Alert>
+            <Alert variant="danger" className="w-100 w-md-auto text-center">{error}</Alert>
         </div>
     );
     if (!auftrag) return (
         <div className="d-flex justify-content-center align-items-center my-5" style={{ minHeight: '200px' }}>
-            <Alert variant="warning" className="w-50 text-center">Kein Auftrag gefunden</Alert>
+            <Alert variant="warning" className="w-100 w-md-auto text-center">Kein Auftrag gefunden</Alert>
         </div>
     );
 
@@ -500,7 +503,7 @@ const KomAuftragDetail: React.FC = () => {
             {/* Fehlmengen-Timer Anzeige - nur für Admin, nach Kommissionierung beendet */}
             {isAdmin && auftrag.kommissioniertStatus === 'fertig' && fehlmengenStatus?.hasPending && (
                 <div className="card mb-3 border-warning">
-                    <div className="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                    <div className="card-header bg-warning text-dark d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <span><i className="bi bi-clock-history me-2"></i>Fehlmengen-Benachrichtigung ausstehend</span>
                         {fehlmengenLoading && <Spinner animation="border" size="sm" />}
                     </div>
@@ -515,6 +518,7 @@ const KomAuftragDetail: React.FC = () => {
                         {fehlmengenStatus.positionen && fehlmengenStatus.positionen.length > 0 && (
                             <div className="mb-3">
                                 <strong>Betroffene Positionen:</strong>
+                                <div className="table-responsive">
                                 <table className="table table-sm table-bordered mt-2">
                                     <thead className="table-light">
                                         <tr>
@@ -535,10 +539,11 @@ const KomAuftragDetail: React.FC = () => {
                                         ))}
                                     </tbody>
                                 </table>
+                                </div>
                             </div>
                         )}
 
-                        <div className="d-flex gap-2">
+                        <div className="d-flex flex-wrap gap-2">
                             <Button
                                 variant="primary"
                                 onClick={handleSendFehlmengenNow}
@@ -675,6 +680,7 @@ const KomAuftragDetail: React.FC = () => {
                 <Modal.Body>
                     <p>Bist du sicher, dass du die Kontrolle abschließen möchtest? Diese Aktion kann nicht rückgängig gemacht werden.</p>
                     <p><strong>Zusammenfassung Leergut:</strong></p>
+                    <div className="table-responsive">
                     <table className="table table-sm table-bordered">
                         <thead>
                             <tr>
@@ -706,6 +712,7 @@ const KomAuftragDetail: React.FC = () => {
                             </tr>
                         </tbody>
                     </table>
+                    </div>
                 </Modal.Body>
                 <Modal.Footer>
                     <Button variant="secondary" onClick={() => setShowKontrolleModal(false)}>

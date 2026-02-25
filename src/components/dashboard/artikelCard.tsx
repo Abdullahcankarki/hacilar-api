@@ -6,6 +6,7 @@ import { useAuth } from "@/providers/Authcontext";
 import { addKundenFavorit, removeKundenFavorit } from "@/backend/api";
 import fallbackImage from "@/Cartzilla/assets/img/shop/grocery/10.png";
 import { ArtikelPositionResource, ArtikelResource } from "@/Resources";
+import { getImageUrl } from "@/utils/imageUtils";
 
 export type Props = {
   article: ArtikelResource;
@@ -131,6 +132,9 @@ const ArtikelCard: React.FC<Props> = ({
     }
   };
 
+  // Google Drive URL konvertieren
+  const imageUrl = getImageUrl(article.bildUrl, fallbackImage);
+
   const handleAddToCart = () => {
     const menge = getCurrentQty();
     if (menge < 1 || !article.id) return;
@@ -159,13 +163,13 @@ const ArtikelCard: React.FC<Props> = ({
         {/* Bild (Hover-Transition im Cartzilla-Stil) */}
         <Link className="hover-effect-opacity ratio ratio-4x3 d-block" to={`/artikel/${article.id}`}>
           <img
-            src={article.bildUrl || fallbackImage}
+            src={imageUrl}
             className="hover-effect-target opacity-100 w-100 h-100 object-fit-cover"
             alt={article.name}
             loading="lazy"
           />
           <img
-            src={article.bildUrl || fallbackImage}
+            src={imageUrl}
             className="position-absolute top-0 start-0 hover-effect-target opacity-0 w-100 h-100 object-fit-cover rounded-4"
             alt={`${article.name} Hover`}
             loading="lazy"

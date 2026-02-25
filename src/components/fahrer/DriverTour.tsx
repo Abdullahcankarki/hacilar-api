@@ -421,15 +421,15 @@ export default function DriverTour() {
     return (
         <div className="container py-3">
             {/* Header */}
-            <div className="d-flex align-items-center justify-content-between mb-3">
-                <div>
-                    <h1 className="h4 mb-1">Meine Tour – {tour.name || tour.region}</h1>
+            <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                <div className="min-w-0">
+                    <h1 className="h4 mb-1 text-break">Meine Tour – {tour.name || tour.region}</h1>
                     <div className="text-muted small">
                         {/* alt: DateTime.fromISO(tour.datum, { zone: ZONE }).toFormat("dd.LL.yyyy") */}
                         {formatDateDisplay((tour as any).datumIso ?? tour.datum)} • Status: <span className="badge bg-secondary">{tour.status}</span>
                     </div>
                 </div>
-                <div className="d-flex gap-2">
+                <div className="d-flex flex-wrap gap-2">
                     <button className="btn btn-outline-secondary" onClick={() => setShowTalimatModal(true)}>
                         <i className="ci-document me-2" /> Talimat Liste
                     </button>
@@ -615,7 +615,7 @@ export default function DriverTour() {
                         return (
                             <div
                                 key={s.id}
-                                className={cx("list-group-item d-flex justify-content-between align-items-center", {
+                                className={cx("list-group-item d-flex flex-wrap justify-content-between align-items-center gap-2", {
                                     "bg-light": isActive,
                                 })}
                                 onClick={() => setActiveStop(s)}

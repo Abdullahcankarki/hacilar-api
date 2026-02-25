@@ -955,6 +955,30 @@ export async function createAuftrag(
   });
 }
 
+/**
+ * POST /api/auftrag/complete
+ * Erstellt Auftrag + alle Positionen in einem einzigen HTTP-Call.
+ * Spart 2 Roundtrips gegenüber dem klassischen 3-Schritt-Flow.
+ */
+export async function createAuftragComplete(data: {
+  kunde: string;
+  lieferdatum: string;
+  bemerkungen?: string;
+  positionen: {
+    artikel: string;
+    menge: number;
+    einheit: "kg" | "stück" | "kiste" | "karton";
+    zerlegung?: boolean;
+    vakuum?: boolean;
+    bemerkung?: string;
+  }[];
+}): Promise<AuftragResource> {
+  return apiFetch<AuftragResource>("/api/auftrag/complete", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
 export async function updateAuftrag(
   id: string,
   data: Partial<AuftragResource>
@@ -978,6 +1002,16 @@ export async function setAuftragInFertig(
 ): Promise<AuftragResource> {
   return apiFetch<AuftragResource>(`/api/auftrag/${id}/fertig`, {
     method: "PUT",
+  });
+}
+
+export async function beladeAuftrag(
+  id: string,
+  data: { fahrer?: string; fahrzeug?: string }
+): Promise<AuftragResource> {
+  return apiFetch<AuftragResource>(`/api/auftrag/${id}/beladen`, {
+    method: "POST",
+    body: JSON.stringify(data),
   });
 }
 
@@ -1920,8 +1954,10 @@ export const api = {
   getAuftragLetzte,
   getAuftragLetzteArtikel,
   createAuftrag,
+  createAuftragComplete,
   updateAuftrag,
   setAuftragInBearbeitung,
+  beladeAuftrag,
   deleteAuftrag,
   getBestellteArtikelAggregiertApi,
   // Fehlmengen

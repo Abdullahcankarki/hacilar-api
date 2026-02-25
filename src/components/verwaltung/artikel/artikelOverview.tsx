@@ -7,6 +7,7 @@ import {
   deleteArtikel,
 } from "@/backend/api";
 import { useNavigate } from "react-router-dom";
+import { getImageUrl } from "@/utils/imageUtils";
 
 // ---- Utility: debounce ------------------------------------------------------
 function useDebouncedValue<T>(value: T, delay = 350) {
@@ -373,13 +374,13 @@ export default function ArtikelOverviewAdmin() {
   return (
     <div className="container py-4">
       {/* Header */}
-      <div className="d-flex align-items-center justify-content-between mb-3">
+      <div className="d-flex flex-wrap align-items-center justify-content-between mb-3 gap-2">
         <div>
           <h2 className="h4 mb-1">Artikelverwaltung</h2>
           <div className="text-muted small">{total} Artikel gesamt</div>
         </div>
         <div className="d-flex align-items-center gap-2">
-          <div className="btn-group" role="group" aria-label="Ansicht wechseln">
+          <div className="btn-group d-none d-md-flex" role="group" aria-label="Ansicht wechseln">
             <button
               type="button"
               className={`btn btn-sm btn-outline-secondary ${viewMode === "grid" ? "active" : ""}`}
@@ -398,7 +399,7 @@ export default function ArtikelOverviewAdmin() {
             </button>
           </div>
           <button className="btn btn-dark rounded-3" onClick={() => setShowCreate(true)}>
-            <i className="ci-plus me-2" /> Artikel erstellen
+            <i className="ci-plus me-2" /><span className="d-none d-sm-inline">Artikel erstellen</span><span className="d-sm-none">Neu</span>
           </button>
         </div>
       </div>
@@ -456,45 +457,39 @@ export default function ArtikelOverviewAdmin() {
       </div>
 
       {/* Meta / pagination header */}
-      <div className="d-flex flex-wrap align-items-center justify-content-between mb-2">
-        <div className="text-muted small mb-2 mb-md-0">
+      <div className="d-flex flex-wrap align-items-center justify-content-between mb-2 gap-2">
+        <div className="text-muted small">
           {total > 0 ? (
             <>Zeige <strong>{from}</strong>–<strong>{to}</strong> von <strong>{total}</strong></>
           ) : (
             <>Keine Ergebnisse</>
           )}
         </div>
-        <div className="d-flex align-items-center gap-3 flex-wrap justify-content-end">
-          <div className="d-flex align-items-center gap-2">
-            <label className="text-muted small mb-0">Sortierung</label>
-            <select
-              className="form-select form-select-sm"
-              style={{ minWidth: 170 }}
-              value={sortOption}
-              onChange={(e) => setSortOption(e.target.value as any)}
-            >
-              <option value="nameAsc">Name A–Z</option>
-              <option value="nameDesc">Name Z–A</option>
-              <option value="preisAsc">Preis aufsteigend</option>
-              <option value="preisDesc">Preis absteigend</option>
-              <option value="kategorieAsc">Kategorie A–Z</option>
-            </select>
-          </div>
-          <div className="d-flex align-items-center gap-2">
-            <label className="text-muted small mb-0">Pro Seite</label>
-            <select
-              className="form-select form-select-sm"
-              style={{ width: 90 }}
-              value={limit}
-              onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
-            >
-              <option value={12}>12</option>
-              <option value={24}>24</option>
-              <option value={48}>48</option>
-              <option value={96}>96</option>
-              <option value={1000}>1000</option>
-            </select>
-          </div>
+        <div className="d-flex align-items-center gap-2 flex-wrap">
+          <select
+            className="form-select form-select-sm"
+            style={{ minWidth: 140 }}
+            value={sortOption}
+            onChange={(e) => setSortOption(e.target.value as any)}
+          >
+            <option value="nameAsc">Name A–Z</option>
+            <option value="nameDesc">Name Z–A</option>
+            <option value="preisAsc">Preis ↑</option>
+            <option value="preisDesc">Preis ↓</option>
+            <option value="kategorieAsc">Kategorie A–Z</option>
+          </select>
+          <select
+            className="form-select form-select-sm d-none d-md-block"
+            style={{ width: 90 }}
+            value={limit}
+            onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
+          >
+            <option value={12}>12</option>
+            <option value={24}>24</option>
+            <option value={48}>48</option>
+            <option value={96}>96</option>
+            <option value={1000}>1000</option>
+          </select>
         </div>
       </div>
 
@@ -528,11 +523,12 @@ export default function ArtikelOverviewAdmin() {
                     <span className="badge bg-warning position-absolute m-2">Ausverkauft</span>
                   )}
                   <div className="ratio ratio-4x3 bg-light">
-                    {a.bildUrl ? (
-                      <img src={a.bildUrl} alt={a.name} className="rounded" style={{ objectFit: "cover" }} />
-                    ) : (
-                      <img src={"https://cartzilla-html.createx.studio/assets/img/shop/grocery/10.png"} alt={a.name} className="rounded" style={{ objectFit: "cover" }} />
-                    )}
+                    <img
+                      src={getImageUrl(a.bildUrl, "https://cartzilla-html.createx.studio/assets/img/shop/grocery/10.png")}
+                      alt={a.name}
+                      className="rounded"
+                      style={{ objectFit: "cover" }}
+                    />
                   </div>
                 </div>
                 <div className="card-body d-flex flex-column">
@@ -579,11 +575,12 @@ export default function ArtikelOverviewAdmin() {
                     <tr key={a.id}>
                       <td>
                         <div className="ratio ratio-1x1 bg-light rounded" style={{ width: 48 }}>
-                          {a.bildUrl ? (
-                            <img src={a.bildUrl} alt={a.name} className="rounded" style={{ objectFit: "cover" }} />
-                          ) : (
-                            <img src={"https://cartzilla-html.createx.studio/assets/img/shop/grocery/10.png"} alt={a.name} className="rounded" style={{ objectFit: "cover" }} />
-                          )}
+                          <img
+                            src={getImageUrl(a.bildUrl, "https://cartzilla-html.createx.studio/assets/img/shop/grocery/10.png")}
+                            alt={a.name}
+                            className="rounded"
+                            style={{ objectFit: "cover" }}
+                          />
                         </div>
                       </td>
                       <td>

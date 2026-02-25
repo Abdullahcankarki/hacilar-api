@@ -2,8 +2,8 @@ import { Outlet } from 'react-router-dom';
 import NavBar from './navbar';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import WarenkorbModal from './warenkorb';
-import { ArtikelPositionResource, AuftragResource, KundeResource, ArtikelResource } from '@/Resources';
-import { createArtikelPosition, createAuftrag, getAllKunden, getAllArtikel, updateAuftrag, getKundeById } from '@/backend/api';
+import { ArtikelPositionResource, KundeResource, ArtikelResource } from '@/Resources';
+import { createAuftragComplete, getAllKunden, getAllArtikel, getKundeById } from '@/backend/api';
 import { useAuth } from '@/providers/Authcontext';
 import { createPortal } from 'react-dom';
 
@@ -17,6 +17,12 @@ export const Layout: React.FC = () => {
   // Persistenter Warenkorb + Toasts + Submit-Loading
   const [toast, setToast] = useState<{ type: 'success' | 'danger' | 'info'; msg: string } | null>(null);
   const [submitLoading, setSubmitLoading] = useState(false);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   // Persisted Cart Hook
   function usePersistedCart(key = 'warenkorb') {
@@ -149,41 +155,22 @@ export const Layout: React.FC = () => {
 
     setSubmitLoading(true);
     try {
-      // Auftrag zuerst erstellen mit leerer Positionsliste
-      const auftragDraft: Omit<AuftragResource, 'id' | 'createdAt' | 'updatedAt'> = {
-        artikelPosition: [],
-        bemerkungen: bemerkung,
+      const gespeicherterAuftrag = await createAuftragComplete({
         kunde: kundeId,
-        status: 'offen',
-      };
+        lieferdatum: lieferdatum,
+        bemerkungen: bemerkung,
+        positionen: cart.map((pos) => ({
+          artikel: pos.artikel!,
+          menge: pos.menge!,
+          einheit: pos.einheit!,
+          zerlegung: pos.zerlegung || false,
+          vakuum: pos.vakuum || false,
+          bemerkung: pos.bemerkung || '',
+        })),
+      });
 
-      const gespeicherterAuftrag = await createAuftrag(auftragDraft);
-      const auftragId = gespeicherterAuftrag.id;
       const auftragsnummer = (gespeicherterAuftrag as any).auftragsnummer;
-
-      // Positionen einzeln mit auftragId erstellen
-      const gespeichertePositionen = await Promise.all(
-        cart.map(async (pos) => {
-          const neuePosition = {
-            artikel: pos.artikel!,
-            menge: pos.menge!,
-            einheit: pos.einheit!,
-            zerlegung: pos.zerlegung || false,
-            vakuum: pos.vakuum || false,
-            bemerkung: pos.bemerkung || '',
-            auftragId,
-          };
-          return await createArtikelPosition(neuePosition);
-        })
-      );
-
-      // Positionen IDs einsammeln
-      const artikelPositionIds = gespeichertePositionen.map((p) => p.id!);
-
-      // Auftrag mit Artikelpositionen aktualisieren
-      await updateAuftrag(auftragId, { artikelPosition: artikelPositionIds, lieferdatum: lieferdatum });
-
-      setToast({ type: 'success', msg: `Bestellung übermittelt. Auftragsnummer: ${auftragsnummer || auftragId}` });
+      setToast({ type: 'success', msg: `Bestellung übermittelt. Auftragsnummer: ${auftragsnummer || gespeicherterAuftrag.id}` });
       setCart([]);
       setShowCart(false);
       localStorage.removeItem('warenkorb');

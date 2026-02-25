@@ -258,7 +258,7 @@ const WarenkorbPanel: React.FC<Props> = ({
     return (
         <>
             {show && (
-                <div className="offcanvas offcanvas-end show pb-sm-2 px-sm-2" style={{ width: '500px', visibility: 'visible', zIndex: 1050 }}>
+                <div className="offcanvas offcanvas-end show pb-sm-2 px-sm-2" style={{ width: window.innerWidth < 768 ? '100vw' : '500px', visibility: 'visible', zIndex: 1050 }}>
                     {/* Header */}
                     <div className="offcanvas-header flex-column align-items-start py-3 pt-lg-4">
                         <div className="d-flex align-items-center justify-content-between w-100 mb-3 mb-lg-4">

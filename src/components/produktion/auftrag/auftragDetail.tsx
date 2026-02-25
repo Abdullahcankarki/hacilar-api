@@ -96,29 +96,27 @@ const AuftragDetail: React.FC = () => {
     const fetchData = async () => {
       try {
         if (!id) throw new Error('Keine Auftrag-ID angegeben.');
-        const auftragData = await api.getAuftragById(id);
+
+        // Auftrag + Artikel parallel laden (keine gegenseitige Abhängigkeit)
+        const [auftragData, artikelData] = await Promise.all([
+          api.getAuftragById(id),
+          api.getAllArtikelClean(),
+        ]);
         setAuftrag(auftragData);
         setInitialLieferdatum(auftragData.lieferdatum || undefined);
-
-        if (auftragData.artikelPosition?.length) {
-          const pos = await Promise.all(
-            auftragData.artikelPosition.map(api.getArtikelPositionById)
-          );
-          setPositions(pos);
-        }
-
-        const artikelData = await api.getAllArtikelClean(); // API: alle Artikel laden
         setAlleArtikel(artikelData.items);
-        if (auftragData.id) {
-          try {
-            const [b, logs] = await Promise.all([
-              api.getBelege(auftragData.id),
-              api.getBelegEmailLogs(auftragData.id),
-            ]);
-            setBelege(b);
-            setEmailLogs(logs);
-          } catch (e) { /* ignore for now */ }
-        }
+
+        // Positionen + Belege parallel laden (beide brauchen auftragData)
+        const [pos, b, logs] = await Promise.all([
+          auftragData.artikelPosition?.length
+            ? Promise.all(auftragData.artikelPosition.map(api.getArtikelPositionById))
+            : Promise.resolve([]),
+          api.getBelege(auftragData.id).catch(() => []),
+          api.getBelegEmailLogs(auftragData.id).catch(() => []),
+        ]);
+        setPositions(pos);
+        setBelege(b);
+        setEmailLogs(logs);
       } catch (err: any) {
         setError(err.message || 'Fehler beim Laden der Daten');
       } finally {
@@ -239,12 +237,12 @@ const AuftragDetail: React.FC = () => {
   );
   if (error) return (
     <div className="d-flex justify-content-center align-items-center my-5" style={{ minHeight: '200px' }}>
-      <Alert variant="danger" className="w-50 text-center">{error}</Alert>
+      <Alert variant="danger" className="text-center">{error}</Alert>
     </div>
   );
   if (!auftrag) return (
     <div className="d-flex justify-content-center align-items-center my-5" style={{ minHeight: '200px' }}>
-      <Alert variant="warning" className="w-50 text-center">Kein Auftrag gefunden</Alert>
+      <Alert variant="warning" className="text-center">Kein Auftrag gefunden</Alert>
     </div>
   );
 
@@ -253,7 +251,7 @@ const AuftragDetail: React.FC = () => {
       <div className="border bg-white mb-3">
         <div className="p-3 p-lg-4">
           <div className="d-flex flex-wrap align-items-start justify-content-between gap-3">
-            <div style={{ minWidth: 260 }}>
+            <div>
               <div className="text-muted" style={{ fontSize: 12 }}>Kunde</div>
               <div className="d-flex align-items-center gap-2 flex-wrap">
                 <h4 className="mb-0">{auftrag.kundeName}</h4>
@@ -417,7 +415,7 @@ const AuftragDetail: React.FC = () => {
 
       {!isKunde && (
         <div className="card mt-4">
-          <div className="card-header d-flex justify-content-between align-items-center">
+          <div className="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
             <span>Belege</span>
             <div className="small text-muted">PDF-Erstellung & Versandvorbereitung</div>
           </div>

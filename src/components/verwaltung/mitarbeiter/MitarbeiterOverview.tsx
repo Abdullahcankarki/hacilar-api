@@ -502,7 +502,7 @@ export default function MitarbeiterOverview() {
                 </div>
                 <div className="d-flex gap-2">
                     <button className="btn btn-dark rounded-3" onClick={openCreate}>
-                        <i className="bi bi-plus-lg me-2" /> Neuer Mitarbeiter
+                        <i className="bi bi-plus-lg me-2" /><span className="d-none d-sm-inline">Neuer Mitarbeiter</span><span className="d-sm-none">Neu</span>
                     </button>
                 </div>
             </div>

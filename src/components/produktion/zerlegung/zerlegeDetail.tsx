@@ -99,7 +99,7 @@ const ZerlegeDetail: React.FC = () => {
         <div className="card-body">
           {data.zerlegerName && <p><strong>Zerleger:</strong> {data.zerlegerName}</p>}
           <div className="table-responsive">
-            <Table striped bordered hover className="table-sm w-100 align-middle text-nowrap">
+            <Table striped bordered hover className="table-sm w-100 align-middle">
               <thead className="table-light">
                 <tr>
                   <th>Artikel</th>

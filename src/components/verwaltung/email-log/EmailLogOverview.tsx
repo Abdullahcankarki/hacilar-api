@@ -19,6 +19,7 @@ const typLabels: Record<string, string> = {
   fehlmengen: "Fehlmengen",
   lieferschein: "Lieferschein",
   angebot: "Angebot",
+  ladebestaetigung: "Ladebestätigung",
 };
 
 const typBadge: Record<string, string> = {
@@ -26,6 +27,7 @@ const typBadge: Record<string, string> = {
   fehlmengen: "bg-warning text-dark",
   lieferschein: "bg-info text-dark",
   angebot: "bg-success",
+  ladebestaetigung: "bg-secondary",
 };
 
 async function downloadPdf(logId: string, filename?: string) {
@@ -122,6 +124,7 @@ export default function EmailLogOverview() {
                 <option value="fehlmengen">Fehlmengen</option>
                 <option value="lieferschein">Lieferschein</option>
                 <option value="angebot">Angebot</option>
+                <option value="ladebestaetigung">Ladebestätigung</option>
               </select>
             </div>
             <div className="col-md-2">
@@ -231,7 +234,7 @@ export default function EmailLogOverview() {
         </div>
 
         {/* Pagination */}
-        <div className="card-footer d-flex justify-content-between align-items-center">
+        <div className="card-footer d-flex flex-wrap justify-content-between align-items-center gap-2">
           <div className="small text-muted">
             {total} Einträge · Seite {page} von {pages}
           </div>
