@@ -1,0 +1,318 @@
+/* ============================================================
+   MOBILE-ONLY STYLES  (max-width: 767.98px)
+   Keines dieser Styles beeinflusst Desktop-Ansichten.
+   ============================================================ */
+
+/* ---------- Global: Spacing & Typography ---------- */
+@media (max-width: 767.98px) {
+  /* Weniger Padding in Containern */
+  .container,
+  .container-fluid {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  /* Kleinere Seitenüberschriften */
+  h1, .h1 { font-size: 1.5rem !important; }
+  h2, .h2 { font-size: 1.3rem !important; }
+  h3, .h3 { font-size: 1.15rem !important; }
+  h4, .h4 { font-size: 1.05rem !important; }
+
+  /* Card-Body enger */
+  .card-body {
+    padding: 0.75rem !important;
+  }
+  .card-header,
+  .card-footer {
+    padding: 0.6rem 0.75rem !important;
+  }
+}
+
+/* ---------- Navbar ---------- */
+@media (max-width: 767.98px) {
+  /* Navbar kompakter */
+  .navbar .container {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+  .navbar .navbar-brand img {
+    height: 24px !important;
+  }
+
+  /* Kunden-Select in der Navbar schmaler */
+  .navbar .ms-auto.me-3 {
+    width: 140px !important;
+    margin-right: 0.5rem !important;
+  }
+
+  /* Icon-Buttons in der Navbar etwas größer für Touch */
+  .navbar .icon-btn {
+    padding: 6px 8px !important;
+  }
+}
+
+/* ---------- Warenkorb (Cart Offcanvas) ---------- */
+@media (max-width: 767.98px) {
+  .offcanvas.offcanvas-end {
+    width: 100vw !important;
+    max-width: 100vw !important;
+  }
+  .offcanvas-header {
+    padding: 0.75rem 1rem !important;
+  }
+  .offcanvas-body {
+    padding: 0.75rem 1rem !important;
+  }
+}
+
+/* ---------- Tables: Besser lesbar auf Mobile ---------- */
+@media (max-width: 767.98px) {
+  .table-responsive {
+    font-size: 0.82rem;
+  }
+  .table th,
+  .table td {
+    padding: 0.4rem 0.5rem !important;
+    white-space: nowrap;
+  }
+  /* Badge etwas kleiner */
+  .table .badge {
+    font-size: 0.7rem;
+    padding: 0.25em 0.5em;
+  }
+}
+
+/* ---------- Toolbars / Action Bars ---------- */
+@media (max-width: 767.98px) {
+  /* Toolbar-Zeilen wrappen lassen */
+  .mobile-toolbar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.5rem !important;
+  }
+  .mobile-toolbar .ms-auto {
+    margin-left: 0 !important;
+  }
+  .mobile-toolbar .btn-group {
+    width: 100%;
+  }
+  .mobile-toolbar .btn-group .btn {
+    flex: 1;
+  }
+
+  /* Button-Texte kürzen - Icons bleiben */
+  .mobile-icon-only .btn-text {
+    display: none !important;
+  }
+}
+
+/* ---------- Filter Offcanvas ---------- */
+@media (max-width: 767.98px) {
+  .offcanvas-start {
+    width: 100vw !important;
+    max-width: 100vw !important;
+  }
+}
+
+/* ---------- Forms auf Mobile ---------- */
+@media (max-width: 767.98px) {
+  /* Touch-freundliche Inputs */
+  .form-control,
+  .form-select {
+    min-height: 42px;
+    font-size: 16px !important; /* Verhindert iOS Zoom */
+  }
+
+  /* Stacked Form Groups */
+  .mobile-form-stack .row {
+    flex-direction: column;
+  }
+  .mobile-form-stack .col-6,
+  .mobile-form-stack .col-4,
+  .mobile-form-stack .col-3 {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 0 0 100% !important;
+  }
+}
+
+/* ---------- Modals ---------- */
+@media (max-width: 767.98px) {
+  .modal-dialog {
+    margin: 0.5rem !important;
+    max-width: calc(100vw - 1rem) !important;
+  }
+  .modal-body {
+    padding: 0.75rem !important;
+  }
+  .modal-footer {
+    padding: 0.5rem 0.75rem !important;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .modal-footer .btn {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* ---------- Pagination ---------- */
+@media (max-width: 767.98px) {
+  .card-footer {
+    flex-direction: column !important;
+    gap: 0.5rem;
+    text-align: center;
+  }
+  .card-footer .btn-group {
+    width: 100%;
+  }
+  .card-footer .btn-group .btn {
+    flex: 1;
+  }
+}
+
+/* ---------- Statistiken / Charts ---------- */
+@media (max-width: 767.98px) {
+  .recharts-wrapper {
+    font-size: 0.75rem;
+  }
+}
+
+/* ---------- Mobile Card View für Aufträge ---------- */
+@media (max-width: 767.98px) {
+  .mobile-card-item {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    transition: box-shadow 0.15s;
+  }
+  .mobile-card-item:active {
+    box-shadow: 0 0 0 2px rgba(13,110,253,.25);
+  }
+  .mobile-card-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.4rem;
+  }
+  .mobile-card-item-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.25rem 0.75rem;
+    font-size: 0.85rem;
+  }
+  .mobile-card-item-body .label {
+    color: #6c757d;
+    font-size: 0.75rem;
+  }
+  .mobile-card-item-body .value {
+    font-weight: 500;
+  }
+  .mobile-card-item-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.5rem;
+    padding-top: 0.4rem;
+    border-top: 1px solid #f1f3f5;
+  }
+}
+
+/* ---------- Profil ---------- */
+@media (max-width: 767.98px) {
+  .nav-pills .nav-link {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.85rem !important;
+  }
+}
+
+/* ---------- Tour Manager / Drag & Drop ---------- */
+@media (max-width: 767.98px) {
+  .mobile-tour-card {
+    font-size: 0.85rem;
+  }
+}
+
+/* ---------- React Select auf Mobile ---------- */
+@media (max-width: 767.98px) {
+  .css-13cymwt-control,
+  .css-t3ipsp-control {
+    min-height: 42px !important;
+  }
+}
+
+/* ---------- Kommissionierung Board ---------- */
+@media (max-width: 767.98px) {
+  .mobile-kom-columns {
+    flex-direction: column !important;
+  }
+  .mobile-kom-columns > div {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+}
+
+/* ---------- Sticky Elemente auf Mobile ---------- */
+@media (max-width: 767.98px) {
+  .sticky-lg-top {
+    position: static !important;
+  }
+}
+
+/* ---------- Print: verbergen ---------- */
+@media print {
+  .mobile-only {
+    display: none !important;
+  }
+}
+
+/* ---------- Touch Utility ---------- */
+@media (max-width: 767.98px) {
+  /* Mindestgröße für klickbare Elemente */
+  .btn {
+    min-height: 38px;
+  }
+  .btn-sm {
+    min-height: 32px;
+    padding: 0.3rem 0.6rem !important;
+  }
+  .btn-lg {
+    min-height: 48px;
+  }
+}
+
+/* ---------- Tabellen auf Mobile: Scrollhinweis ---------- */
+@media (max-width: 767.98px) {
+  .table-responsive {
+    position: relative;
+  }
+  .table-responsive::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 20px;
+    background: linear-gradient(to left, rgba(0,0,0,0.04), transparent);
+    pointer-events: none;
+    border-radius: 0 0.5rem 0.5rem 0;
+  }
+}
+
+/* ---------- Login / Auth Seiten ---------- */
+@media (max-width: 767.98px) {
+  .auth-container {
+    padding: 1rem !important;
+  }
+}
+
+/* ---------- Fahrer / DriverTour ---------- */
+@media (max-width: 767.98px) {
+  .leaflet-container {
+    height: 250px !important;
+    min-height: 250px !important;
+  }
+}
