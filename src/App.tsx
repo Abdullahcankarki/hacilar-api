@@ -40,6 +40,11 @@ import ResetPassword from './components/login/reset-password';
 import SchnellAuftragWriter from './components/produktion/auftrag/SchnellAuftragWriter';
 import MeineAuftraege from './components/profil/MeineAuftraege';
 import EmailLogOverview from './components/verwaltung/email-log/EmailLogOverview';
+import MobileLayout from './components/mobile/MobileLayout';
+import MobileShop from './components/mobile/MobileShop';
+import MobileOrders from './components/mobile/MobileOrders';
+import MobileOrderDetail from './components/mobile/MobileOrderDetail';
+import MobileProfile from './components/mobile/MobileProfile';
 // import InventoryDashboard from './components/inventoryDashboard';
 
 
@@ -64,8 +69,19 @@ const AppRoutes: React.FC = () => {
       {/* Nicht eingeloggt → alles auf Login umleiten */}
       {!user && <Route path="*" element={<Navigate to="/login" replace />} />}
 
+      {/* Kunden: Neues Mobile Layout */}
+      {user && roles.includes('kunde') && (
+        <Route path="/" element={<MobileLayout />}>
+          <Route path="home" element={<MobileShop />} />
+          <Route path="meine-auftraege" element={<MobileOrders />} />
+          <Route path="auftraege/:id" element={<MobileOrderDetail />} />
+          <Route path="profil" element={<MobileProfile />} />
+          <Route path="*" element={<Navigate to="/home" replace />} />
+        </Route>
+      )}
+
       {/* Eingeloggt: Geschützte Layout-Route mit differenzierter Rollentrennung */}
-      {user && (
+      {user && !roles.includes('kunde') && (
         <Route path="/" element={<Layout />}>
           {roles.includes('admin') ? (
             <>
@@ -106,6 +122,7 @@ const AppRoutes: React.FC = () => {
               <Route path="*" element={<Navigate to="/zerlege" replace />} />
             </>
           ) : roles.includes('kunde') ? (
+            /* === Alt (deaktiviert) — Kunden nutzen jetzt MobileLayout ===
             <>
               <Route path="home" element={<Dashboard />} />
               <Route path="profil" element={<Profil />} />
@@ -115,6 +132,9 @@ const AppRoutes: React.FC = () => {
               <Route path="auftraege/:id" element={<AuftragDetail />} />
               <Route path="*" element={<Navigate to="/home" replace />} />
             </>
+            */
+            // Kunden-Routen werden unten separat geroutet → null hier
+            null
           ) : roles.includes('kommissionierung') ? (
             <>
               <Route path="kommissionierung" element={<AuftraegeBoard />} />
