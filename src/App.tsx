@@ -1,5 +1,5 @@
 // App.tsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './providers/Authcontext';
 import Dashboard from './components/dashboard/dashboard';
@@ -53,6 +53,15 @@ const AppRoutes: React.FC = () => {
   const { user, loading } = useAuth();
   const roles = Array.isArray(user?.role) ? user.role : [];
 
+  // Mobile-Erkennung (max 768px)
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 768px)').matches);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)');
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
   if (loading) {
     return <div style={{ padding: '2rem', textAlign: 'center' }}>Lade Benutzerdaten...</div>;
   }
@@ -69,8 +78,8 @@ const AppRoutes: React.FC = () => {
       {/* Nicht eingeloggt → alles auf Login umleiten */}
       {!user && <Route path="*" element={<Navigate to="/login" replace />} />}
 
-      {/* Kunden: Neues Mobile Layout */}
-      {user && roles.includes('kunde') && (
+      {/* Kunden auf Handy: Neues Mobile Layout */}
+      {user && roles.includes('kunde') && isMobile && (
         <Route path="/" element={<MobileLayout />}>
           <Route path="home" element={<MobileShop />} />
           <Route path="meine-auftraege" element={<MobileOrders />} />
@@ -80,8 +89,8 @@ const AppRoutes: React.FC = () => {
         </Route>
       )}
 
-      {/* Eingeloggt: Geschützte Layout-Route mit differenzierter Rollentrennung */}
-      {user && !roles.includes('kunde') && (
+      {/* Eingeloggt: Desktop-Layout (alle Nicht-Kunden + Kunden auf Desktop) */}
+      {user && !(roles.includes('kunde') && isMobile) && (
         <Route path="/" element={<Layout />}>
           {roles.includes('admin') ? (
             <>
@@ -122,7 +131,7 @@ const AppRoutes: React.FC = () => {
               <Route path="*" element={<Navigate to="/zerlege" replace />} />
             </>
           ) : roles.includes('kunde') ? (
-            /* === Alt (deaktiviert) — Kunden nutzen jetzt MobileLayout ===
+            // Desktop-Kunden: Altes Layout
             <>
               <Route path="home" element={<Dashboard />} />
               <Route path="profil" element={<Profil />} />
@@ -132,9 +141,6 @@ const AppRoutes: React.FC = () => {
               <Route path="auftraege/:id" element={<AuftragDetail />} />
               <Route path="*" element={<Navigate to="/home" replace />} />
             </>
-            */
-            // Kunden-Routen werden unten separat geroutet → null hier
-            null
           ) : roles.includes('kommissionierung') ? (
             <>
               <Route path="kommissionierung" element={<AuftraegeBoard />} />

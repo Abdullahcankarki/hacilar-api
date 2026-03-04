@@ -18,17 +18,11 @@ const MobileProductDetail: React.FC<Props> = ({ article, cart, onAddToCart, onCl
 
   const [menge, setMenge] = useState(cartItem?.menge || 1);
   const [einheit, setEinheit] = useState<string>(cartItem?.einheit || defaultUnit);
-  const [zerlegung, setZerlegung] = useState(cartItem?.zerlegung || false);
-  const [vakuum, setVakuum] = useState(cartItem?.vakuum || false);
-  const [bemerkung, setBemerkung] = useState(cartItem?.bemerkung || '');
 
   useEffect(() => {
     if (cartItem) {
       setMenge(cartItem.menge || 1);
       setEinheit(cartItem.einheit || defaultUnit);
-      setZerlegung(cartItem.zerlegung || false);
-      setVakuum(cartItem.vakuum || false);
-      setBemerkung(cartItem.bemerkung || '');
     }
   }, [article.id]);
 
@@ -41,9 +35,6 @@ const MobileProductDetail: React.FC<Props> = ({ article, cart, onAddToCart, onCl
       einheit: einheit as any,
       einzelpreis: article.preis,
       gesamtpreis: round2((article.preis || 0) * menge),
-      zerlegung,
-      vakuum,
-      bemerkung,
     } as any;
     onAddToCart(pos);
     onClose();
@@ -52,7 +43,7 @@ const MobileProductDetail: React.FC<Props> = ({ article, cart, onAddToCart, onCl
   return (
     <>
       <div className="ms-sheet-backdrop" onClick={onClose} />
-      <div className="ms-sheet" style={{ maxHeight: '80vh' }}>
+      <div className="ms-sheet" style={{ maxHeight: '70vh' }}>
         <div className="ms-sheet-handle" />
         <div className="ms-sheet-header">
           <h3 className="ms-sheet-title">{article.name}</h3>
@@ -78,7 +69,7 @@ const MobileProductDetail: React.FC<Props> = ({ article, cart, onAddToCart, onCl
           <div style={{ marginBottom: '16px' }}>
             <label style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px', display: 'block' }}>Menge</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <button className="ms-qty-btn" onClick={() => setMenge(Math.max(0.5, menge - 0.5))}>-</button>
+              <button className="ms-qty-btn" onClick={() => setMenge(Math.max(0.5, menge - 0.5))}>−</button>
               <input
                 type="number"
                 value={menge}
@@ -106,31 +97,6 @@ const MobileProductDetail: React.FC<Props> = ({ article, cart, onAddToCart, onCl
               <option value="kiste">Kiste</option>
               <option value="karton">Karton</option>
             </select>
-          </div>
-
-          {/* Optionen */}
-          <div className="ms-check">
-            <input type="checkbox" checked={zerlegung} onChange={e => setZerlegung(e.target.checked)} id="ms-zerlegung" />
-            <label htmlFor="ms-zerlegung">Zerlegung</label>
-          </div>
-          <div className="ms-check">
-            <input type="checkbox" checked={vakuum} onChange={e => setVakuum(e.target.checked)} id="ms-vakuum" />
-            <label htmlFor="ms-vakuum">Vakuumiert</label>
-          </div>
-
-          {/* Bemerkung */}
-          <div style={{ marginTop: '12px', marginBottom: '8px' }}>
-            <label style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px', display: 'block' }}>Bemerkung</label>
-            <textarea
-              value={bemerkung}
-              onChange={e => setBemerkung(e.target.value)}
-              placeholder="Optional: besondere Wünsche..."
-              rows={2}
-              style={{
-                width: '100%', border: '1.5px solid #e2e8f0', borderRadius: '12px',
-                padding: '10px 12px', fontSize: '0.9rem', resize: 'none'
-              }}
-            />
           </div>
         </div>
 

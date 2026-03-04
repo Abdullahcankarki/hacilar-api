@@ -149,17 +149,25 @@ const MobileShop: React.FC = () => {
   };
 
   const handleQuickAdd = (article: ArtikelResource) => {
-    const existing = cart.find(i => i.artikel === article.id);
-    if (existing) {
-      setCart(prev => prev.map(i => i.artikel === article.id ? { ...i, menge: (i.menge || 1) + 1 } : i));
-    } else {
-      const pos: ArtikelPositionResource = {
-        artikel: article.id!, artikelName: article.name, menge: 1,
-        einheit: unitFromModus(article.erfassungsModus) as any,
-        einzelpreis: article.preis, gesamtpreis: article.preis,
-      } as any;
-      setCart(prev => [...prev, pos]);
-    }
+    const pos: ArtikelPositionResource = {
+      artikel: article.id!, artikelName: article.name, menge: 1,
+      einheit: unitFromModus(article.erfassungsModus) as any,
+      einzelpreis: article.preis, gesamtpreis: article.preis,
+    } as any;
+    setCart(prev => [...prev, pos]);
+  };
+
+  const handleIncrement = (artikelId: string) => {
+    setCart(prev => prev.map(i => i.artikel === artikelId ? { ...i, menge: round2((i.menge || 1) + 0.5) } : i));
+  };
+
+  const handleDecrement = (artikelId: string) => {
+    setCart(prev => {
+      const item = prev.find(i => i.artikel === artikelId);
+      if (!item) return prev;
+      if ((item.menge || 1) <= 0.5) return prev.filter(i => i.artikel !== artikelId);
+      return prev.map(i => i.artikel === artikelId ? { ...i, menge: round2((i.menge || 1) - 0.5) } : i);
+    });
   };
 
   const handleAddFromDetail = (pos: ArtikelPositionResource) => {
@@ -257,6 +265,8 @@ const MobileShop: React.FC = () => {
                 onToggleFavorite={() => toggleFavorit(article.id!)}
                 onTap={() => setSelectedProduct(article)}
                 onQuickAdd={() => handleQuickAdd(article)}
+                onIncrement={() => handleIncrement(article.id!)}
+                onDecrement={() => handleDecrement(article.id!)}
                 cartQty={cartQtyMap.get(article.id!) || 0}
               />
             ))}
@@ -285,6 +295,8 @@ const MobileShop: React.FC = () => {
                   onToggleFavorite={() => toggleFavorit(id)}
                   onTap={() => setSelectedProduct(article)}
                   onQuickAdd={() => handleQuickAdd(article)}
+                  onIncrement={() => handleIncrement(id)}
+                  onDecrement={() => handleDecrement(id)}
                   cartQty={cartQtyMap.get(id) || 0}
                 />
               );
@@ -309,6 +321,8 @@ const MobileShop: React.FC = () => {
                 onToggleFavorite={() => toggleFavorit(article.id!)}
                 onTap={() => setSelectedProduct(article)}
                 onQuickAdd={() => handleQuickAdd(article)}
+                onIncrement={() => handleIncrement(article.id!)}
+                onDecrement={() => handleDecrement(article.id!)}
                 cartQty={cartQtyMap.get(article.id!) || 0}
               />
             ))}

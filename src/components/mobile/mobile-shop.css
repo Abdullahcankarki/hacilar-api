@@ -398,25 +398,41 @@
   transform: scale(0.9);
 }
 
-.ms-btn-add.in-cart {
-  background: #38a169;
+/* Inline quantity controls on product card */
+.ms-inline-qty {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--ms-primary);
+  border-radius: 20px;
+  overflow: hidden;
 }
 
-.ms-btn-add-badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  background: #e53e3e;
+.ms-inline-qty-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
   color: #fff;
-  font-size: 0.6rem;
+  font-size: 1rem;
   font-weight: 700;
-  min-width: 16px;
-  height: 16px;
-  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 3px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.ms-inline-qty-btn:active {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.ms-inline-qty-val {
+  min-width: 28px;
+  text-align: center;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
 }
 
 /* === Bottom Sheet (Overlay) === */

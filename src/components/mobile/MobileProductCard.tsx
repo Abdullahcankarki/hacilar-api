@@ -11,20 +11,24 @@ type Props = {
   onToggleFavorite: () => void;
   onTap: () => void;
   onQuickAdd: () => void;
+  onIncrement: () => void;
+  onDecrement: () => void;
   cartQty?: number;
 };
 
 const MobileProductCard: React.FC<Props> = ({
-  article, isFavorite, onToggleFavorite, onTap, onQuickAdd, cartQty
+  article, isFavorite, onToggleFavorite, onTap, onQuickAdd, onIncrement, onDecrement, cartQty
 }) => {
   const imageUrl = getImageUrl(article.bildUrl, fallbackImage);
   const unit = unitFromModus(article.erfassungsModus);
 
   return (
-    <div className="ms-card" onClick={onTap}>
-      <img src={imageUrl} alt={article.name} className="ms-card-img" loading="lazy" />
+    <div className="ms-card">
+      <div onClick={onTap}>
+        <img src={imageUrl} alt={article.name} className="ms-card-img" loading="lazy" />
+      </div>
       <div className="ms-card-body">
-        <p className="ms-card-name">{article.name}</p>
+        <p className="ms-card-name" onClick={onTap}>{article.name}</p>
         <div className="ms-card-price">
           {formatCurrency(article.preis)}
           <span className="ms-card-unit">/{unit}</span>
@@ -38,14 +42,21 @@ const MobileProductCard: React.FC<Props> = ({
             {isFavorite ? <AiFillHeart /> : <AiOutlineHeart />}
           </button>
           {!article.ausverkauft ? (
-            <button
-              className={`ms-btn-add ${cartQty ? 'in-cart' : ''}`}
-              onClick={(e) => { e.stopPropagation(); onQuickAdd(); }}
-              aria-label="In den Warenkorb"
-            >
-              <i className="ci-plus" />
-              {cartQty ? <span className="ms-btn-add-badge">{cartQty}</span> : null}
-            </button>
+            cartQty ? (
+              <div className="ms-inline-qty" onClick={e => e.stopPropagation()}>
+                <button className="ms-inline-qty-btn" onClick={onDecrement}>−</button>
+                <span className="ms-inline-qty-val">{cartQty}</span>
+                <button className="ms-inline-qty-btn" onClick={onIncrement}>+</button>
+              </div>
+            ) : (
+              <button
+                className="ms-btn-add"
+                onClick={(e) => { e.stopPropagation(); onQuickAdd(); }}
+                aria-label="In den Warenkorb"
+              >
+                <i className="ci-plus" />
+              </button>
+            )
           ) : (
             <span style={{ fontSize: '0.7rem', color: '#e53e3e', fontWeight: 600 }}>Ausverkauft</span>
           )}

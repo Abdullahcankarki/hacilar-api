@@ -193,8 +193,6 @@ const MobileCart: React.FC<Props> = ({
               : 'Kein Termin in den nächsten 90 Tagen verfügbar.'}
           </div>
           {ruleLoading && <div className="small text-muted">Lieferzeiten werden geladen...</div>}
-          <Form.Label className="mt-4">Bemerkung</Form.Label>
-          <Form.Control as="textarea" rows={3} value={bemerkung} onChange={e => setBemerkung(e.target.value)} placeholder="Optional: Hinweise..." />
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowDateModal(false)}>Abbrechen</Button>
