@@ -23,7 +23,7 @@
 .ms-app {
   background: var(--ms-bg);
   min-height: 100vh;
-  padding-bottom: calc(var(--ms-tabs-h) + 8px);
+  padding-bottom: calc(var(--ms-tabs-h) + 24px);
 }
 
 /* === Header === */
@@ -130,13 +130,13 @@
   left: 0;
   right: 0;
   z-index: 1050;
-  height: var(--ms-tabs-h);
   background: #fff;
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.08);
   display: flex;
   align-items: center;
   justify-content: space-around;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-top: 8px;
+  padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
 }
 
 .ms-tab {
