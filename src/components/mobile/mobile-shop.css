@@ -359,46 +359,104 @@
   font-weight: 400;
 }
 
-.ms-card-actions {
+.ms-card-top-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  margin-top: 8px;
+  gap: 4px;
+}
+
+.ms-card-top-row .ms-card-name {
+  flex: 1;
+  min-width: 0;
 }
 
 .ms-btn-fav {
   background: none;
   border: none;
   color: #cbd5e0;
-  font-size: 1.2rem;
-  padding: 4px;
+  font-size: 1.1rem;
+  padding: 2px;
   transition: color 0.2s;
+  flex-shrink: 0;
 }
 
 .ms-btn-fav.active {
   color: #e53e3e;
 }
 
-.ms-btn-add {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
+/* Direct input row on card */
+.ms-card-add-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.ms-card-qty-input {
+  width: 52px;
+  height: 32px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0 4px;
+  -moz-appearance: textfield;
+}
+
+.ms-card-qty-input::-webkit-outer-spin-button,
+.ms-card-qty-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.ms-card-qty-input:focus {
+  outline: none;
+  border-color: var(--ms-accent);
+}
+
+.ms-card-unit-label {
+  font-size: 0.72rem;
+  color: var(--ms-muted);
+  font-weight: 500;
+  min-width: 18px;
+}
+
+.ms-card-add-btn {
+  margin-left: auto;
+  width: 34px;
+  height: 32px;
+  border-radius: 8px;
   border: none;
   background: var(--ms-primary);
   color: #fff;
-  font-size: 1.1rem;
+  font-size: 0.9rem;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: background 0.2s, transform 0.15s;
-  position: relative;
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
-.ms-btn-add:active {
-  transform: scale(0.9);
+.ms-card-add-btn:active {
+  transform: scale(0.93);
 }
 
-/* Inline quantity controls on product card */
+.ms-card-add-btn.in-cart {
+  background: #38a169;
+}
+
+.ms-card-sold-out {
+  font-size: 0.7rem;
+  color: #e53e3e;
+  font-weight: 600;
+  margin-top: 8px;
+  display: block;
+}
+
+/* legacy — kept for inline qty if needed */
 .ms-inline-qty {
   display: flex;
   align-items: center;

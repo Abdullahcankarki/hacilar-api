@@ -15,7 +15,8 @@ const MitarbeiterRollen: MitarbeiterRolle[] = [
   'statistik',
   'kunde',
   'zerleger',
-  'support'
+  'support',
+  'gefluegel'
 ];
 
 

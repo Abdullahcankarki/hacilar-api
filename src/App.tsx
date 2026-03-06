@@ -40,6 +40,9 @@ import ResetPassword from './components/login/reset-password';
 import SchnellAuftragWriter from './components/produktion/auftrag/SchnellAuftragWriter';
 import MeineAuftraege from './components/profil/MeineAuftraege';
 import EmailLogOverview from './components/verwaltung/email-log/EmailLogOverview';
+import GefluegelUebersicht from './components/gefluegel/GefluegelUebersicht';
+import GefluegelLieferanten from './components/gefluegel/GefluegelLieferanten';
+import GefluegelZerlegerVerwaltung from './components/gefluegel/GefluegelZerlegerVerwaltung';
 import MobileLayout from './components/mobile/MobileLayout';
 import MobileShop from './components/mobile/MobileShop';
 import MobileOrders from './components/mobile/MobileOrders';
@@ -120,6 +123,9 @@ const AppRoutes: React.FC = () => {
               <Route path="fahrer" element={<DriverTour />} />
               <Route path="fleet" element={<FleetPage />} />
               <Route path="email-log" element={<EmailLogOverview />} />
+              <Route path="gefluegel" element={<GefluegelUebersicht />} />
+              <Route path="gefluegel/lieferanten" element={<GefluegelLieferanten />} />
+              <Route path="gefluegel/zerleger" element={<GefluegelZerlegerVerwaltung />} />
               {/* <Route path="inventory" element={<InventoryDashboard />} /> */}
               <Route path="*" element={<Navigate to="/home" replace />} />
             </>
@@ -160,6 +166,14 @@ const AppRoutes: React.FC = () => {
               <Route path="fahrer" element={<DriverTour />} />
               <Route path="profil" element={<Profil />} />
               <Route path="*" element={<Navigate to="/fahrer" replace />} />
+            </>
+          ) : roles.includes('gefluegel') ? (
+            <>
+              <Route path="gefluegel" element={<GefluegelUebersicht />} />
+              <Route path="gefluegel/lieferanten" element={<GefluegelLieferanten />} />
+              <Route path="gefluegel/zerleger" element={<GefluegelZerlegerVerwaltung />} />
+              <Route path="profil" element={<Profil />} />
+              <Route path="*" element={<Navigate to="/gefluegel" replace />} />
             </>
           ) : (
             <Route path="*" element={<Navigate to="/login" replace />} />

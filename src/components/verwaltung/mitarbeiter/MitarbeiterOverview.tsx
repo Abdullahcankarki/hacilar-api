@@ -26,6 +26,7 @@ const roleToLabel: Record<MitarbeiterRolle, string> = {
     statistik: "Statistik",
     kunde: "Kunde",
     support: "Support",
+    gefluegel: "Zerlegung Geflügel",
 };
 
 // --- Toast (einfach, einzelner State) ---

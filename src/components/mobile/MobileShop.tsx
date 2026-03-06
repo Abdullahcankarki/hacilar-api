@@ -5,7 +5,6 @@ import { getAllArtikel, getAuswahlArtikel, getAuftragLetzte, getKundenFavoriten,
 import { useAuth } from '@/providers/Authcontext';
 import { unitFromModus, round2, mergeCartWithOrder } from '@/utils/cartHelpers';
 import MobileProductCard from './MobileProductCard';
-import MobileProductDetail from './MobileProductDetail';
 import HeroSlider from '../dashboard/HeroSlider';
 
 type OutletCtx = {
@@ -33,7 +32,6 @@ const MobileShop: React.FC = () => {
   const [letzterAuftrag, setLetzterAuftrag] = useState<ArtikelPositionResource[]>([]);
   const [letzteArtikel, setLetzteArtikel] = useState<string[]>([]);
   const [lastState, setLastState] = useState<'loading' | 'ready' | 'error'>('loading');
-  const [selectedProduct, setSelectedProduct] = useState<ArtikelResource | null>(null);
   const [showSearch, setShowSearch] = useState(false);
 
   // Load articles
@@ -148,31 +146,14 @@ const MobileShop: React.FC = () => {
     } catch {}
   };
 
-  const handleQuickAdd = (article: ArtikelResource) => {
-    const pos: ArtikelPositionResource = {
-      artikel: article.id!, artikelName: article.name, menge: 1,
-      einheit: unitFromModus(article.erfassungsModus) as any,
-      einzelpreis: article.preis, gesamtpreis: article.preis,
-    } as any;
-    setCart(prev => [...prev, pos]);
-  };
-
-  const handleIncrement = (artikelId: string) => {
-    setCart(prev => prev.map(i => i.artikel === artikelId ? { ...i, menge: round2((i.menge || 1) + 0.5) } : i));
-  };
-
-  const handleDecrement = (artikelId: string) => {
+  const handleAddToCart = (article: ArtikelResource, menge: number) => {
     setCart(prev => {
-      const item = prev.find(i => i.artikel === artikelId);
-      if (!item) return prev;
-      if ((item.menge || 1) <= 0.5) return prev.filter(i => i.artikel !== artikelId);
-      return prev.map(i => i.artikel === artikelId ? { ...i, menge: round2((i.menge || 1) - 0.5) } : i);
-    });
-  };
-
-  const handleAddFromDetail = (pos: ArtikelPositionResource) => {
-    setCart(prev => {
-      const idx = prev.findIndex(i => i.artikel === pos.artikel);
+      const idx = prev.findIndex(i => i.artikel === article.id);
+      const pos: ArtikelPositionResource = {
+        artikel: article.id!, artikelName: article.name, menge: round2(menge),
+        einheit: unitFromModus(article.erfassungsModus) as any,
+        einzelpreis: article.preis, gesamtpreis: round2((article.preis || 0) * menge),
+      } as any;
       if (idx >= 0) {
         const updated = [...prev];
         updated[idx] = pos;
@@ -263,10 +244,7 @@ const MobileShop: React.FC = () => {
                 article={article}
                 isFavorite={true}
                 onToggleFavorite={() => toggleFavorit(article.id!)}
-                onTap={() => setSelectedProduct(article)}
-                onQuickAdd={() => handleQuickAdd(article)}
-                onIncrement={() => handleIncrement(article.id!)}
-                onDecrement={() => handleDecrement(article.id!)}
+                onAddToCart={(menge) => handleAddToCart(article, menge)}
                 cartQty={cartQtyMap.get(article.id!) || 0}
               />
             ))}
@@ -293,10 +271,7 @@ const MobileShop: React.FC = () => {
                   article={article}
                   isFavorite={favoriten.includes(id)}
                   onToggleFavorite={() => toggleFavorit(id)}
-                  onTap={() => setSelectedProduct(article)}
-                  onQuickAdd={() => handleQuickAdd(article)}
-                  onIncrement={() => handleIncrement(id)}
-                  onDecrement={() => handleDecrement(id)}
+                  onAddToCart={(menge) => handleAddToCart(article, menge)}
                   cartQty={cartQtyMap.get(id) || 0}
                 />
               );
@@ -319,10 +294,7 @@ const MobileShop: React.FC = () => {
                 article={article}
                 isFavorite={favoriten.includes(article.id!)}
                 onToggleFavorite={() => toggleFavorit(article.id!)}
-                onTap={() => setSelectedProduct(article)}
-                onQuickAdd={() => handleQuickAdd(article)}
-                onIncrement={() => handleIncrement(article.id!)}
-                onDecrement={() => handleDecrement(article.id!)}
+                onAddToCart={(menge) => handleAddToCart(article, menge)}
                 cartQty={cartQtyMap.get(article.id!) || 0}
               />
             ))}
@@ -337,15 +309,6 @@ const MobileShop: React.FC = () => {
         </div>
       )}
 
-      {/* Product Detail Bottom Sheet */}
-      {selectedProduct && (
-        <MobileProductDetail
-          article={selectedProduct}
-          cart={cart}
-          onAddToCart={handleAddFromDetail}
-          onClose={() => setSelectedProduct(null)}
-        />
-      )}
     </>
   );
 };

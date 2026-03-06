@@ -49,6 +49,7 @@ const NavBar: React.FC<NavBarProps> = ({
   const isZerleger = role.length === 1 && role[0] === 'zerleger';
   const isKunde = role.length === 1 && role[0] === 'kunde';
   const isAdminOderVerkauf = isAdmin || isVerkauf;
+  const isGefluegel = role.includes('gefluegel');
 
   React.useEffect(() => {
     const triggers = document.querySelectorAll<HTMLElement>('[data-bs-toggle="dropdown"]');
@@ -125,6 +126,30 @@ const NavBar: React.FC<NavBarProps> = ({
                   <NavLink className="nav-link" to="/meine-auftraege">
                     Meine Aufträge
                   </NavLink>
+                </li>
+              )}
+              {isGefluegel && (
+                <li className="nav-item dropdown">
+                  <a
+                    href="#"
+                    className="nav-link dropdown-toggle"
+                    role="button"
+                    data-bs-toggle="dropdown"
+                    data-bs-reference="parent"
+                    aria-expanded="false"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      const inst = Dropdown.getOrCreateInstance(e.currentTarget);
+                      inst.toggle();
+                    }}
+                  >
+                    Geflügel
+                  </a>
+                  <ul className="dropdown-menu">
+                    <li><NavLink className="dropdown-item" to="/gefluegel">Tagesübersicht</NavLink></li>
+                    <li><NavLink className="dropdown-item" to="/gefluegel/lieferanten">Lieferanten</NavLink></li>
+                    <li><NavLink className="dropdown-item" to="/gefluegel/zerleger">Zerleger</NavLink></li>
+                  </ul>
                 </li>
               )}
               {isAdminOderVerkauf && (

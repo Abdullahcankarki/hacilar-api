@@ -164,12 +164,8 @@ const MobileCart: React.FC<Props> = ({
 
         {cart.length > 0 && (
           <div className="ms-sheet-footer">
-            <div className="ms-cart-total">
-              <span>Gesamt</span>
-              <span>{fmtEUR.format(gesamtpreis)}</span>
-            </div>
             <button className="ms-btn-primary" onClick={() => setShowDateModal(true)}>
-              Bestellen ({fmtEUR.format(gesamtpreis)})
+              Bestellen
             </button>
           </div>
         )}

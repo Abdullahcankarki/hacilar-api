@@ -14,6 +14,9 @@ import {
   TourResource,
   TourStopResource,
   TourStatus,
+  GefluegelLieferantResource,
+  GefluegelZerlegerResource,
+  GefluegelEintragResource,
 } from "../Resources";
 import {
   ErrorFromValidation,
@@ -1907,6 +1910,127 @@ export async function downloadEmailLogPdf(logId: string): Promise<{ base64: stri
   return res.json();
 }
 
+/* ----------------------------- Geflügel-Zerlegung ----------------------------- */
+
+// Lieferanten
+export async function getAllGefluegelLieferanten(): Promise<GefluegelLieferantResource[]> {
+  return apiFetch<GefluegelLieferantResource[]>("/api/gefluegel/lieferanten");
+}
+
+export async function createGefluegelLieferant(
+  data: Omit<GefluegelLieferantResource, "id">
+): Promise<GefluegelLieferantResource> {
+  return apiFetch<GefluegelLieferantResource>("/api/gefluegel/lieferanten", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateGefluegelLieferant(
+  id: string,
+  data: Partial<GefluegelLieferantResource>
+): Promise<GefluegelLieferantResource> {
+  return apiFetch<GefluegelLieferantResource>(`/api/gefluegel/lieferanten/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteGefluegelLieferant(id: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(`/api/gefluegel/lieferanten/${id}`, {
+    method: "DELETE",
+  });
+}
+
+// Zerleger
+export async function getAllGefluegelZerleger(): Promise<GefluegelZerlegerResource[]> {
+  return apiFetch<GefluegelZerlegerResource[]>("/api/gefluegel/zerleger");
+}
+
+export async function createGefluegelZerleger(
+  data: Omit<GefluegelZerlegerResource, "id">
+): Promise<GefluegelZerlegerResource> {
+  return apiFetch<GefluegelZerlegerResource>("/api/gefluegel/zerleger", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateGefluegelZerleger(
+  id: string,
+  data: Partial<GefluegelZerlegerResource>
+): Promise<GefluegelZerlegerResource> {
+  return apiFetch<GefluegelZerlegerResource>(`/api/gefluegel/zerleger/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteGefluegelZerleger(id: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(`/api/gefluegel/zerleger/${id}`, {
+    method: "DELETE",
+  });
+}
+
+// Einträge
+export async function getGefluegelEintraege(
+  datum: string
+): Promise<GefluegelEintragResource[]> {
+  return apiFetch<GefluegelEintragResource[]>(
+    `/api/gefluegel/eintraege?datum=${datum}`
+  );
+}
+
+export async function getGefluegelEintraegeRange(
+  von: string,
+  bis: string
+): Promise<GefluegelEintragResource[]> {
+  return apiFetch<GefluegelEintragResource[]>(
+    `/api/gefluegel/eintraege/range?von=${von}&bis=${bis}`
+  );
+}
+
+export async function upsertGefluegelEintrag(
+  data: Omit<GefluegelEintragResource, "id">
+): Promise<GefluegelEintragResource> {
+  return apiFetch<GefluegelEintragResource>("/api/gefluegel/eintraege", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateGefluegelEintrag(
+  id: string,
+  data: Partial<GefluegelEintragResource>
+): Promise<GefluegelEintragResource> {
+  return apiFetch<GefluegelEintragResource>(`/api/gefluegel/eintraege/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteGefluegelEintrag(id: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(`/api/gefluegel/eintraege/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function getGefluegelTagesConfig(
+  datum: string
+): Promise<{ datum: string; hiddenLieferanten: string[] }> {
+  return apiFetch(`/api/gefluegel/tagesconfig?datum=${datum}`);
+}
+
+export async function saveGefluegelTagesConfig(
+  datum: string,
+  hiddenLieferanten: string[]
+): Promise<{ datum: string; hiddenLieferanten: string[] }> {
+  return apiFetch(`/api/gefluegel/tagesconfig`, {
+    method: "PUT",
+    body: JSON.stringify({ datum, hiddenLieferanten }),
+  });
+}
+
 /* Exportiere ein Objekt, das alle Funktionen zusammenfasst */
 export const api = {
   apiFetch,
@@ -2081,4 +2205,18 @@ export const api = {
   getUeberreserviertWarnungenApi,
   getTkMismatchWarnungenApi,
   getWarnungenSummaryApi,
+  // Geflügel-Zerlegung
+  getAllGefluegelLieferanten,
+  createGefluegelLieferant,
+  updateGefluegelLieferant,
+  deleteGefluegelLieferant,
+  getAllGefluegelZerleger,
+  createGefluegelZerleger,
+  updateGefluegelZerleger,
+  deleteGefluegelZerleger,
+  getGefluegelEintraege,
+  getGefluegelEintraegeRange,
+  upsertGefluegelEintrag,
+  updateGefluegelEintrag,
+  deleteGefluegelEintrag,
 };
