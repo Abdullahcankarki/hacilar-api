@@ -48,7 +48,8 @@ import MobileShop from './components/mobile/MobileShop';
 import MobileOrders from './components/mobile/MobileOrders';
 import MobileOrderDetail from './components/mobile/MobileOrderDetail';
 import MobileProfile from './components/mobile/MobileProfile';
-// import InventoryDashboard from './components/inventoryDashboard';
+
+const PackingList = React.lazy(() => import('./components/gefluegel/PackingList'));
 
 
 // 📌 App-Routen
@@ -126,6 +127,7 @@ const AppRoutes: React.FC = () => {
               <Route path="gefluegel" element={<GefluegelUebersicht />} />
               <Route path="gefluegel/lieferanten" element={<GefluegelLieferanten />} />
               <Route path="gefluegel/zerleger" element={<GefluegelZerlegerVerwaltung />} />
+              <Route path="gefluegel/packing-list" element={<React.Suspense fallback={<div className="text-center py-5">Lade...</div>}><PackingList /></React.Suspense>} />
               {/* <Route path="inventory" element={<InventoryDashboard />} /> */}
               <Route path="*" element={<Navigate to="/home" replace />} />
             </>
@@ -172,6 +174,7 @@ const AppRoutes: React.FC = () => {
               <Route path="gefluegel" element={<GefluegelUebersicht />} />
               <Route path="gefluegel/lieferanten" element={<GefluegelLieferanten />} />
               <Route path="gefluegel/zerleger" element={<GefluegelZerlegerVerwaltung />} />
+              <Route path="gefluegel/packing-list" element={<React.Suspense fallback={<div className="text-center py-5">Lade...</div>}><PackingList /></React.Suspense>} />
               <Route path="profil" element={<Profil />} />
               <Route path="*" element={<Navigate to="/gefluegel" replace />} />
             </>
