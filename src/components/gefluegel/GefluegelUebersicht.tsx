@@ -54,11 +54,7 @@ export default function GefluegelUebersicht() {
   const [showLiefFilter, setShowLiefFilter] = useState(false);
   const [hideEmptyZerleger, setHideEmptyZerleger] = useState(false);
 
-  // Quick-Calculator
-  const [calcOpen, setCalcOpen] = useState(false);
-  const [calcInput, setCalcInput] = useState("");
-  const [calcTarget, setCalcTarget] = useState<{ row: number; col: number } | null>(null);
-  const calcRef = useRef<HTMLInputElement>(null);
+  // (Quick-Calculator removed – inline sum via spaces in fields)
 
   const setHiddenLieferanten = useCallback((updater: (prev: Set<string>) => Set<string>) => {
     setHiddenLieferantenRaw((prev) => {
@@ -191,16 +187,10 @@ export default function GefluegelUebersicht() {
   }
 
   function handleKeyDown(e: React.KeyboardEvent, row: number, col: number) {
-    // Quick-Calculator: Ctrl+R / Cmd+R
-    if (e.key === "r" && (e.ctrlKey || e.metaKey)) {
-      e.preventDefault();
-      setCalcTarget({ row, col });
-      setCalcInput("");
-      setCalcOpen(true);
-      setTimeout(() => calcRef.current?.focus(), 50);
-      return;
+    // Leerzeichen und normale Zeichen durchlassen (fuer inline-Rechner)
+    if (e.key === " " || e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+      return; // nicht abfangen
     }
-
     switch (e.key) {
       case "ArrowUp":
         e.preventDefault();
@@ -246,53 +236,46 @@ export default function GefluegelUebersicht() {
     }
   }
 
-  function parseCalcNums(input: string): number[] {
-    return input.trim().split(/\s+/).map((s) => Number(s.replace(",", "."))).filter((n) => !isNaN(n));
-  }
-
-  function calcConfirm() {
-    if (!calcTarget) return;
-    const nums = parseCalcNums(calcInput);
+  /** Parse a field value: if it contains spaces, sum all numbers. */
+  function autoSum(input: string): string {
+    const trimmed = input.trim();
+    if (!trimmed) return "";
+    const parts = trimmed.split(/\s+/);
+    if (parts.length <= 1) return trimmed;
+    const nums = parts.map((s) => Number(s.replace(",", "."))).filter((n) => !isNaN(n));
+    if (nums.length === 0) return trimmed;
     const sum = nums.reduce((a, b) => a + b, 0);
-    const { row, col } = calcTarget;
-    const lIdx = Math.floor(col / 2);
-    const field = col % 2 === 0 ? "kisten" : "kg";
-    const z = visibleZerleger[row];
-    const l = visibleLieferanten[lIdx];
-    if (z && l) {
-      const cellKeyStr = `${z.id}_${l.id}`;
-      setDrafts((prev) => {
-        const next = new Map(prev);
-        const existing = next.get(cellKeyStr);
-        if (existing) {
-          next.set(cellKeyStr, { ...existing, [field]: String(sum) });
-        }
-        return next;
-      });
-    }
-    setCalcOpen(false);
-    setCalcTarget(null);
-    setTimeout(() => focusCell(row, col), 50);
+    // Format: if integer show as integer, otherwise 1 decimal
+    return sum === Math.floor(sum) ? String(sum) : sum.toFixed(1);
   }
 
-  function calcClose() {
-    setCalcOpen(false);
-    if (calcTarget) {
-      const { row, col } = calcTarget;
-      setCalcTarget(null);
-      setTimeout(() => focusCell(row, col), 50);
-    }
-  }
-
-  // --- Auto-Save bei Blur ---
-  const saveCell = useCallback(
-    async (zerlegerId: string, lieferantId: string) => {
+  // --- Auto-sum + Auto-Save bei Blur ---
+  const handleBlur = useCallback(
+    (zerlegerId: string, lieferantId: string) => {
       const key = `${zerlegerId}_${lieferantId}`;
       const draft = drafts.get(key);
       if (!draft) return;
+      const summedKisten = autoSum(draft.kisten);
+      const summedKg = autoSum(draft.kg);
+      if (summedKisten !== draft.kisten || summedKg !== draft.kg) {
+        setDrafts((prev) => {
+          const next = new Map(prev);
+          next.set(key, { kisten: summedKisten, kg: summedKg });
+          return next;
+        });
+      }
+      // saveCell will read from the updated drafts via setTimeout
+      setTimeout(() => saveCellInner(zerlegerId, lieferantId, summedKisten, summedKg), 0);
+    },
+    [drafts]
+  );
 
-      const kisten = draft.kisten ? parseFloat(draft.kisten) : 0;
-      const kg = draft.kg ? parseFloat(draft.kg) : 0;
+  const saveCellInner = useCallback(
+    async (zerlegerId: string, lieferantId: string, kistenStr: string, kgStr: string) => {
+      const key = `${zerlegerId}_${lieferantId}`;
+
+      const kisten = kistenStr ? parseFloat(kistenStr.replace(",", ".")) : 0;
+      const kg = kgStr ? parseFloat(kgStr.replace(",", ".")) : 0;
 
       // Prüfen ob sich etwas geändert hat
       const existing = eintragMap.get(key);
@@ -351,7 +334,7 @@ export default function GefluegelUebersicht() {
         setSaving(null);
       }
     },
-    [drafts, eintragMap, activeZerleger, activeLieferanten, datum]
+    [eintragMap, activeZerleger, activeLieferanten, datum]
   );
 
   // --- Berechnungen ---
@@ -673,11 +656,11 @@ export default function GefluegelUebersicht() {
                                   ref={(el) => {
                                     if (el) inputRefs.current.set(cellKey(rowIdx, colKiste), el);
                                   }}
-                                  type="number"
+                                  type="text"
+                                  autoComplete="off"
                                   className="form-control form-control-sm border-0 text-center rounded-0 bg-transparent"
                                   style={{ height: 28, fontSize: "0.82rem" }}
                                   value={kistenVal}
-                                  min={0}
                                   onChange={(e) => {
                                     const val = e.target.value;
                                     setDrafts((prev) => {
@@ -686,7 +669,7 @@ export default function GefluegelUebersicht() {
                                       return next;
                                     });
                                   }}
-                                  onBlur={() => saveCell(z.id!, l.id!)}
+                                  onBlur={() => handleBlur(z.id!, l.id!)}
                                   onKeyDown={(e) => handleKeyDown(e, rowIdx, colKiste)}
                                   onFocus={(e) => { setFocusedRow(rowIdx); e.target.select(); }}
                                   tabIndex={0}
@@ -701,12 +684,11 @@ export default function GefluegelUebersicht() {
                                   ref={(el) => {
                                     if (el) inputRefs.current.set(cellKey(rowIdx, colKg), el);
                                   }}
-                                  type="number"
+                                  type="text"
+                                  autoComplete="off"
                                   className="form-control form-control-sm border-0 text-center rounded-0 bg-transparent"
                                   style={{ height: 28, fontSize: "0.82rem" }}
                                   value={kgVal}
-                                  min={0}
-                                  step="0.5"
                                   onChange={(e) => {
                                     const val = e.target.value;
                                     setDrafts((prev) => {
@@ -715,7 +697,7 @@ export default function GefluegelUebersicht() {
                                       return next;
                                     });
                                   }}
-                                  onBlur={() => saveCell(z.id!, l.id!)}
+                                  onBlur={() => handleBlur(z.id!, l.id!)}
                                   onKeyDown={(e) => handleKeyDown(e, rowIdx, colKg)}
                                   onFocus={(e) => { setFocusedRow(rowIdx); e.target.select(); }}
                                   tabIndex={0}
@@ -993,86 +975,6 @@ export default function GefluegelUebersicht() {
         </>
       )}
       </>
-      )}
-
-      {/* Quick Calculator Popup */}
-      {calcOpen && (
-        <>
-          <div
-            className="position-fixed top-0 start-0 w-100 h-100"
-            style={{ zIndex: 1050, background: "rgba(0,0,0,0.25)" }}
-            onClick={calcClose}
-          />
-          <div
-            className="position-fixed bg-white border rounded-3 shadow-lg p-3"
-            style={{
-              zIndex: 1051,
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              minWidth: 320,
-            }}
-          >
-            <div className="d-flex justify-content-between align-items-center mb-2">
-              <strong style={{ fontSize: "0.9rem" }}>
-                <i className="bi bi-calculator me-1" />
-                Rechner
-              </strong>
-              <button className="btn-close btn-close-sm" onClick={calcClose} />
-            </div>
-            <input
-              ref={calcRef}
-              type="text"
-              className="form-control form-control-sm mb-2"
-              placeholder="Zahlen mit Leerzeichen trennen (z.B. 10 20 30)"
-              value={calcInput}
-              onChange={(e) => setCalcInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  calcConfirm();
-                } else if (e.key === "Escape") {
-                  e.preventDefault();
-                  calcClose();
-                }
-              }}
-            />
-            <div className="d-flex justify-content-between align-items-center">
-              <span className="text-muted" style={{ fontSize: "0.82rem" }}>
-                Summe:{" "}
-                <strong>
-                  {calcInput.trim()
-                    ? parseCalcNums(calcInput).reduce((a, b) => a + b, 0)
-                    : 0}
-                </strong>
-                {(() => {
-                  if (!calcTarget) return null;
-                  const sum = calcInput.trim() ? parseCalcNums(calcInput).reduce((a, b) => a + b, 0) : 0;
-                  if (sum <= 0) return null;
-                  const lIdx = Math.floor(calcTarget.col / 2);
-                  const field = calcTarget.col % 2 === 0 ? "kisten" : "kg";
-                  const z = visibleZerleger[calcTarget.row];
-                  const l = visibleLieferanten[lIdx];
-                  if (!z || !l) return null;
-                  const draft = drafts.get(`${z.id}_${l.id}`);
-                  const kisten = field === "kisten" ? sum : parseFloat(draft?.kisten || "0") || 0;
-                  const kg = field === "kg" ? sum : parseFloat(draft?.kg || "0") || 0;
-                  if (kisten <= 0 || kg <= 0) return null;
-                  const pct = (kg / (kisten * l.kistenGewichtKg)) * 100;
-                  const isAbove = pct / 100 >= l.sollProzent;
-                  return (
-                    <span className={`ms-2 fw-bold ${isAbove ? "text-success" : "text-danger"}`}>
-                      → {pct.toFixed(1)}%
-                    </span>
-                  );
-                })()}
-              </span>
-              <button className="btn btn-dark btn-sm" onClick={calcConfirm}>
-                Übernehmen
-              </button>
-            </div>
-          </div>
-        </>
       )}
 
       {/* Toast */}
