@@ -560,6 +560,31 @@ export default function GefluegelStatistik({ mode }: Props) {
         const totalVerlustKg = rows.reduce((s, r) => s + r.verlustKg, 0);
         const totalVerlustEuro = rows.reduce((s, r) => s + r.verlustEuro, 0);
 
+        // Gesamtausbeute wenn alle unter Schwelle auf Schwelle angehoben werden
+        let gesamtKistenLief = 0;
+        let gesamtKgIst = 0;
+        let gesamtKgKorrigiert = 0;
+        if (lief) {
+          for (const z of activeZerleger) {
+            const zs = zerlegerSummen[z.id!];
+            if (!zs) continue;
+            const pl = zs.perLief[lief.id!];
+            if (!pl || pl.kisten === 0) continue;
+            const pctIst = pl.kg / (pl.kisten * lief.kistenGewichtKg);
+            gesamtKistenLief += pl.kisten;
+            gesamtKgIst += pl.kg;
+            // Wenn unter Schwelle: auf Schwelle korrigieren, sonst IST beibehalten
+            if (pctIst < schwelle) {
+              gesamtKgKorrigiert += pl.kisten * lief.kistenGewichtKg * schwelle;
+            } else {
+              gesamtKgKorrigiert += pl.kg;
+            }
+          }
+        }
+        const gesamtRohKg = gesamtKistenLief * (lief?.kistenGewichtKg ?? 10);
+        const ausbeuteIst = gesamtRohKg > 0 ? gesamtKgIst / gesamtRohKg : 0;
+        const ausbeuteKorrigiert = gesamtRohKg > 0 ? gesamtKgKorrigiert / gesamtRohKg : 0;
+
         return (
           <div
             className="modal fade show d-block"
@@ -676,6 +701,43 @@ export default function GefluegelStatistik({ mode }: Props) {
                           </tfoot>
                         </table>
                       </div>
+                      {/* Ausbeute-Vergleich */}
+                      <div className="row g-3 mt-3">
+                        <div className="col-md-4">
+                          <div className="card border-0 bg-light rounded-3">
+                            <div className="card-body text-center py-3">
+                              <div className="text-muted small">Ausbeute IST</div>
+                              <div className="fs-4 fw-bold text-danger">
+                                {(ausbeuteIst * 100).toFixed(2)}%
+                              </div>
+                              <div className="text-muted small">{gesamtKgIst.toFixed(1)} kg von {gesamtRohKg.toFixed(0)} kg</div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-md-4">
+                          <div className="card border-0 bg-success bg-opacity-10 rounded-3">
+                            <div className="card-body text-center py-3">
+                              <div className="text-muted small">Ausbeute wenn alle ≥ {vaProzent}%</div>
+                              <div className="fs-4 fw-bold text-success">
+                                {(ausbeuteKorrigiert * 100).toFixed(2)}%
+                              </div>
+                              <div className="text-muted small">{gesamtKgKorrigiert.toFixed(1)} kg von {gesamtRohKg.toFixed(0)} kg</div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-md-4">
+                          <div className="card border-0 bg-warning bg-opacity-10 rounded-3">
+                            <div className="card-body text-center py-3">
+                              <div className="text-muted small">Differenz</div>
+                              <div className="fs-4 fw-bold">
+                                +{((ausbeuteKorrigiert - ausbeuteIst) * 100).toFixed(2)}%
+                              </div>
+                              <div className="text-muted small">+{(gesamtKgKorrigiert - gesamtKgIst).toFixed(1)} kg = +{((gesamtKgKorrigiert - gesamtKgIst) * vkBrutto).toFixed(2)} €</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
                       <div className="mt-3 text-muted small">
                         Berechnung: Verlust Kg = (Kisten × {lief?.kistenGewichtKg ?? 10}kg × {vaProzent}%) − Kg IST |
                         Verlust € = Verlust Kg × {vkBrutto.toFixed(2)} € (inkl. 7% MwSt)
