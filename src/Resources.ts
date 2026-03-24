@@ -258,9 +258,12 @@ export type GefluegelLieferantResource = {
   reihenfolge: number;
 };
 
+export type ZerlegerKategorie = "haehnchen" | "pute_fluegel" | "pute_keule";
+
 export type GefluegelZerlegerResource = {
   id?: string;
   name: string;
+  kategorien: ZerlegerKategorie[];
   aktiv: boolean;
   reihenfolge: number;
 };
@@ -274,6 +277,26 @@ export type GefluegelEintragResource = {
   lieferantName: string;
   kisten: number;
   kg: number;
+};
+
+// ===== Pute-Zerlegung =====
+
+export type PuteKategorie = "pute_fluegel" | "pute_keule";
+
+export type PuteEintragResource = {
+  id?: string;
+  datum: string;
+  kategorie: PuteKategorie;
+  zerlegerId: string;
+  zerlegerName: string;
+  mitKnochen: number;
+  ohneKnochen: number;
+};
+
+export type PuteConfigResource = {
+  id?: string;
+  kategorie: PuteKategorie;
+  sollProzent: number;
 };
 
 // ===== Tourplanung: Enums & neue Ressourcen =====

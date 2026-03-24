@@ -40,7 +40,7 @@ import ResetPassword from './components/login/reset-password';
 import SchnellAuftragWriter from './components/produktion/auftrag/SchnellAuftragWriter';
 import MeineAuftraege from './components/profil/MeineAuftraege';
 import EmailLogOverview from './components/verwaltung/email-log/EmailLogOverview';
-import GefluegelUebersicht from './components/gefluegel/GefluegelUebersicht';
+import GefluegelPage from './components/gefluegel/GefluegelPage';
 import GefluegelLieferanten from './components/gefluegel/GefluegelLieferanten';
 import GefluegelZerlegerVerwaltung from './components/gefluegel/GefluegelZerlegerVerwaltung';
 import MobileLayout from './components/mobile/MobileLayout';
@@ -50,6 +50,8 @@ import MobileOrderDetail from './components/mobile/MobileOrderDetail';
 import MobileProfile from './components/mobile/MobileProfile';
 
 const PackingList = React.lazy(() => import('./components/gefluegel/PackingList'));
+const OffenePostenTool = React.lazy(() => import('./components/buchhaltung/OffenePostenTool'));
+const LeergutTool = React.lazy(() => import('./components/buchhaltung/LeergutTool'));
 
 
 // 📌 App-Routen
@@ -124,10 +126,12 @@ const AppRoutes: React.FC = () => {
               <Route path="fahrer" element={<DriverTour />} />
               <Route path="fleet" element={<FleetPage />} />
               <Route path="email-log" element={<EmailLogOverview />} />
-              <Route path="gefluegel" element={<GefluegelUebersicht />} />
+              <Route path="gefluegel" element={<GefluegelPage />} />
               <Route path="gefluegel/lieferanten" element={<GefluegelLieferanten />} />
               <Route path="gefluegel/zerleger" element={<GefluegelZerlegerVerwaltung />} />
               <Route path="gefluegel/packing-list" element={<React.Suspense fallback={<div className="text-center py-5">Lade...</div>}><PackingList /></React.Suspense>} />
+                            <Route path="buchhaltung/offene-posten" element={<React.Suspense fallback={<div className="text-center py-5">Lade...</div>}><OffenePostenTool /></React.Suspense>} />
+              <Route path="buchhaltung/leergut" element={<React.Suspense fallback={<div className="text-center py-5">Lade...</div>}><LeergutTool /></React.Suspense>} />
               {/* <Route path="inventory" element={<InventoryDashboard />} /> */}
               <Route path="*" element={<Navigate to="/home" replace />} />
             </>
@@ -171,11 +175,11 @@ const AppRoutes: React.FC = () => {
             </>
           ) : roles.includes('gefluegel') ? (
             <>
-              <Route path="gefluegel" element={<GefluegelUebersicht />} />
+              <Route path="gefluegel" element={<GefluegelPage />} />
               <Route path="gefluegel/lieferanten" element={<GefluegelLieferanten />} />
               <Route path="gefluegel/zerleger" element={<GefluegelZerlegerVerwaltung />} />
               <Route path="gefluegel/packing-list" element={<React.Suspense fallback={<div className="text-center py-5">Lade...</div>}><PackingList /></React.Suspense>} />
-              <Route path="profil" element={<Profil />} />
+                            <Route path="profil" element={<Profil />} />
               <Route path="*" element={<Navigate to="/gefluegel" replace />} />
             </>
           ) : (

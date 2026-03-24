@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
-import { register as registerServiceWorker } from './serviceWorkerRegistration';
+import { register as registerServiceWorker, unregister as unregisterServiceWorker } from './serviceWorkerRegistration';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import './index.css';
@@ -21,4 +21,8 @@ root.render(
 // to log results (for example: reportWebVitals(console.log))
 // or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
 reportWebVitals();
-registerServiceWorker();
+if (process.env.NODE_ENV === 'production') {
+  registerServiceWorker();
+} else {
+  unregisterServiceWorker();
+}

@@ -17,6 +17,8 @@ import {
   GefluegelLieferantResource,
   GefluegelZerlegerResource,
   GefluegelEintragResource,
+  PuteEintragResource,
+  PuteConfigResource,
 } from "../Resources";
 import {
   ErrorFromValidation,
@@ -2031,6 +2033,116 @@ export async function saveGefluegelTagesConfig(
   });
 }
 
+// ===== Pute-Zerlegung =====
+
+export async function getPuteEintraege(
+  datum: string,
+  kategorie?: string
+): Promise<PuteEintragResource[]> {
+  let url = `/api/pute/eintraege?datum=${datum}`;
+  if (kategorie) url += `&kategorie=${kategorie}`;
+  return apiFetch<PuteEintragResource[]>(url);
+}
+
+export async function getPuteEintraegeRange(
+  von: string,
+  bis: string,
+  kategorie?: string
+): Promise<PuteEintragResource[]> {
+  let url = `/api/pute/eintraege/range?von=${von}&bis=${bis}`;
+  if (kategorie) url += `&kategorie=${kategorie}`;
+  return apiFetch<PuteEintragResource[]>(url);
+}
+
+export async function upsertPuteEintrag(
+  data: Omit<PuteEintragResource, "id">
+): Promise<PuteEintragResource> {
+  return apiFetch<PuteEintragResource>("/api/pute/eintraege", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deletePuteEintrag(id: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(`/api/pute/eintraege/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function getPuteConfigs(): Promise<PuteConfigResource[]> {
+  return apiFetch<PuteConfigResource[]>("/api/pute/config");
+}
+
+export async function upsertPuteConfig(
+  data: Omit<PuteConfigResource, "id">
+): Promise<PuteConfigResource> {
+  return apiFetch<PuteConfigResource>("/api/pute/config", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+// ===== Buchhaltung: Offene Posten =====
+
+export async function getOffenePostenImports(): Promise<any[]> {
+  return apiFetch<any[]>("/api/offene-posten/imports");
+}
+
+export async function getOffenePostenByImport(importId: string): Promise<any[]> {
+  return apiFetch<any[]>(`/api/offene-posten/imports/${importId}`);
+}
+
+export async function getOffenePostenLatest(): Promise<any[]> {
+  return apiFetch<any[]>("/api/offene-posten/latest");
+}
+
+export async function createOffenePostenImport(data: {
+  berichtsDatum: string;
+  dateiname: string;
+  posten: any[];
+}): Promise<any> {
+  return apiFetch<any>("/api/offene-posten/imports", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteOffenePostenImport(importId: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(`/api/offene-posten/imports/${importId}`, {
+    method: "DELETE",
+  });
+}
+
+// ===== Buchhaltung: Leergut =====
+
+export async function getLeergutImports(): Promise<any[]> {
+  return apiFetch<any[]>("/api/leergut/imports");
+}
+
+export async function getLeergutByImport(importId: string): Promise<any[]> {
+  return apiFetch<any[]>(`/api/leergut/imports/${importId}`);
+}
+
+export async function getLeergutLatest(): Promise<any[]> {
+  return apiFetch<any[]>("/api/leergut/latest");
+}
+
+export async function createLeergutImport(data: {
+  anzahlDateien: number;
+  eintraege: any[];
+}): Promise<any> {
+  return apiFetch<any>("/api/leergut/imports", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteLeergutImport(importId: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(`/api/leergut/imports/${importId}`, {
+    method: "DELETE",
+  });
+}
+
 /* Exportiere ein Objekt, das alle Funktionen zusammenfasst */
 export const api = {
   apiFetch,
@@ -2219,4 +2331,16 @@ export const api = {
   upsertGefluegelEintrag,
   updateGefluegelEintrag,
   deleteGefluegelEintrag,
+  // Buchhaltung: Offene Posten
+  getOffenePostenImports,
+  getOffenePostenByImport,
+  getOffenePostenLatest,
+  createOffenePostenImport,
+  deleteOffenePostenImport,
+  // Buchhaltung: Leergut
+  getLeergutImports,
+  getLeergutByImport,
+  getLeergutLatest,
+  createLeergutImport,
+  deleteLeergutImport,
 };

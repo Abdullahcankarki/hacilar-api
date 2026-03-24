@@ -5,7 +5,7 @@ import {
   updateGefluegelZerleger,
   deleteGefluegelZerleger,
 } from "../../backend/api";
-import { GefluegelZerlegerResource } from "../../Resources";
+import { GefluegelZerlegerResource, ZerlegerKategorie } from "../../Resources";
 
 type Toast = { type: "success" | "error"; msg: string } | null;
 
@@ -21,6 +21,7 @@ export default function GefluegelZerlegerVerwaltung() {
   const [editing, setEditing] = useState<GefluegelZerlegerResource | null>(null);
   const [formName, setFormName] = useState("");
   const [formAktiv, setFormAktiv] = useState(true);
+  const [formKategorien, setFormKategorien] = useState<ZerlegerKategorie[]>(["haehnchen"]);
   const [formReihenfolge, setFormReihenfolge] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 
@@ -58,6 +59,7 @@ export default function GefluegelZerlegerVerwaltung() {
     setEditing(null);
     setFormName("");
     setFormAktiv(true);
+    setFormKategorien(["haehnchen"]);
     setFormReihenfolge(items.length);
     setShowModal(true);
   };
@@ -66,8 +68,15 @@ export default function GefluegelZerlegerVerwaltung() {
     setEditing(z);
     setFormName(z.name);
     setFormAktiv(z.aktiv);
+    setFormKategorien(z.kategorien ?? ["haehnchen"]);
     setFormReihenfolge(z.reihenfolge);
     setShowModal(true);
+  };
+
+  const toggleKategorie = (kat: ZerlegerKategorie) => {
+    setFormKategorien((prev) =>
+      prev.includes(kat) ? prev.filter((k) => k !== kat) : [...prev, kat]
+    );
   };
 
   const handleSave = async () => {
@@ -77,6 +86,7 @@ export default function GefluegelZerlegerVerwaltung() {
       if (editing?.id) {
         const saved = await updateGefluegelZerleger(editing.id, {
           name: formName.trim(),
+          kategorien: formKategorien,
           aktiv: formAktiv,
           reihenfolge: formReihenfolge,
         });
@@ -87,6 +97,7 @@ export default function GefluegelZerlegerVerwaltung() {
       } else {
         const saved = await createGefluegelZerleger({
           name: formName.trim(),
+          kategorien: formKategorien,
           aktiv: formAktiv,
           reihenfolge: formReihenfolge,
         });
@@ -174,6 +185,7 @@ export default function GefluegelZerlegerVerwaltung() {
               <tr>
                 <th>#</th>
                 <th>Name</th>
+                <th>Kategorien</th>
                 <th>Status</th>
                 <th style={{ width: 140 }}>Aktionen</th>
               </tr>
@@ -183,6 +195,13 @@ export default function GefluegelZerlegerVerwaltung() {
                 <tr key={z.id}>
                   <td className="text-muted">{z.reihenfolge}</td>
                   <td className="fw-medium">{z.name}</td>
+                  <td>
+                    {(z.kategorien ?? ["haehnchen"]).map((k) => (
+                      <span key={k} className="badge bg-info me-1">
+                        {k === "haehnchen" ? "Hähnchen" : k === "pute_fluegel" ? "Pute Flügel" : "Pute Keule"}
+                      </span>
+                    ))}
+                  </td>
                   <td>
                     <span
                       className={`badge ${
@@ -245,6 +264,29 @@ export default function GefluegelZerlegerVerwaltung() {
                     onChange={(e) => setFormName(e.target.value)}
                     autoFocus
                   />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Kategorien</label>
+                  <div>
+                    {([
+                      ["haehnchen", "Hähnchen"],
+                      ["pute_fluegel", "Pute Flügel"],
+                      ["pute_keule", "Pute Keule"],
+                    ] as [ZerlegerKategorie, string][]).map(([kat, label]) => (
+                      <div className="form-check form-check-inline" key={kat}>
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          id={`kat-${kat}`}
+                          checked={formKategorien.includes(kat)}
+                          onChange={() => toggleKategorie(kat)}
+                        />
+                        <label className="form-check-label" htmlFor={`kat-${kat}`}>
+                          {label}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 <div className="mb-3">
                   <label className="form-label">Reihenfolge</label>

@@ -63,6 +63,12 @@ export default function GefluegelStatistik({ mode }: Props) {
   const [loading, setLoading] = useState(true);
   const [vkDurchschnitt, setVkDurchschnitt] = useState(3.3);
 
+  // Verlustanalyse Modal
+  const [showVerlust, setShowVerlust] = useState(false);
+  const [vaLieferantId, setVaLieferantId] = useState("");
+  const [vaProzent, setVaProzent] = useState("68");
+  const [vaVkNetto, setVaVkNetto] = useState("3.30");
+
   // Referenzdatum für Navigation
   const [refDate, setRefDate] = useState(() => new Date());
 
@@ -245,6 +251,12 @@ export default function GefluegelStatistik({ mode }: Props) {
         </button>
         <button className="btn btn-outline-dark btn-sm rounded-3 ms-2" onClick={goToday}>
           {mode === "woche" ? "Diese Woche" : "Dieser Monat"}
+        </button>
+        <button
+          className="btn btn-outline-danger btn-sm rounded-3 ms-auto"
+          onClick={() => setShowVerlust(true)}
+        >
+          Verlustanalyse
         </button>
       </div>
 
@@ -511,6 +523,179 @@ export default function GefluegelStatistik({ mode }: Props) {
           </div>
         </>
       )}
+
+      {/* Verlustanalyse Modal */}
+      {showVerlust && (() => {
+        const schwelle = parseFloat(vaProzent.replace(",", ".")) / 100;
+        const vkNetto = parseFloat(vaVkNetto.replace(",", ".")) || 0;
+        const vkBrutto = vkNetto * 1.07;
+        const lief = activeLieferanten.find((l) => l.id === vaLieferantId);
+
+        // Berechne Zerleger unter der Schwelle für den gewählten Lieferanten
+        const rows: { name: string; kisten: number; kg: number; pctIst: number; sollKg: number; verlustKg: number; verlustEuro: number }[] = [];
+        if (lief && !isNaN(schwelle)) {
+          for (const z of activeZerleger) {
+            const zs = zerlegerSummen[z.id!];
+            if (!zs) continue;
+            const pl = zs.perLief[lief.id!];
+            if (!pl || pl.kisten === 0) continue;
+            const pctIst = pl.kg / (pl.kisten * lief.kistenGewichtKg);
+            if (pctIst < schwelle) {
+              const sollKg = pl.kisten * lief.kistenGewichtKg * schwelle;
+              const verlustKg = sollKg - pl.kg;
+              const verlustEuro = verlustKg * vkBrutto;
+              rows.push({
+                name: z.name,
+                kisten: pl.kisten,
+                kg: pl.kg,
+                pctIst,
+                sollKg,
+                verlustKg,
+                verlustEuro,
+              });
+            }
+          }
+        }
+        rows.sort((a, b) => b.verlustEuro - a.verlustEuro);
+        const totalVerlustKg = rows.reduce((s, r) => s + r.verlustKg, 0);
+        const totalVerlustEuro = rows.reduce((s, r) => s + r.verlustEuro, 0);
+
+        return (
+          <div
+            className="modal fade show d-block"
+            tabIndex={-1}
+            style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+            onClick={() => setShowVerlust(false)}
+          >
+            <div
+              className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="modal-content border-0 rounded-4 shadow-lg">
+                <div className="modal-header border-0 bg-danger text-white rounded-top-4">
+                  <h5 className="modal-title fw-semibold">Verlustanalyse — {label}</h5>
+                  <button
+                    type="button"
+                    className="btn-close btn-close-white"
+                    onClick={() => setShowVerlust(false)}
+                  />
+                </div>
+                <div className="modal-body">
+                  {/* Filter Row */}
+                  <div className="row g-3 mb-4">
+                    <div className="col-md-4">
+                      <label className="form-label fw-semibold">Lieferant</label>
+                      <select
+                        className="form-select"
+                        value={vaLieferantId}
+                        onChange={(e) => setVaLieferantId(e.target.value)}
+                      >
+                        <option value="">— wählen —</option>
+                        {activeLieferanten.map((l) => (
+                          <option key={l.id} value={l.id}>{l.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-md-4">
+                      <label className="form-label fw-semibold">Schwelle (%)</label>
+                      <div className="input-group">
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={vaProzent}
+                          onChange={(e) => setVaProzent(e.target.value)}
+                          placeholder="z.B. 68"
+                        />
+                        <span className="input-group-text">%</span>
+                      </div>
+                      <div className="form-text">Alle Zerleger unter diesem Wert</div>
+                    </div>
+                    <div className="col-md-4">
+                      <label className="form-label fw-semibold">VK-Preis netto</label>
+                      <div className="input-group">
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={vaVkNetto}
+                          onChange={(e) => setVaVkNetto(e.target.value)}
+                          placeholder="z.B. 3.30"
+                        />
+                        <span className="input-group-text">€/kg</span>
+                      </div>
+                      <div className="form-text">
+                        Brutto (+ 7% MwSt): <strong>{vkBrutto.toFixed(2)} €</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Results */}
+                  {!vaLieferantId ? (
+                    <div className="text-muted text-center py-3">Bitte Lieferant wählen.</div>
+                  ) : rows.length === 0 ? (
+                    <div className="alert alert-success mb-0">
+                      Alle Zerleger liegen bei oder über {vaProzent}% für {lief?.name}.
+                    </div>
+                  ) : (
+                    <>
+                      <div className="table-responsive">
+                        <table className="table table-sm table-bordered table-hover mb-0" style={{ fontSize: "0.85rem" }}>
+                          <thead className="table-light">
+                            <tr>
+                              <th>Zerleger</th>
+                              <th className="text-end">Kisten</th>
+                              <th className="text-end">Kg (IST)</th>
+                              <th className="text-end">%-IST</th>
+                              <th className="text-end">Kg (SOLL bei {vaProzent}%)</th>
+                              <th className="text-end">Verlust Kg</th>
+                              <th className="text-end">Verlust € (brutto)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {rows.map((r) => (
+                              <tr key={r.name}>
+                                <td className="fw-medium">{r.name}</td>
+                                <td className="text-end">{r.kisten}</td>
+                                <td className="text-end">{r.kg.toFixed(1)}</td>
+                                <td className="text-end text-danger fw-bold">
+                                  {(r.pctIst * 100).toFixed(2)}%
+                                </td>
+                                <td className="text-end">{r.sollKg.toFixed(1)}</td>
+                                <td className="text-end text-danger">{r.verlustKg.toFixed(1)}</td>
+                                <td className="text-end text-danger fw-bold">
+                                  {r.verlustEuro.toFixed(2)} €
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                          <tfoot className="table-dark text-white fw-bold">
+                            <tr>
+                              <td colSpan={5}>Gesamt Verlust</td>
+                              <td className="text-end">{totalVerlustKg.toFixed(1)} kg</td>
+                              <td className="text-end">{totalVerlustEuro.toFixed(2)} €</td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                      <div className="mt-3 text-muted small">
+                        Berechnung: Verlust Kg = (Kisten × {lief?.kistenGewichtKg ?? 10}kg × {vaProzent}%) − Kg IST |
+                        Verlust € = Verlust Kg × {vkBrutto.toFixed(2)} € (inkl. 7% MwSt)
+                      </div>
+                    </>
+                  )}
+                </div>
+                <div className="modal-footer border-0">
+                  <button
+                    className="btn btn-outline-secondary rounded-3"
+                    onClick={() => setShowVerlust(false)}
+                  >
+                    Schließen
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

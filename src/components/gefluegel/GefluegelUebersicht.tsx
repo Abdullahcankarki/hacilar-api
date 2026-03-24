@@ -13,7 +13,7 @@ import {
   GefluegelZerlegerResource,
   GefluegelEintragResource,
 } from "../../Resources";
-import GefluegelStatistik from "./GefluegelStatistik";
+// GefluegelStatistik is now rendered by GefluegelPage
 
 type Toast = { type: "success" | "error"; msg: string } | null;
 
@@ -37,10 +37,7 @@ function displayDate(iso: string): string {
   });
 }
 
-type Tab = "tag" | "woche" | "monat" | "formeln";
-
 export default function GefluegelUebersicht() {
-  const [activeTab, setActiveTab] = useState<Tab>("tag");
   const [datum, setDatum] = useState(formatDate(new Date()));
   const [lieferanten, setLieferanten] = useState<GefluegelLieferantResource[]>([]);
   const [zerleger, setZerleger] = useState<GefluegelZerlegerResource[]>([]);
@@ -373,96 +370,8 @@ export default function GefluegelUebersicht() {
     );
 
   return (
-    <div className="container-fluid my-4">
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-        <h4 className="mb-0">Geflügel-Zerlegung — Hä. Keule</h4>
-        {saving && activeTab === "tag" && (
-          <span className="text-muted small">
-            <span className="spinner-border spinner-border-sm me-1" />
-            Speichert…
-          </span>
-        )}
-      </div>
+    <div>
 
-      {/* Tabs */}
-      <ul className="nav nav-tabs mb-3">
-        {([["tag", "Tag"], ["woche", "Woche"], ["monat", "Monat"], ["formeln", "Formeln"]] as [Tab, string][]).map(
-          ([key, label]) => (
-            <li className="nav-item" key={key}>
-              <button
-                className={`nav-link ${activeTab === key ? "active" : ""}`}
-                onClick={() => setActiveTab(key)}
-              >
-                {label}
-              </button>
-            </li>
-          )
-        )}
-      </ul>
-
-      {activeTab === "woche" || activeTab === "monat" ? (
-        <GefluegelStatistik mode={activeTab} />
-      ) : activeTab === "formeln" ? (
-        <div className="card border-0 shadow-sm rounded-4">
-          <div className="card-header bg-dark text-white rounded-top-4">
-            <h6 className="mb-0">Berechnungsformeln</h6>
-          </div>
-          <div className="card-body">
-            <div className="table-responsive">
-              <table className="table table-sm table-bordered mb-0" style={{ fontSize: "0.85rem" }}>
-                <thead className="table-light">
-                  <tr>
-                    <th style={{ width: "30%" }}>Kennzahl</th>
-                    <th>Formel</th>
-                    <th style={{ width: "30%" }}>Beispiel</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="fw-medium">%-IST (Ausbeute)</td>
-                    <td><code>Kg / (Kisten × Kg pro Kiste)</code></td>
-                    <td className="text-muted">208 / (30 × 10) = <strong>69,3%</strong></td>
-                  </tr>
-                  <tr>
-                    <td className="fw-medium">EK nach Zerlegung</td>
-                    <td><code>(Kisten × Kg/Kiste × EK/Kg + Kisten × Zer.Kosten/Kiste) / Kg</code></td>
-                    <td className="text-muted">(30 × 10 × 1,94 + 30 × 1,50) / 208 = <strong>2,82 €/Kg</strong></td>
-                  </tr>
-                  <tr>
-                    <td className="fw-medium">Verlust-%</td>
-                    <td><code>SOLL-% − %-IST</code></td>
-                    <td className="text-muted">68,5% − 69,3% = <strong>−0,8%</strong> (Gewinn)</td>
-                  </tr>
-                  <tr>
-                    <td className="fw-medium">Verlust Kg</td>
-                    <td><code>(Kisten × Kg/Kiste × SOLL-%) − Kg</code></td>
-                    <td className="text-muted">(30 × 10 × 0,685) − 208 = <strong>−2,5 kg</strong> (Gewinn)</td>
-                  </tr>
-                  <tr>
-                    <td className="fw-medium">Verlust €</td>
-                    <td><code>Verlust Kg × VK-Durchschnitt</code></td>
-                    <td className="text-muted">−2,5 × 3,30 = <strong>−8,25 €</strong> (Gewinn)</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div className="mt-4">
-              <h6 className="fw-semibold mb-2">Legende</h6>
-              <ul className="list-unstyled mb-0" style={{ fontSize: "0.85rem" }}>
-                <li className="mb-1"><span className="text-success fw-bold">Grün</span> = %-IST ≥ SOLL-% (Ziel erreicht / Gewinn)</li>
-                <li className="mb-1"><span className="text-danger fw-bold">Rot</span> = %-IST &lt; SOLL-% (Ziel nicht erreicht / Verlust)</li>
-                <li className="mb-1"><strong>EK/Kg</strong> = Einkaufspreis pro Kilogramm (vom Lieferanten)</li>
-                <li className="mb-1"><strong>Zer.Kosten/Kiste</strong> = Zerlegungskosten pro Kiste (Arbeitskosten)</li>
-                <li className="mb-1"><strong>VK-Durchschnitt</strong> = Durchschnittlicher Verkaufspreis pro Kg (editierbar, Standard: 3,30 €)</li>
-                <li><strong>Kg pro Kiste</strong> = Gewicht einer vollen Kiste (Standard: 10 kg)</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      ) : (
-      <>
       {/* Datum Navigation */}
       <div className="d-flex align-items-center gap-2 mb-3">
         <button className="btn btn-outline-secondary btn-sm rounded-3" onClick={() => changeDate(-1)}>
@@ -971,10 +880,7 @@ export default function GefluegelUebersicht() {
               </div>
             </div>
           </div>
-
         </>
-      )}
-      </>
       )}
 
       {/* Toast */}

@@ -128,7 +128,7 @@ const NavBar: React.FC<NavBarProps> = ({
                   </NavLink>
                 </li>
               )}
-              {isGefluegel && (
+              {isGefluegel && !isAdminOderVerkauf && (
                 <li className="nav-item dropdown">
                   <a
                     href="#"
@@ -146,7 +146,7 @@ const NavBar: React.FC<NavBarProps> = ({
                     Geflügel
                   </a>
                   <ul className="dropdown-menu">
-                    <li><NavLink className="dropdown-item" to="/gefluegel">Tagesübersicht</NavLink></li>
+                    <li><NavLink className="dropdown-item" to="/gefluegel">Zerlegung</NavLink></li>
                     <li><NavLink className="dropdown-item" to="/gefluegel/lieferanten">Lieferanten</NavLink></li>
                     <li><NavLink className="dropdown-item" to="/gefluegel/zerleger">Zerleger</NavLink></li>
                     <li><NavLink className="dropdown-item" to="/gefluegel/packing-list">Packing List</NavLink></li>
@@ -205,6 +205,38 @@ const NavBar: React.FC<NavBarProps> = ({
                       {/* <li><NavLink className="dropdown-item" to="/inventory">Bestand</NavLink></li> */}
                       <li><NavLink className="dropdown-item" to="/stats">Statistiken</NavLink></li>
                       <li><NavLink className="dropdown-item" to="/email-log">E-Mail-Protokoll</NavLink></li>
+                    </ul>
+                  </li>
+
+                  <li className="nav-item dropdown">
+                    <a
+                      href="#"
+                      className="nav-link dropdown-toggle"
+                      role="button"
+                      data-bs-toggle="dropdown"
+                      data-bs-reference="parent"
+                      aria-expanded="false"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        const inst = Dropdown.getOrCreateInstance(e.currentTarget);
+                        inst.toggle();
+                      }}
+                    >
+                      Buchhaltung
+                    </a>
+                    <ul className="dropdown-menu">
+                      <li><NavLink className="dropdown-item" to="/buchhaltung/offene-posten">Offene Posten</NavLink></li>
+                      <li><NavLink className="dropdown-item" to="/buchhaltung/leergut">Leergut</NavLink></li>
+                      {isGefluegel && (
+                        <>
+                          <li><hr className="dropdown-divider" /></li>
+                          <li className="dropdown-header">Geflügel</li>
+                          <li><NavLink className="dropdown-item" to="/gefluegel">Zerlegung</NavLink></li>
+                          <li><NavLink className="dropdown-item" to="/gefluegel/lieferanten">Lieferanten</NavLink></li>
+                          <li><NavLink className="dropdown-item" to="/gefluegel/zerleger">Zerleger</NavLink></li>
+                          <li><NavLink className="dropdown-item" to="/gefluegel/packing-list">Packing List</NavLink></li>
+                        </>
+                      )}
                     </ul>
                   </li>
                 </>
