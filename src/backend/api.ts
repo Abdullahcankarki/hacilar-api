@@ -2143,6 +2143,23 @@ export async function deleteLeergutImport(importId: string): Promise<{ message: 
   });
 }
 
+export async function sendLeergutEmail(data: {
+  kundenEmail: string;
+  kundenName: string;
+  pdfBase64: string;
+}): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>("/api/leergut/send-email", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteLeergutKunde(kundennr: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(`/api/leergut/kunde/${encodeURIComponent(kundennr)}`, {
+    method: "DELETE",
+  });
+}
+
 /* Exportiere ein Objekt, das alle Funktionen zusammenfasst */
 export const api = {
   apiFetch,

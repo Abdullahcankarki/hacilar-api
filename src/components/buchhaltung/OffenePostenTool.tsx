@@ -72,27 +72,40 @@ function cleanKundeName(name: string): string {
 /*  Parsing                                                            */
 /* ------------------------------------------------------------------ */
 
-const RE_TRANS = /^\s*(\d+)\s+(\d{2}\.\d{2}\.\d{4})\s+(\d+)(\s+\/\d+)?(?:\s+\d{3,5})?\s+([-\d.]+,\d+)(?:\s+(\d{2}\.\d{2}\.\d{4}))?(?:\s+(\d+))?\s*$/;
-const RE_RESTBETRAG = /^\s*(\d+)\s+Restbetrag\s+([\d.]+,\d+)\s*$/;
+// Transaktion: BuchNr Datum ReNr [/n] [nnnn] Betrag [Mahndatum] [Stufe]
+// Betrag kann negativ sein (mit -)
+const RE_TRANS = /^\s*(\d+)\s+(\d{2}\.\d{2}\.\d{4})\s+(\d+)(\s*\/\d+)?(?:\s+\d{3,5})?\s+([-\d.]+,\d+)\s*(?:(\d{2}\.\d{2}\.\d{4})\s+)?(\d+)?\s*$/;
+// Restbetrag-Zeile
+const RE_RESTBETRAG = /^\s*(\d+)\s+Restbetrag\s+([-\d.]+,\d+)\s*$/;
+// Kunden-Header: 5-stellige Kontonr + Name (auch über Seitenumbrüche wiederholt)
 const RE_KUNDE = /^\s*(\d{5})\s+(.+)$/;
+// "Offene Posten" Summenzeile pro Kunde
+const RE_OP_SUMME = /^\s*Offene Posten\s+([-\d.]+,\d+)/;
 
 const SKIP_PATTERNS = [
   /^Offene Posten$/,
   /^Hacilar GmbH/,
-  /^Mandant HACI/,
-  /^Jahr \d{4} Datum/,
+  /^Mandant\s+HACI/,
+  /^Jahr\s+\d{4}/,
   /^WinLine Edition/,
   /^Buch\.Nr\./,
   /^FW\s+FW-Skonto/,
   /^Offene Fakturen/,
-  /^- Teilzahlung/,
-  /^- Skontosumme/,
-  /^- FW-Differenzen/,
-  /^Offene Posten\s+[\d\-,.]+/,
-  /^G\. Faktura/,
-  /^FIBU-Umsaetze/,
+  /^-\s+Teilzahlung/,
+  /^-\s+Skontosumme/,
+  /^-\s+FW-Differenzen/,
+  /^G\.\s+Faktura/,
+  /^G\.\s+Zahlungen/,
+  /^G\.\s+Skontobetr/,
+  /^G\.\s+FW-Diff/,
+  /^FIBU-Ums/,
   /^durchschn\./,
-  /^Saldo EUR/,
+  /^Saldo\s+EUR/,
+  /^Seite\s+\d/,
+  /^Datum\s+\d{2}\.\d{2}\.\d{4}/,
+  /^Haben\s/,
+  /^Soll\s/,
+  /^-\s+Haben/,
 ];
 
 function shouldSkip(line: string): boolean {
@@ -103,7 +116,7 @@ function shouldSkip(line: string): boolean {
 
 function parseDate(s: string): Date | null {
   if (!s) return null;
-  const m = s.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  const m = s.match(/(\d{2})\.(\d{2})\.(\d{4})/);
   if (!m) return null;
   return new Date(parseInt(m[3]), parseInt(m[2]) - 1, parseInt(m[1]));
 }
@@ -112,15 +125,13 @@ function parsePdf(lines: string[]): {
   reportDate: Date;
   posten: ParsedPosten[];
 } {
+  // Berichtsdatum ermitteln
   let reportDate: Date | null = null;
   for (const line of lines) {
     const m = line.match(/Datum\s+(\d{2}\.\d{2}\.\d{4})/);
     if (m) { reportDate = parseDate(m[1]); break; }
   }
   if (!reportDate) reportDate = new Date();
-
-  const cutoffDate = new Date(reportDate);
-  cutoffDate.setDate(cutoffDate.getDate() - 14);
 
   interface Booking {
     kontonr: string;
@@ -136,6 +147,8 @@ function parsePdf(lines: string[]): {
 
   const bookings: Booking[] = [];
   const restbetraege = new Map<string, number>();
+  // Offene-Posten-Summe pro Kontonr (vom PDF selbst berechnet)
+  const opSummen = new Map<string, number>();
   let currentKontonr = "";
   let currentKunde = "";
 
@@ -143,9 +156,18 @@ function parsePdf(lines: string[]): {
     const s = line.trim();
     if (shouldSkip(s)) continue;
 
+    // Restbetrag
     let m = RE_RESTBETRAG.exec(s);
     if (m) { restbetraege.set(m[1], parseGermanFloat(m[2])); continue; }
 
+    // Offene Posten Summe (Validierung)
+    m = RE_OP_SUMME.exec(s);
+    if (m && currentKontonr) {
+      opSummen.set(currentKontonr, parseGermanFloat(m[1]));
+      continue;
+    }
+
+    // Transaktion
     m = RE_TRANS.exec(s);
     if (m) {
       bookings.push({
@@ -154,7 +176,7 @@ function parsePdf(lines: string[]): {
         buchNr: m[1],
         datum: parseDate(m[2]),
         reNr: m[3],
-        teilzahlung: !!m[4],
+        teilzahlung: !!m[4]?.trim(),
         betrag: parseGermanFloat(m[5]),
         mahndatum: m[6] ? parseDate(m[6]) : null,
         stufe: m[7] || "0",
@@ -162,21 +184,33 @@ function parsePdf(lines: string[]): {
       continue;
     }
 
+    // Kunden-Header (verschiedene Formate)
     m = RE_KUNDE.exec(s);
     if (m) {
-      currentKontonr = m[1];
-      currentKunde = cleanKundeName(m[2]);
+      // Prüfe dass es kein Transaktions-Zeilen-Fragment ist
+      // Kunden-Header hat typischerweise Firmenname nach der Kontonr
+      const rest = m[2].trim();
+      if (rest && !/^\d{2}\.\d{2}\.\d{4}/.test(rest) && !/^Restbetrag/.test(rest)) {
+        currentKontonr = m[1];
+        currentKunde = cleanKundeName(rest);
+      }
     }
   }
 
+  // Restbeträge anwenden: ersetze Betrag der Hauptbuchung
   for (const b of bookings) {
-    if (restbetraege.has(b.reNr)) b.betrag = restbetraege.get(b.reNr)!;
+    if (restbetraege.has(b.reNr)) {
+      b.betrag = restbetraege.get(b.reNr)!;
+    }
   }
 
+  // Alle Nicht-Teilzahlungen behalten (auch negative = Gutschriften)
+  // Teilzahlungen (/1, /2 etc.) wurden schon durch Restbetrag berücksichtigt
   const filtered = bookings.filter(
-    (b) => b.datum !== null && b.datum.getFullYear() === 2026 && b.datum <= cutoffDate && b.betrag > 0 && !b.teilzahlung
+    (b) => b.datum !== null && !b.teilzahlung
   );
 
+  // Sortieren
   filtered.sort((a, b) => {
     if (a.kontonr !== b.kontonr) return a.kontonr.localeCompare(b.kontonr);
     return (a.datum?.getTime() || 0) - (b.datum?.getTime() || 0);
@@ -195,6 +229,18 @@ function parsePdf(lines: string[]): {
       : undefined,
     stufe: b.stufe,
   }));
+
+  // Debug: Log Validierung gegen PDF-Summen
+  const kundenSummen = new Map<string, number>();
+  for (const p of posten) {
+    kundenSummen.set(p.kontonr, (kundenSummen.get(p.kontonr) || 0) + p.betrag);
+  }
+  for (const [konto, expected] of Array.from(opSummen.entries())) {
+    const actual = kundenSummen.get(konto) ?? 0;
+    if (Math.abs(actual - expected) > 1) {
+      console.warn(`OP Parser: ${konto} Abweichung: PDF=${expected.toFixed(2)} Parser=${actual.toFixed(2)} Diff=${(actual - expected).toFixed(2)}`);
+    }
+  }
 
   return { reportDate, posten };
 }
@@ -266,10 +312,23 @@ export default function OffenePostenTool() {
   const [parsedPosten, setParsedPosten] = useState<ParsedPosten[]>([]);
   const [parsedBerichtsDatum, setParsedBerichtsDatum] = useState<Date | null>(null);
 
-  // Search & Sort
+  // Search & Sort & Filters
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("tageOffen");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Filter states
+  const [filterHideGutschriften, setFilterHideGutschriften] = useState(false);
+  const [filterOnlyGutschriften, setFilterOnlyGutschriften] = useState(false);
+  const [filterMinBetrag, setFilterMinBetrag] = useState("");
+  const [filterMaxBetrag, setFilterMaxBetrag] = useState("");
+  const [filterMinTage, setFilterMinTage] = useState("");
+  const [filterMaxTage, setFilterMaxTage] = useState("");
+  const [filterDatumVon, setFilterDatumVon] = useState("");
+  const [filterDatumBis, setFilterDatumBis] = useState("");
+  const [filterKunde, setFilterKunde] = useState("");
+  const [filterKontonr, setFilterKontonr] = useState("");
 
   // Expanded customers
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -316,18 +375,112 @@ export default function OffenePostenTool() {
     return parseInt(parts[2]) * 10000 + parseInt(parts[1]) * 100 + parseInt(parts[0]);
   }, []);
 
+  // Helper: parse DD.MM.YYYY to Date
+  const parseDatumStr = useCallback((d: string): Date | null => {
+    const parts = d.split(".");
+    if (parts.length !== 3) return null;
+    return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+  }, []);
+
+  // Active filter count
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filterHideGutschriften) count++;
+    if (filterOnlyGutschriften) count++;
+    if (filterMinBetrag) count++;
+    if (filterMaxBetrag) count++;
+    if (filterMinTage) count++;
+    if (filterMaxTage) count++;
+    if (filterDatumVon) count++;
+    if (filterDatumBis) count++;
+    if (filterKunde) count++;
+    if (filterKontonr) count++;
+    return count;
+  }, [filterHideGutschriften, filterOnlyGutschriften, filterMinBetrag, filterMaxBetrag, filterMinTage, filterMaxTage, filterDatumVon, filterDatumBis, filterKunde, filterKontonr]);
+
+  const resetFilters = useCallback(() => {
+    setFilterHideGutschriften(false);
+    setFilterOnlyGutschriften(false);
+    setFilterMinBetrag("");
+    setFilterMaxBetrag("");
+    setFilterMinTage("");
+    setFilterMaxTage("");
+    setFilterDatumVon("");
+    setFilterDatumBis("");
+    setFilterKunde("");
+    setFilterKontonr("");
+    setSearch("");
+  }, []);
+
   // Filtered + sorted
   const displayPosten = useMemo(() => {
     const source = showUpload && parsedPosten.length > 0 ? parsedPosten : posten;
     let filtered = source;
+
+    // Text search
     if (search.trim()) {
       const q = search.toLowerCase();
-      filtered = source.filter(
+      filtered = filtered.filter(
         (p) =>
           p.kunde.toLowerCase().includes(q) ||
           p.kontonr.includes(q) ||
           p.reNr.includes(q)
       );
+    }
+
+    // Gutschriften filter
+    if (filterHideGutschriften) {
+      filtered = filtered.filter((p) => p.betrag >= 0);
+    }
+    if (filterOnlyGutschriften) {
+      filtered = filtered.filter((p) => p.betrag < 0);
+    }
+
+    // Betrag range
+    if (filterMinBetrag) {
+      const min = parseFloat(filterMinBetrag.replace(",", "."));
+      if (!isNaN(min)) filtered = filtered.filter((p) => p.betrag >= min);
+    }
+    if (filterMaxBetrag) {
+      const max = parseFloat(filterMaxBetrag.replace(",", "."));
+      if (!isNaN(max)) filtered = filtered.filter((p) => p.betrag <= max);
+    }
+
+    // Tage offen range
+    if (filterMinTage) {
+      const min = parseInt(filterMinTage);
+      if (!isNaN(min)) filtered = filtered.filter((p) => p.tageOffen >= min);
+    }
+    if (filterMaxTage) {
+      const max = parseInt(filterMaxTage);
+      if (!isNaN(max)) filtered = filtered.filter((p) => p.tageOffen <= max);
+    }
+
+    // Datum range
+    if (filterDatumVon) {
+      const von = new Date(filterDatumVon + "T00:00:00");
+      filtered = filtered.filter((p) => {
+        const d = parseDatumStr(p.datum);
+        return d && d >= von;
+      });
+    }
+    if (filterDatumBis) {
+      const bis = new Date(filterDatumBis + "T23:59:59");
+      filtered = filtered.filter((p) => {
+        const d = parseDatumStr(p.datum);
+        return d && d <= bis;
+      });
+    }
+
+    // Kunde filter (separate from search - exact dropdown style)
+    if (filterKunde) {
+      const q = filterKunde.toLowerCase();
+      filtered = filtered.filter((p) => p.kunde.toLowerCase().includes(q));
+    }
+
+    // Kontonr filter
+    if (filterKontonr) {
+      filtered = filtered.filter((p) => p.kontonr.includes(filterKontonr));
     }
 
     return [...filtered].sort((a, b) => {
@@ -342,7 +495,7 @@ export default function OffenePostenTool() {
       }
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [posten, parsedPosten, showUpload, search, sortKey, sortDir, dateSortValue]);
+  }, [posten, parsedPosten, showUpload, search, sortKey, sortDir, dateSortValue, parseDatumStr, filterHideGutschriften, filterOnlyGutschriften, filterMinBetrag, filterMaxBetrag, filterMinTage, filterMaxTage, filterDatumVon, filterDatumBis, filterKunde, filterKontonr]);
 
   const handleSort = useCallback((key: SortKey) => {
     setSortKey((prev) => {
@@ -602,28 +755,195 @@ export default function OffenePostenTool() {
         </div>
       )}
 
-      {/* Search */}
+      {/* Search + Filter Bar */}
       {(posten.length > 0 || parsedPosten.length > 0) && (
         <div className="mb-3">
-          <div className="input-group" style={{ maxWidth: 400 }}>
-            <span className="input-group-text"><i className="bi bi-search" /></span>
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Kunde, Kontonr. oder Re.-Nr. suchen..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            {search && (
-              <button className="btn btn-outline-secondary" onClick={() => setSearch("")}>
-                <i className="bi bi-x-lg" />
+          <div className="d-flex gap-2 align-items-center flex-wrap">
+            {/* Schnellsuche */}
+            <div className="input-group" style={{ maxWidth: 350 }}>
+              <span className="input-group-text"><i className="bi bi-search" /></span>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Suche..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {search && (
+                <button className="btn btn-outline-secondary" onClick={() => setSearch("")}>
+                  <i className="bi bi-x-lg" />
+                </button>
+              )}
+            </div>
+
+            {/* Filter Toggle */}
+            <button
+              className={`btn btn-sm ${showFilters ? "btn-dark" : "btn-outline-secondary"}`}
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              <i className="bi bi-funnel me-1" />
+              Filter
+              {activeFilterCount > 0 && (
+                <span className="badge bg-danger ms-1">{activeFilterCount}</span>
+              )}
+            </button>
+
+            {/* Quick-Filter Buttons */}
+            <button
+              className={`btn btn-sm ${filterHideGutschriften ? "btn-warning" : "btn-outline-secondary"}`}
+              onClick={() => { setFilterHideGutschriften(!filterHideGutschriften); setFilterOnlyGutschriften(false); }}
+              title="Gutschriften (negative Betraege) ausblenden"
+            >
+              Ohne Gutschriften
+            </button>
+            <button
+              className={`btn btn-sm ${filterMinTage === "30" && !filterMaxTage ? "btn-danger" : "btn-outline-secondary"}`}
+              onClick={() => {
+                if (filterMinTage === "30" && !filterMaxTage) { setFilterMinTage(""); }
+                else { setFilterMinTage("30"); setFilterMaxTage(""); }
+              }}
+              title="Nur Posten die 30+ Tage offen sind"
+            >
+              30+ Tage
+            </button>
+            <button
+              className={`btn btn-sm ${filterMinTage === "60" && !filterMaxTage ? "btn-danger" : "btn-outline-secondary"}`}
+              onClick={() => {
+                if (filterMinTage === "60" && !filterMaxTage) { setFilterMinTage(""); }
+                else { setFilterMinTage("60"); setFilterMaxTage(""); }
+              }}
+            >
+              60+ Tage
+            </button>
+            <button
+              className={`btn btn-sm ${filterMinTage === "90" && !filterMaxTage ? "btn-danger" : "btn-outline-secondary"}`}
+              onClick={() => {
+                if (filterMinTage === "90" && !filterMaxTage) { setFilterMinTage(""); }
+                else { setFilterMinTage("90"); setFilterMaxTage(""); }
+              }}
+            >
+              90+ Tage
+            </button>
+
+            {activeFilterCount > 0 && (
+              <button className="btn btn-sm btn-outline-danger" onClick={resetFilters}>
+                <i className="bi bi-x-circle me-1" />Alle Filter zurucksetzen
               </button>
             )}
+
+            {/* Result count */}
+            <span className="text-muted small ms-auto">
+              {displayPosten.length} Posten angezeigt
+            </span>
           </div>
-          {search && (
-            <small className="text-muted mt-1 d-block">
-              {displayPosten.length} Ergebnisse
-            </small>
+
+          {/* Erweiterte Filter (aufklappbar) */}
+          {showFilters && (
+            <div className="card mt-2 border-0 shadow-sm">
+              <div className="card-body py-3">
+                <div className="row g-3">
+                  {/* Kunde */}
+                  <div className="col-md-3">
+                    <label className="form-label small fw-semibold">Kunde</label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      placeholder="Kundenname..."
+                      value={filterKunde}
+                      onChange={(e) => setFilterKunde(e.target.value)}
+                    />
+                  </div>
+                  {/* Kontonr */}
+                  <div className="col-md-2">
+                    <label className="form-label small fw-semibold">Kontonr.</label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      placeholder="z.B. 15300"
+                      value={filterKontonr}
+                      onChange={(e) => setFilterKontonr(e.target.value)}
+                    />
+                  </div>
+                  {/* Betrag von-bis */}
+                  <div className="col-md-2">
+                    <label className="form-label small fw-semibold">Betrag von</label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      placeholder="Min EUR"
+                      value={filterMinBetrag}
+                      onChange={(e) => setFilterMinBetrag(e.target.value)}
+                    />
+                  </div>
+                  <div className="col-md-2">
+                    <label className="form-label small fw-semibold">Betrag bis</label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      placeholder="Max EUR"
+                      value={filterMaxBetrag}
+                      onChange={(e) => setFilterMaxBetrag(e.target.value)}
+                    />
+                  </div>
+                  {/* Typ */}
+                  <div className="col-md-3">
+                    <label className="form-label small fw-semibold">Typ</label>
+                    <div className="d-flex gap-2">
+                      <div className="form-check form-check-inline">
+                        <input className="form-check-input" type="checkbox" id="fHideGS" checked={filterHideGutschriften}
+                          onChange={(e) => { setFilterHideGutschriften(e.target.checked); if (e.target.checked) setFilterOnlyGutschriften(false); }} />
+                        <label className="form-check-label small" htmlFor="fHideGS">Ohne Gutschriften</label>
+                      </div>
+                      <div className="form-check form-check-inline">
+                        <input className="form-check-input" type="checkbox" id="fOnlyGS" checked={filterOnlyGutschriften}
+                          onChange={(e) => { setFilterOnlyGutschriften(e.target.checked); if (e.target.checked) setFilterHideGutschriften(false); }} />
+                        <label className="form-check-label small" htmlFor="fOnlyGS">Nur Gutschriften</label>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Tage offen von-bis */}
+                  <div className="col-md-2">
+                    <label className="form-label small fw-semibold">Tage offen von</label>
+                    <input
+                      type="number"
+                      className="form-control form-control-sm"
+                      placeholder="Min"
+                      value={filterMinTage}
+                      onChange={(e) => setFilterMinTage(e.target.value)}
+                    />
+                  </div>
+                  <div className="col-md-2">
+                    <label className="form-label small fw-semibold">Tage offen bis</label>
+                    <input
+                      type="number"
+                      className="form-control form-control-sm"
+                      placeholder="Max"
+                      value={filterMaxTage}
+                      onChange={(e) => setFilterMaxTage(e.target.value)}
+                    />
+                  </div>
+                  {/* Datum von-bis */}
+                  <div className="col-md-3">
+                    <label className="form-label small fw-semibold">Datum von</label>
+                    <input
+                      type="date"
+                      className="form-control form-control-sm"
+                      value={filterDatumVon}
+                      onChange={(e) => setFilterDatumVon(e.target.value)}
+                    />
+                  </div>
+                  <div className="col-md-3">
+                    <label className="form-label small fw-semibold">Datum bis</label>
+                    <input
+                      type="date"
+                      className="form-control form-control-sm"
+                      value={filterDatumBis}
+                      onChange={(e) => setFilterDatumBis(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       )}

@@ -7,9 +7,12 @@ import {
   getLeergutLatest,
   createLeergutImport,
   deleteLeergutImport,
+  deleteLeergutKunde,
+  sendLeergutEmail,
 } from "../../backend/api";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
+import jsPDF from "jspdf";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -192,10 +195,27 @@ export default function LeergutTool() {
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [saving, setSaving] = useState(false);
 
-  // Search & Sort
+  // Search & Sort & Filters
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("kundennr");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterKunde, setFilterKunde] = useState("");
+  const [filterKundennr, setFilterKundennr] = useState("");
+  const [filterArtikel, setFilterArtikel] = useState("");
+  const [filterHideZero, setFilterHideZero] = useState(false);
+  const [filterOnlyNegativ, setFilterOnlyNegativ] = useState(false);
+  const [filterMinBestand, setFilterMinBestand] = useState("");
+  const [filterMaxBestand, setFilterMaxBestand] = useState("");
+
+  // Delete
+  const [deleteTarget, setDeleteTarget] = useState<LeergutRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // Email Modal
+  const [emailTarget, setEmailTarget] = useState<LeergutRow | null>(null);
+  const [emailAddr, setEmailAddr] = useState("");
+  const [emailSending, setEmailSending] = useState(false);
 
   // Toast
   useEffect(() => {
@@ -219,14 +239,236 @@ export default function LeergutTool() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // Filter helpers
+  const activeFilterCount = useMemo(() => {
+    let c = 0;
+    if (filterKunde) c++;
+    if (filterKundennr) c++;
+    if (filterArtikel) c++;
+    if (filterHideZero) c++;
+    if (filterOnlyNegativ) c++;
+    if (filterMinBestand) c++;
+    if (filterMaxBestand) c++;
+    return c;
+  }, [filterKunde, filterKundennr, filterArtikel, filterHideZero, filterOnlyNegativ, filterMinBestand, filterMaxBestand]);
+
+  const resetFilters = useCallback(() => {
+    setFilterKunde("");
+    setFilterKundennr("");
+    setFilterArtikel("");
+    setFilterHideZero(false);
+    setFilterOnlyNegativ(false);
+    setFilterMinBestand("");
+    setFilterMaxBestand("");
+    setSearch("");
+  }, []);
+
+  // Delete handler
+  const handleDeleteKunde = useCallback(async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await deleteLeergutKunde(deleteTarget.kundennr);
+      setRows((prev) => prev.filter((r) => r.kundennr !== deleteTarget.kundennr));
+      setToast({ type: "success", msg: `${deleteTarget.kunde} gelöscht.` });
+      setDeleteTarget(null);
+    } catch (err: any) {
+      setToast({ type: "error", msg: "Löschen fehlgeschlagen: " + (err?.message || "") });
+    } finally { setDeleting(false); }
+  }, [deleteTarget]);
+
+  // PDF generieren
+  const generateLeergutPdf = useCallback(async (row: LeergutRow): Promise<string> => {
+    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+    // Briefkopf laden
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = reject;
+      i.src = `${process.env.PUBLIC_URL}/briefkopf.jpg`;
+    });
+    pdf.addImage(img, "JPEG", 0, 0, 210, 297);
+
+    // Empfänger
+    let y = 58;
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(11);
+    pdf.text(`An: ${row.kunde}`, 20, y);
+
+    // Datum
+    y += 12;
+    const now = new Date();
+    const datumStr = now.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+    pdf.text(`Datum: ${datumStr}`, 20, y);
+
+    // Anschreiben
+    y += 14;
+    pdf.setFontSize(10);
+    const lines = [
+      "Sehr geehrte Damen und Herren,",
+      "",
+      "anbei erhalten Sie die Leergutaufstellung für den Zeitraum, in dem",
+      "wir Sie beliefert haben. Wir bitten Sie, diese sorgfältig zu prüfen.",
+      "",
+      "Sollten Abweichungen oder Unstimmigkeiten zu unserer Aufstellung",
+      "bestehen, informieren Sie uns bitte umgehend. Falls Ihr Leergutsaldo",
+      "mit unserem Saldo übereinstimmt, auch im Falle eines Nullsaldos,",
+      "bitten wir Sie, die Aufstellung mit Stempel und Unterschrift versehen",
+    ];
+    // Frist: 3 Werktage berechnen
+    const frist = new Date(now);
+    let added = 0;
+    while (added < 3) {
+      frist.setDate(frist.getDate() + 1);
+      const dow = frist.getDay();
+      if (dow !== 0 && dow !== 6) added++;
+    }
+    const fristStr = frist.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+    lines.push(`und bis spätestens ${fristStr} an uns zurückzusenden.`);
+    lines.push("");
+    lines.push("Für Ihre Unterstützung danken wir Ihnen im Voraus und stehen bei");
+    lines.push("Rückfragen gerne zur Verfügung.");
+    lines.push("");
+    lines.push("Mit freundlichen Grüßen");
+    lines.push("Geschäftsleitung");
+    lines.push("Hacilar Helal Et Kombinasi");
+
+    for (const line of lines) {
+      pdf.text(line, 20, y);
+      y += 5;
+    }
+
+    // Bestätigungsbox rechts
+    pdf.setDrawColor(150);
+    pdf.rect(115, 120, 75, 40);
+    pdf.setFontSize(8);
+    pdf.text("Zur Bestätigung:", 118, 126);
+    pdf.text("Firmenstempel, Name und Unterschrift:", 118, 131);
+
+    // Leergut-Tabelle
+    y += 8;
+    pdf.setFont("helvetica", "bolditalic");
+    pdf.setFontSize(11);
+    pdf.text("Aktueller Leergut Bestand", 20, y);
+    y += 7;
+
+    // Tabellenkopf
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(9);
+    pdf.setDrawColor(0);
+    pdf.setLineWidth(0.3);
+    pdf.rect(20, y - 4, 80, 7);
+    pdf.text("Bezeichnung", 22, y);
+    pdf.text("Alter Bestand", 68, y);
+    y += 7;
+
+    // Tabellenzeilen
+    pdf.setFont("helvetica", "normal");
+    const entries = Object.entries(row.bestaende).filter(([, v]) => v !== undefined);
+    for (const [artikel, bestand] of entries) {
+      pdf.rect(20, y - 4, 80, 6);
+      pdf.text(artikel, 22, y);
+      pdf.text(String(bestand).replace(/\B(?=(\d{3})+(?!\d))/g, "."), 68, y, { align: "left" });
+      y += 6;
+    }
+
+    return pdf.output("datauristring").split(",")[1]; // base64
+  }, []);
+
+  // Email senden
+  const handleSendEmail = useCallback(async () => {
+    if (!emailTarget || !emailAddr) return;
+    setEmailSending(true);
+    try {
+      const pdfBase64 = await generateLeergutPdf(emailTarget);
+      await sendLeergutEmail({
+        kundenEmail: emailAddr,
+        kundenName: emailTarget.kunde,
+        pdfBase64,
+      });
+      setToast({ type: "success", msg: `E-Mail an ${emailAddr} gesendet.` });
+      setEmailTarget(null);
+      setEmailAddr("");
+    } catch (err: any) {
+      setToast({ type: "error", msg: "E-Mail fehlgeschlagen: " + (err?.message || "") });
+    } finally { setEmailSending(false); }
+  }, [emailTarget, emailAddr, generateLeergutPdf]);
+
+  // PDF herunterladen (ohne E-Mail)
+  const handleDownloadPdf = useCallback(async (row: LeergutRow) => {
+    try {
+      const pdfBase64 = await generateLeergutPdf(row);
+      const blob = new Blob([Uint8Array.from(atob(pdfBase64), (c) => c.charCodeAt(0))], { type: "application/pdf" });
+      saveAs(blob, `Leergut_${row.kunde.replace(/[^a-zA-Z0-9äöüÄÖÜß]/g, "_")}.pdf`);
+    } catch (err: any) {
+      setToast({ type: "error", msg: "PDF-Fehler: " + (err?.message || "") });
+    }
+  }, [generateLeergutPdf]);
+
   // Filtered + sorted rows
   const displayRows = useMemo(() => {
     let filtered = rows;
+
+    // Text search
     if (search.trim()) {
       const q = search.toLowerCase();
-      filtered = rows.filter(
+      filtered = filtered.filter(
         (r) => r.kunde.toLowerCase().includes(q) || r.kundennr.includes(q)
       );
+    }
+
+    // Kunde filter
+    if (filterKunde) {
+      const q = filterKunde.toLowerCase();
+      filtered = filtered.filter((r) => r.kunde.toLowerCase().includes(q));
+    }
+
+    // Kundennr filter
+    if (filterKundennr) {
+      filtered = filtered.filter((r) => r.kundennr.includes(filterKundennr));
+    }
+
+    // Artikel filter: nur Kunden zeigen die diesen Artikel haben
+    if (filterArtikel) {
+      const q = filterArtikel.toLowerCase();
+      filtered = filtered.filter((r) =>
+        Object.keys(r.bestaende).some((a) => a.toLowerCase().includes(q) && r.bestaende[a] !== 0)
+      );
+    }
+
+    // Hide zero: Kunden ohne nennenswerte Bestände ausblenden
+    if (filterHideZero) {
+      filtered = filtered.filter((r) =>
+        Object.values(r.bestaende).some((v) => v !== 0)
+      );
+    }
+
+    // Only negativ: nur Kunden mit mindestens einem negativen Bestand
+    if (filterOnlyNegativ) {
+      filtered = filtered.filter((r) =>
+        Object.values(r.bestaende).some((v) => v < 0)
+      );
+    }
+
+    // Min/Max Bestand: auf Gesamtbestand über alle Artikel
+    if (filterMinBestand) {
+      const min = parseInt(filterMinBestand);
+      if (!isNaN(min)) {
+        filtered = filtered.filter((r) => {
+          const total = Object.values(r.bestaende).reduce((s, v) => s + v, 0);
+          return total >= min;
+        });
+      }
+    }
+    if (filterMaxBestand) {
+      const max = parseInt(filterMaxBestand);
+      if (!isNaN(max)) {
+        filtered = filtered.filter((r) => {
+          const total = Object.values(r.bestaende).reduce((s, v) => s + v, 0);
+          return total <= max;
+        });
+      }
     }
 
     const sorted = [...filtered].sort((a, b) => {
@@ -236,14 +478,13 @@ export default function LeergutTool() {
       } else if (sortKey === "kunde") {
         cmp = a.kunde.localeCompare(b.kunde);
       } else {
-        // Artikel-Spalte
         cmp = (a.bestaende[sortKey] || 0) - (b.bestaende[sortKey] || 0);
       }
       return sortDir === "asc" ? cmp : -cmp;
     });
 
     return sorted;
-  }, [rows, search, sortKey, sortDir]);
+  }, [rows, search, sortKey, sortDir, filterKunde, filterKundennr, filterArtikel, filterHideZero, filterOnlyNegativ, filterMinBestand, filterMaxBestand]);
 
   const handleSort = useCallback((key: SortKey) => {
     setSortKey((prev) => {
@@ -440,28 +681,105 @@ export default function LeergutTool() {
         </div>
       )}
 
-      {/* Search */}
+      {/* Search + Filter Bar */}
       {rows.length > 0 && (
         <div className="mb-3">
-          <div className="input-group" style={{ maxWidth: 400 }}>
-            <span className="input-group-text"><i className="bi bi-search" /></span>
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Kunde oder Kundennr. suchen..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            {search && (
-              <button className="btn btn-outline-secondary" onClick={() => setSearch("")}>
-                <i className="bi bi-x-lg" />
+          <div className="d-flex gap-2 align-items-center flex-wrap">
+            <div className="input-group" style={{ maxWidth: 300 }}>
+              <span className="input-group-text"><i className="bi bi-search" /></span>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Suche..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {search && (
+                <button className="btn btn-outline-secondary" onClick={() => setSearch("")}>
+                  <i className="bi bi-x-lg" />
+                </button>
+              )}
+            </div>
+
+            <button
+              className={`btn btn-sm ${showFilters ? "btn-dark" : "btn-outline-secondary"}`}
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              <i className="bi bi-funnel me-1" />Filter
+              {activeFilterCount > 0 && <span className="badge bg-danger ms-1">{activeFilterCount}</span>}
+            </button>
+
+            <button
+              className={`btn btn-sm ${filterHideZero ? "btn-warning" : "btn-outline-secondary"}`}
+              onClick={() => setFilterHideZero(!filterHideZero)}
+            >
+              Ohne Nullen
+            </button>
+            <button
+              className={`btn btn-sm ${filterOnlyNegativ ? "btn-danger" : "btn-outline-secondary"}`}
+              onClick={() => setFilterOnlyNegativ(!filterOnlyNegativ)}
+            >
+              Nur Negativ
+            </button>
+
+            {activeFilterCount > 0 && (
+              <button className="btn btn-sm btn-outline-danger" onClick={resetFilters}>
+                <i className="bi bi-x-circle me-1" />Zurucksetzen
               </button>
             )}
+
+            <span className="text-muted small ms-auto">
+              {displayRows.length} / {rows.length} Kunden
+            </span>
           </div>
-          {search && (
-            <small className="text-muted mt-1 d-block">
-              {displayRows.length} von {rows.length} Kunden
-            </small>
+
+          {showFilters && (
+            <div className="card mt-2 border-0 shadow-sm">
+              <div className="card-body py-3">
+                <div className="row g-3">
+                  <div className="col-md-3">
+                    <label className="form-label small fw-semibold">Kunde</label>
+                    <input type="text" className="form-control form-control-sm" placeholder="Kundenname..."
+                      value={filterKunde} onChange={(e) => setFilterKunde(e.target.value)} />
+                  </div>
+                  <div className="col-md-2">
+                    <label className="form-label small fw-semibold">Kd.-Nr.</label>
+                    <input type="text" className="form-control form-control-sm" placeholder="z.B. 14900"
+                      value={filterKundennr} onChange={(e) => setFilterKundennr(e.target.value)} />
+                  </div>
+                  <div className="col-md-3">
+                    <label className="form-label small fw-semibold">Artikel</label>
+                    <input type="text" className="form-control form-control-sm" placeholder="z.B. E2 Kiste"
+                      value={filterArtikel} onChange={(e) => setFilterArtikel(e.target.value)} />
+                  </div>
+                  <div className="col-md-2">
+                    <label className="form-label small fw-semibold">Gesamt-Bestand min</label>
+                    <input type="number" className="form-control form-control-sm" placeholder="Min"
+                      value={filterMinBestand} onChange={(e) => setFilterMinBestand(e.target.value)} />
+                  </div>
+                  <div className="col-md-2">
+                    <label className="form-label small fw-semibold">Gesamt-Bestand max</label>
+                    <input type="number" className="form-control form-control-sm" placeholder="Max"
+                      value={filterMaxBestand} onChange={(e) => setFilterMaxBestand(e.target.value)} />
+                  </div>
+                  <div className="col-md-4">
+                    <label className="form-label small fw-semibold">Typ</label>
+                    <div className="d-flex gap-3">
+                      <div className="form-check">
+                        <input className="form-check-input" type="checkbox" id="lgHideZero" checked={filterHideZero}
+                          onChange={(e) => setFilterHideZero(e.target.checked)} />
+                        <label className="form-check-label small" htmlFor="lgHideZero">Ohne Null-Bestande</label>
+                      </div>
+                      <div className="form-check">
+                        <input className="form-check-input" type="checkbox" id="lgOnlyNeg" checked={filterOnlyNegativ}
+                          onChange={(e) => setFilterOnlyNegativ(e.target.checked)} />
+                        <label className="form-check-label small" htmlFor="lgOnlyNeg">Nur mit negativen Bestanden</label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       )}
@@ -476,14 +794,15 @@ export default function LeergutTool() {
           <table className="table table-hover table-sm table-bordered align-middle">
             <thead className="table-dark">
               <tr>
+                <th style={{ position: "sticky", left: 0, zIndex: 2, background: "#212529", width: 80 }}></th>
                 <th
-                  style={{ position: "sticky", left: 0, zIndex: 2, background: "#212529", cursor: "pointer" }}
+                  style={{ position: "sticky", left: 40, zIndex: 2, background: "#212529", cursor: "pointer" }}
                   onClick={() => handleSort("kundennr")}
                 >
                   Kd.-Nr. {sortIcon("kundennr")}
                 </th>
                 <th
-                  style={{ position: "sticky", left: 70, zIndex: 2, background: "#212529", minWidth: 200, cursor: "pointer" }}
+                  style={{ position: "sticky", left: 110, zIndex: 2, background: "#212529", minWidth: 200, cursor: "pointer" }}
                   onClick={() => handleSort("kunde")}
                 >
                   Kunde {sortIcon("kunde")}
@@ -503,10 +822,33 @@ export default function LeergutTool() {
             <tbody>
               {displayRows.map((row, i) => (
                 <tr key={i}>
-                  <td style={{ position: "sticky", left: 0, background: "#fff", zIndex: 1 }}>
+                  <td style={{ position: "sticky", left: 0, background: "#fff", zIndex: 1, whiteSpace: "nowrap" }}>
+                    <button
+                      className="btn btn-sm btn-outline-primary py-0 px-1 me-1"
+                      title="E-Mail senden"
+                      onClick={() => { setEmailTarget(row); setEmailAddr(""); }}
+                    >
+                      <i className="bi bi-envelope" style={{ fontSize: "0.75rem" }} />
+                    </button>
+                    <button
+                      className="btn btn-sm btn-outline-secondary py-0 px-1 me-1"
+                      title="PDF herunterladen"
+                      onClick={() => handleDownloadPdf(row)}
+                    >
+                      <i className="bi bi-file-earmark-pdf" style={{ fontSize: "0.75rem" }} />
+                    </button>
+                    <button
+                      className="btn btn-sm btn-outline-danger py-0 px-1"
+                      title="Löschen"
+                      onClick={() => setDeleteTarget(row)}
+                    >
+                      <i className="bi bi-trash" style={{ fontSize: "0.75rem" }} />
+                    </button>
+                  </td>
+                  <td style={{ position: "sticky", left: 40, background: "#fff", zIndex: 1 }}>
                     {row.kundennr}
                   </td>
-                  <td style={{ position: "sticky", left: 70, background: "#fff", zIndex: 1 }}>
+                  <td style={{ position: "sticky", left: 110, background: "#fff", zIndex: 1 }}>
                     {row.kunde}
                   </td>
                   {artikelColumns.map((col) => {
@@ -530,7 +872,8 @@ export default function LeergutTool() {
             <tfoot>
               <tr className="table-info fw-bold">
                 <td style={{ position: "sticky", left: 0, zIndex: 1 }}></td>
-                <td style={{ position: "sticky", left: 70, zIndex: 1 }}>Gesamt</td>
+                <td style={{ position: "sticky", left: 40, zIndex: 1 }}></td>
+                <td style={{ position: "sticky", left: 110, zIndex: 1 }}>Gesamt</td>
                 {artikelColumns.map((col) => {
                   const sum = displayRows.reduce((s, r) => s + (r.bestaende[col] || 0), 0);
                   return (
@@ -548,6 +891,117 @@ export default function LeergutTool() {
             <p className="mt-2">Noch keine Daten vorhanden. Laden Sie PDFs hoch.</p>
           </div>
         )
+      )}
+      {/* Email-Modal */}
+      {emailTarget && (
+        <div
+          className="modal fade show d-block"
+          tabIndex={-1}
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+          onClick={() => !emailSending && setEmailTarget(null)}
+        >
+          <div className="modal-dialog modal-dialog-centered" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-content border-0 rounded-4 shadow-lg">
+              <div className="modal-header border-0 bg-primary text-white rounded-top-4">
+                <h5 className="modal-title fw-semibold">
+                  <i className="bi bi-envelope me-2" />Leergut-Bestätigung senden
+                </h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setEmailTarget(null)} disabled={emailSending} />
+              </div>
+              <div className="modal-body">
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">Kunde</label>
+                  <div className="form-control-plaintext fw-bold">{emailTarget.kunde} (Kd.-Nr. {emailTarget.kundennr})</div>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">Bestände</label>
+                  <div className="small text-muted">
+                    {Object.entries(emailTarget.bestaende)
+                      .filter(([, v]) => v !== 0)
+                      .map(([k, v]) => (
+                        <span key={k} className={`me-3 ${v < 0 ? "text-danger fw-bold" : ""}`}>{k}: {v}</span>
+                      ))}
+                    {Object.values(emailTarget.bestaende).every((v) => v === 0) && <span>Alle Bestände = 0</span>}
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">E-Mail-Adresse *</label>
+                  <input
+                    type="email"
+                    className="form-control"
+                    placeholder="kunde@example.com"
+                    value={emailAddr}
+                    onChange={(e) => setEmailAddr(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+                <div className="small text-muted">
+                  <i className="bi bi-info-circle me-1" />
+                  Es wird eine PDF mit Briefkopf, Anschreiben und Leergut-Tabelle generiert und als Anhang gesendet.
+                  Rücksendefrist: 3 Werktage ab heute.
+                </div>
+              </div>
+              <div className="modal-footer border-0">
+                <button
+                  className="btn btn-outline-secondary rounded-3"
+                  onClick={() => { handleDownloadPdf(emailTarget); }}
+                  disabled={emailSending}
+                >
+                  <i className="bi bi-download me-1" />Nur PDF
+                </button>
+                <button
+                  className="btn btn-primary rounded-3"
+                  onClick={handleSendEmail}
+                  disabled={emailSending || !emailAddr || !emailAddr.includes("@")}
+                >
+                  {emailSending ? (
+                    <><span className="spinner-border spinner-border-sm me-1" />Sende...</>
+                  ) : (
+                    <><i className="bi bi-send me-1" />Senden</>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lösch-Bestätigung Modal */}
+      {deleteTarget && (
+        <div
+          className="modal fade show d-block"
+          tabIndex={-1}
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+          onClick={() => !deleting && setDeleteTarget(null)}
+        >
+          <div className="modal-dialog modal-dialog-centered" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-content border-0 rounded-4 shadow-lg">
+              <div className="modal-header border-0">
+                <h5 className="modal-title fw-semibold">Kunde löschen</h5>
+                <button type="button" className="btn-close" onClick={() => setDeleteTarget(null)} disabled={deleting} />
+              </div>
+              <div className="modal-body">
+                <p>
+                  Alle Leergut-Einträge von <strong>{deleteTarget.kunde}</strong> (Kd.-Nr. {deleteTarget.kundennr}) dauerhaft löschen?
+                </p>
+                <div className="text-muted small">
+                  Bestände: {Object.entries(deleteTarget.bestaende)
+                    .filter(([, v]) => v !== 0)
+                    .map(([k, v]) => `${k}: ${v}`)
+                    .join(", ") || "keine"}
+                </div>
+              </div>
+              <div className="modal-footer border-0">
+                <button className="btn btn-outline-secondary rounded-3" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+                  Abbrechen
+                </button>
+                <button className="btn btn-danger rounded-3" onClick={handleDeleteKunde} disabled={deleting}>
+                  {deleting ? <><span className="spinner-border spinner-border-sm me-1" />Lösche...</> : "Ja, löschen"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

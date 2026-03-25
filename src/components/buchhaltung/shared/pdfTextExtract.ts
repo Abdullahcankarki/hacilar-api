@@ -17,7 +17,7 @@ function reconstructLines(items: TextItem[]): string[] {
 
   // Gruppiere nach Y-Koordinate
   const yGroups = new Map<number, TextItem[]>();
-  const Y_TOLERANCE = 2;
+  const Y_TOLERANCE = 3;
 
   for (const item of items) {
     const y = Math.round(item.transform[5]); // translateY
