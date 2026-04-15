@@ -1,4 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import DatePicker, { registerLocale } from "react-datepicker";
+import { de } from "date-fns/locale";
+import "react-datepicker/dist/react-datepicker.css";
 import {
   getAllGefluegelLieferanten,
   getAllGefluegelZerleger,
@@ -13,6 +16,8 @@ import {
   GefluegelZerlegerResource,
   GefluegelEintragResource,
 } from "../../Resources";
+
+registerLocale("de", de);
 // GefluegelStatistik is now rendered by GefluegelPage
 
 type Toast = { type: "success" | "error"; msg: string } | null;
@@ -27,15 +32,6 @@ function formatDate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-function displayDate(iso: string): string {
-  const d = new Date(iso + "T00:00:00");
-  return d.toLocaleDateString("de-DE", {
-    weekday: "short",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
 
 export default function GefluegelUebersicht() {
   const [datum, setDatum] = useState(formatDate(new Date()));
@@ -377,17 +373,21 @@ export default function GefluegelUebersicht() {
         <button className="btn btn-outline-secondary btn-sm rounded-3" onClick={() => changeDate(-1)}>
           <i className="bi bi-chevron-left" />
         </button>
-        <input
-          type="date"
+        <DatePicker
+          selected={datum ? new Date(datum + "T00:00:00") : null}
+          onChange={(d: Date | null) => { if (d) setDatum(formatDate(d)); }}
+          dateFormat="dd.MM.yyyy"
+          locale="de"
           className="form-control form-control-sm"
-          style={{ maxWidth: 180 }}
-          value={datum}
-          onChange={(e) => setDatum(e.target.value)}
+          calendarStartDay={1}
+          showWeekNumbers
+          popperPlacement="bottom-start"
+          popperClassName="gefluegel-datepicker-popper"
+          portalId="datepicker-portal"
         />
         <button className="btn btn-outline-secondary btn-sm rounded-3" onClick={() => changeDate(1)}>
           <i className="bi bi-chevron-right" />
         </button>
-        <span className="text-muted small ms-2">{displayDate(datum)}</span>
         <button
           className="btn btn-outline-dark btn-sm rounded-3 ms-2"
           onClick={() => setDatum(formatDate(new Date()))}

@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
 import * as api from '@/backend/api';
 
 interface KundeResource {
@@ -17,50 +16,44 @@ interface ArtikelResource {
     erfassungsModus?: "GEWICHT" | "KARTON" | "STÜCK";
 }
 
-interface ArtikelPositionDraft {
+interface PositionDraft {
     tempId: string;
+    leerzeile: boolean;
     artikel?: string;
     artikelName?: string;
     artikelNummer?: string;
-    menge?: number;
-    einheit?: "kg" | "stück" | "kiste" | "karton";
-    zerlegung?: boolean;
-    vakuum?: boolean;
-    bemerkung?: string;
+    menge: number;
+    einheit: "kg" | "stück" | "kiste" | "karton";
+    einzelpreis: number;
+    zerlegung: boolean;
+    vakuum: boolean;
+    bemerkung: string;
 }
 
-const normalizeText = (text: string): string => {
-    return text.toLowerCase().trim();
-};
+const normalizeText = (text: string): string => text.toLowerCase().trim();
 
 const formatDateGerman = (isoDate: string): string => {
     const d = new Date(isoDate);
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = d.getFullYear();
-    return `${day}.${month}.${year}`;
+    return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
 };
 
 const parseGermanDate = (german: string): string | null => {
     const match = german.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
     if (!match) return null;
-    const day = match[1].padStart(2, '0');
-    const month = match[2].padStart(2, '0');
-    const year = match[3];
-    return `${year}-${month}-${day}`;
+    return `${match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}`;
 };
 
-const nextBusinessDay = (from: Date = new Date()): string => {
-    const d = new Date(from);
+const nextBusinessDay = (): string => {
+    const d = new Date();
     d.setDate(d.getDate() + 1);
-    while (d.getDay() === 0 || d.getDay() === 6) {
-        d.setDate(d.getDate() + 1);
-    }
+    while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
     return d.toISOString().split('T')[0];
 };
 
+let _tempIdCounter = 0;
+const newTempId = () => `t${Date.now()}-${++_tempIdCounter}`;
+
 const SchnellAuftragWriter: React.FC = () => {
-    const navigate = useNavigate();
 
     const [kunden, setKunden] = useState<KundeResource[]>([]);
     const [artikel, setArtikel] = useState<ArtikelResource[]>([]);
@@ -68,317 +61,199 @@ const SchnellAuftragWriter: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [creating, setCreating] = useState(false);
     const creatingRef = useRef(false);
+    const [lastAuftragId, setLastAuftragId] = useState<string | null>(null);
+    const [lastAuftragNr, setLastAuftragNr] = useState<string | null>(null);
 
+    // Kunde
     const [selectedKunde, setSelectedKunde] = useState<KundeResource | null>(null);
-    const [kundeSearchTerm, setKundeSearchTerm] = useState('');
-    const [kundeDropdownOpen, setKundeDropdownOpen] = useState(false);
-    const [kundeHighlightIndex, setKundeHighlightIndex] = useState(0);
+    const [kundeSearch, setKundeSearch] = useState('');
+    const [kundeOpen, setKundeOpen] = useState(false);
+    const [kundeIdx, setKundeIdx] = useState(0);
+    const kundeInputRef = useRef<HTMLInputElement>(null);
 
-    const [artikelSearchTerm, setArtikelSearchTerm] = useState('');
-    const [artikelDropdownOpen, setArtikelDropdownOpen] = useState(false);
-    const [artikelHighlightIndex, setArtikelHighlightIndex] = useState(0);
-
-    const [positionen, setPositionen] = useState<ArtikelPositionDraft[]>([]);
-    const [focusedCell, setFocusedCell] = useState<{ rowIndex: number; colIndex: number } | null>(null);
-    const [editingArtikelRow, setEditingArtikelRow] = useState<number | null>(null);
-    const [editArtikelSearchTerm, setEditArtikelSearchTerm] = useState('');
-    const [editArtikelDropdownOpen, setEditArtikelDropdownOpen] = useState(false);
-    const [editArtikelHighlightIndex, setEditArtikelHighlightIndex] = useState(0);
-
+    // Datum
     const [lieferdatumInput, setLieferdatumInput] = useState('');
     const [lieferdatumISO, setLieferdatumISO] = useState(nextBusinessDay());
 
-    const kundeInputRef = useRef<HTMLInputElement>(null);
-    const artikelInputRef = useRef<HTMLInputElement>(null);
-    const lieferdatumInputRef = useRef<HTMLInputElement>(null);
-    const kundeDropdownRef = useRef<HTMLDivElement>(null);
-    const artikelDropdownRef = useRef<HTMLDivElement>(null);
-    const editArtikelInputRef = useRef<HTMLInputElement>(null);
-    const editArtikelDropdownRef = useRef<HTMLDivElement>(null);
-    const cellRefs = useRef<{ [key: string]: HTMLElement | null }>({});
+    // Bemerkungen (Auftragsebene)
+    const [bemerkungen, setBemerkungen] = useState('');
 
+    // Positionen
+    const [positionen, setPositionen] = useState<PositionDraft[]>([]);
+
+    // Artikel-Suche (für neue Position)
+    const [artikelSearch, setArtikelSearch] = useState('');
+    const [artikelOpen, setArtikelOpen] = useState(false);
+    const [artikelIdx, setArtikelIdx] = useState(0);
+    const artikelInputRef = useRef<HTMLInputElement>(null);
+
+    // Inline-Artikel-Edit
+    const [editRow, setEditRow] = useState<number | null>(null);
+    const [editSearch, setEditSearch] = useState('');
+    const [editOpen, setEditOpen] = useState(false);
+    const [editIdx, setEditIdx] = useState(0);
+    const editInputRef = useRef<HTMLInputElement>(null);
+
+    const cellRefs = useRef<Record<string, HTMLElement | null>>({});
+
+    // --- Init ---
     useEffect(() => {
-        const init = async () => {
+        (async () => {
             try {
-                const [kundenData, artikelData] = await Promise.all([
-                    api.getAllKunden(),
-                    api.getAllArtikelClean()
-                ]);
-                setKunden(kundenData.items);
-                setArtikel(artikelData.items);
+                const [k, a] = await Promise.all([api.getAllKunden(), api.getAllArtikelClean()]);
+                setKunden(k.items);
+                setArtikel(a.items);
                 setLieferdatumInput(formatDateGerman(nextBusinessDay()));
             } catch (err: any) {
-                setError(err.message || 'Fehler beim Laden der Daten');
+                setError(err.message || 'Fehler beim Laden');
             } finally {
                 setLoading(false);
             }
-        };
-        init();
+        })();
     }, []);
 
+    // --- Global Keys ---
     useEffect(() => {
-        const handleGlobalKeydown = (e: KeyboardEvent) => {
+        const handler = (e: KeyboardEvent) => {
             if ((e.ctrlKey || e.metaKey) && (e.key === 'Enter' || e.key === 's')) {
                 e.preventDefault();
-                // Prüfe ob bereits am Erstellen und ob alle Positionen einen Artikel haben
-                if (!creatingRef.current && selectedKunde && positionen.length > 0 && lieferdatumISO && positionen.every(p => p.artikel)) {
-                    creatingRef.current = true;
-                    setCreating(true);
-                    setError(null);
-                    (async () => {
-                        try {
-                            const auftrag = await api.createAuftrag({
-                                kunde: selectedKunde.id!,
-                                kundeName: selectedKunde.name,
-                                status: 'offen',
-                                artikelPosition: []
-                            });
-                            const positionIds: string[] = [];
-                            for (const pos of positionen) {
-                                const created = await api.createArtikelPosition({
-                                    artikel: pos.artikel,
-                                    menge: pos.menge,
-                                    einheit: pos.einheit,
-                                    zerlegung: pos.zerlegung,
-                                    vakuum: pos.vakuum,
-                                    bemerkung: pos.bemerkung,
-                                    auftragId: auftrag.id
-                                });
-                                if (created.id) positionIds.push(created.id);
-                            }
-                            await api.updateAuftrag(auftrag.id!, {
-                                artikelPosition: positionIds,
-                                lieferdatum: lieferdatumISO
-                            });
-                            navigate('/aufträge');
-                        } catch (err: any) {
-                            setError(err.message || 'Fehler beim Erstellen des Auftrags');
-                            creatingRef.current = false;
-                            setCreating(false);
-                        }
-                    })();
-                }
+                handleCreate();
             }
             if (e.key === 'F2') {
                 e.preventDefault();
                 setSelectedKunde(null);
-                setKundeSearchTerm('');
+                setKundeSearch('');
                 setTimeout(() => kundeInputRef.current?.focus(), 0);
             }
-            if (e.key === 'F4') {
-                e.preventDefault();
-                if (focusedCell && positionen[focusedCell.rowIndex]) {
-                    const tempId = positionen[focusedCell.rowIndex].tempId;
-                    setPositionen(prev => prev.filter(p => p.tempId !== tempId));
-                }
-            }
             if (e.key === 'Escape') {
-                setKundeDropdownOpen(false);
-                setArtikelDropdownOpen(false);
-                setEditArtikelDropdownOpen(false);
-                setEditingArtikelRow(null);
+                setKundeOpen(false);
+                setArtikelOpen(false);
+                setEditOpen(false);
+                setEditRow(null);
             }
         };
-        window.addEventListener('keydown', handleGlobalKeydown);
-        return () => window.removeEventListener('keydown', handleGlobalKeydown);
-    }, [selectedKunde, positionen, lieferdatumISO, focusedCell, navigate]);
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    });
 
-    useEffect(() => {
-        if (focusedCell && editingArtikelRow === null) {
-            const key = `${focusedCell.rowIndex}-${focusedCell.colIndex}`;
-            const element = cellRefs.current[key];
-            if (element) {
-                element.focus();
-            }
-        }
-    }, [focusedCell, editingArtikelRow]);
-
-    const filteredKunden = kundeSearchTerm.trim()
+    // --- Filter ---
+    const filteredKunden = kundeSearch.trim()
         ? kunden.filter(k => {
-            const term = normalizeText(kundeSearchTerm);
-            return normalizeText(k.name || '').includes(term) || normalizeText(k.kundenNummer || '').includes(term);
+            const t = normalizeText(kundeSearch);
+            return normalizeText(k.name || '').includes(t) || normalizeText(k.kundenNummer || '').includes(t);
         }).slice(0, 8)
         : [];
 
-    const filteredArtikel = artikelSearchTerm.trim()
+    const filterArtikel = (term: string) => term.trim()
         ? artikel.filter(a => {
-            const term = normalizeText(artikelSearchTerm);
-            return normalizeText(a.name).includes(term) || normalizeText(a.artikelNummer).includes(term);
+            const t = normalizeText(term);
+            return normalizeText(a.name).includes(t) || normalizeText(a.artikelNummer).includes(t);
         }).slice(0, 10)
         : [];
 
-    const filteredEditArtikel = editArtikelSearchTerm.trim()
-        ? artikel.filter(a => {
-            const term = normalizeText(editArtikelSearchTerm);
-            return normalizeText(a.name).includes(term) || normalizeText(a.artikelNummer).includes(term);
-        }).slice(0, 10)
-        : [];
+    const filteredArtikel = filterArtikel(artikelSearch);
+    const filteredEditArtikel = filterArtikel(editSearch);
 
-    const handleKundeInputChange = (val: string) => {
-        setKundeSearchTerm(val);
-        setKundeDropdownOpen(val.trim().length > 0);
-        setKundeHighlightIndex(0);
-    };
+    // --- Leerzeilen am Anfang (für Briefpapier-Druck) ---
+    const INITIAL_LEERZEILEN = 7;
+    const createLeerzeilen = (count: number): PositionDraft[] =>
+        Array.from({ length: count }, () => ({
+            tempId: newTempId(),
+            leerzeile: true,
+            menge: 0,
+            einheit: 'kg' as const,
+            einzelpreis: 0,
+            zerlegung: false,
+            vakuum: false,
+            bemerkung: '',
+        }));
 
-    const handleKundeSelect = (k: KundeResource) => {
+    // --- Kunde ---
+    const selectKunde = (k: KundeResource) => {
         setSelectedKunde(k);
-        setKundeSearchTerm('');
-        setKundeDropdownOpen(false);
+        setKundeSearch('');
+        setKundeOpen(false);
+        // Auto-Leerzeilen wenn noch keine Positionen
+        if (positionen.length === 0) {
+            setPositionen(createLeerzeilen(INITIAL_LEERZEILEN));
+        }
         setTimeout(() => artikelInputRef.current?.focus(), 0);
     };
 
-    const handleKundeKeyDown = (e: React.KeyboardEvent) => {
-        if (!kundeDropdownOpen || filteredKunden.length === 0) return;
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            setKundeHighlightIndex((kundeHighlightIndex + 1) % filteredKunden.length);
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            setKundeHighlightIndex((kundeHighlightIndex - 1 + filteredKunden.length) % filteredKunden.length);
-        } else if (e.key === 'Enter') {
-            e.preventDefault();
-            if (filteredKunden[kundeHighlightIndex]) {
-                handleKundeSelect(filteredKunden[kundeHighlightIndex]);
-            }
-        } else if (e.key === 'Escape') {
-            setKundeDropdownOpen(false);
-        }
-    };
-
-    const handleArtikelInputChange = (val: string) => {
-        setArtikelSearchTerm(val);
-        setArtikelDropdownOpen(val.trim().length > 0);
-        setArtikelHighlightIndex(0);
-    };
-
-    const handleArtikelSelect = (a: ArtikelResource) => {
-        const einheit = a.erfassungsModus === 'GEWICHT' ? 'kg' : a.erfassungsModus === 'STÜCK' ? 'stück' : a.erfassungsModus === 'KARTON' ? 'karton' : 'kg';
-        const newPos: ArtikelPositionDraft = {
-            tempId: Date.now().toString() + Math.random(),
+    // --- Artikel auswählen → neue Position ---
+    const addPosition = (a: ArtikelResource) => {
+        const einheit = a.erfassungsModus === 'STÜCK' ? 'stück' : a.erfassungsModus === 'KARTON' ? 'karton' : 'kg';
+        const pos: PositionDraft = {
+            tempId: newTempId(),
+            leerzeile: false,
             artikel: a.id,
             artikelName: a.name,
             artikelNummer: a.artikelNummer,
             menge: 1,
             einheit,
+            einzelpreis: a.preis || 0,
             zerlegung: false,
             vakuum: false,
-            bemerkung: ''
+            bemerkung: '',
         };
-        setPositionen([...positionen, newPos]);
-        setArtikelSearchTerm('');
-        setArtikelDropdownOpen(false);
-        setFocusedCell({ rowIndex: positionen.length, colIndex: 2 });
-    };
-
-    const handleArtikelKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'ArrowDown') {
-            if (artikelDropdownOpen && filteredArtikel.length > 0) {
-                e.preventDefault();
-                setArtikelHighlightIndex((artikelHighlightIndex + 1) % filteredArtikel.length);
-            } else if (!artikelDropdownOpen && positionen.length > 0) {
-                e.preventDefault();
-                setFocusedCell({ rowIndex: 0, colIndex: 1 });
-            }
-        } else if (e.key === 'ArrowUp') {
-            if (artikelDropdownOpen && filteredArtikel.length > 0) {
-                e.preventDefault();
-                setArtikelHighlightIndex((artikelHighlightIndex - 1 + filteredArtikel.length) % filteredArtikel.length);
-            }
-        } else if (e.key === 'Enter') {
-            if (artikelDropdownOpen && filteredArtikel.length > 0) {
-                e.preventDefault();
-                if (filteredArtikel[artikelHighlightIndex]) {
-                    handleArtikelSelect(filteredArtikel[artikelHighlightIndex]);
-                }
-            }
-        } else if (e.key === 'Escape') {
-            setArtikelDropdownOpen(false);
-        }
-    };
-
-    const handleEditArtikelInputChange = (val: string) => {
-        setEditArtikelSearchTerm(val);
-        setEditArtikelDropdownOpen(val.trim().length > 0);
-        setEditArtikelHighlightIndex(0);
-    };
-
-    const handleEditArtikelSelect = (a: ArtikelResource, rowIndex: number) => {
-        const pos = positionen[rowIndex];
-        const einheit = a.erfassungsModus === 'GEWICHT' ? 'kg' : a.erfassungsModus === 'STÜCK' ? 'stück' : a.erfassungsModus === 'KARTON' ? 'karton' : 'kg';
-
-        // Alle Updates auf einmal machen
-        setPositionen(positionen.map(p =>
-            p.tempId === pos.tempId
-                ? {
-                    ...p,
-                    artikel: a.id,
-                    artikelName: a.name,
-                    artikelNummer: a.artikelNummer,
-                    einheit: einheit
-                }
-                : p
-        ));
-
-        setEditArtikelSearchTerm('');
-        setEditArtikelDropdownOpen(false);
-        setEditingArtikelRow(null);
-
-        // Focus auf Mengenfeld setzen
+        setPositionen(prev => [...prev, pos]);
+        setArtikelSearch('');
+        setArtikelOpen(false);
+        // Focus auf Menge der neuen Zeile
         setTimeout(() => {
-            const mengeField = cellRefs.current[`${rowIndex}-2`];
-            if (mengeField) {
-                mengeField.focus();
-            }
+            const el = cellRefs.current[`${positionen.length}-menge`];
+            if (el) (el as HTMLInputElement).focus();
         }, 50);
     };
 
-    const handleEditArtikelKeyDown = (e: React.KeyboardEvent, rowIndex: number) => {
-        if (!editArtikelDropdownOpen || filteredEditArtikel.length === 0) {
-            if (e.key === 'Escape') {
-                e.preventDefault();
-                setEditingArtikelRow(null);
-                setEditArtikelDropdownOpen(false);
-                setFocusedCell({ rowIndex, colIndex: 1 });
-            }
-            return;
-        }
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            setEditArtikelHighlightIndex((editArtikelHighlightIndex + 1) % filteredEditArtikel.length);
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            setEditArtikelHighlightIndex((editArtikelHighlightIndex - 1 + filteredEditArtikel.length) % filteredEditArtikel.length);
-        } else if (e.key === 'Enter') {
-            e.preventDefault();
-            if (filteredEditArtikel[editArtikelHighlightIndex]) {
-                handleEditArtikelSelect(filteredEditArtikel[editArtikelHighlightIndex], rowIndex);
-            }
-        } else if (e.key === 'Escape') {
-            e.preventDefault();
-            setEditingArtikelRow(null);
-            setEditArtikelDropdownOpen(false);
-            setFocusedCell({ rowIndex, colIndex: 1 });
-        }
+    // --- Leerzeile ---
+    const addLeerzeile = () => {
+        setPositionen(prev => [...prev, {
+            tempId: newTempId(),
+            leerzeile: true,
+            menge: 0,
+            einheit: 'kg',
+            einzelpreis: 0,
+            zerlegung: false,
+            vakuum: false,
+            bemerkung: '',
+        }]);
     };
 
-    const handlePositionUpdate = (tempId: string, field: keyof ArtikelPositionDraft, value: any) => {
-        setPositionen(positionen.map(p => p.tempId === tempId ? { ...p, [field]: value } : p));
+    // --- Position updaten ---
+    const updatePos = (tempId: string, updates: Partial<PositionDraft>) => {
+        setPositionen(prev => prev.map(p => {
+            if (p.tempId !== tempId) return p;
+            return { ...p, ...updates };
+        }));
     };
 
-    const handleDeletePosition = (tempId: string) => {
-        setPositionen(positionen.filter(p => p.tempId !== tempId));
-        setFocusedCell(null);
+    const deletePos = (tempId: string) => {
+        setPositionen(prev => prev.filter(p => p.tempId !== tempId));
     };
 
-    const handleLieferdatumChange = (val: string) => {
-        setLieferdatumInput(val);
-        const parsed = parseGermanDate(val);
-        if (parsed) {
-            setLieferdatumISO(parsed);
-        }
+    // --- Inline Artikel Edit ---
+    const selectEditArtikel = (a: ArtikelResource, rowIndex: number) => {
+        const einheit = a.erfassungsModus === 'STÜCK' ? 'stück' : a.erfassungsModus === 'KARTON' ? 'karton' : 'kg';
+        updatePos(positionen[rowIndex].tempId, {
+            artikel: a.id,
+            artikelName: a.name,
+            artikelNummer: a.artikelNummer,
+            leerzeile: false,
+            einheit,
+            einzelpreis: a.preis || 0,
+        });
+        setEditSearch('');
+        setEditOpen(false);
+        setEditRow(null);
+        setTimeout(() => {
+            const el = cellRefs.current[`${rowIndex}-menge`];
+            if (el) (el as HTMLInputElement).focus();
+        }, 50);
     };
 
-    const setLieferdatumShortcut = (days: number) => {
+    // --- Datum ---
+    const setDatum = (days: number) => {
         const d = new Date();
         d.setDate(d.getDate() + days);
         const iso = d.toISOString().split('T')[0];
@@ -386,109 +261,102 @@ const SchnellAuftragWriter: React.FC = () => {
         setLieferdatumInput(formatDateGerman(iso));
     };
 
-    const setLieferdatumNextBusinessDay = () => {
+    const setDatumNextBusiness = () => {
         const iso = nextBusinessDay();
         setLieferdatumISO(iso);
         setLieferdatumInput(formatDateGerman(iso));
     };
 
-    const canCreate = selectedKunde && positionen.length > 0 && lieferdatumISO && positionen.every(p => p.artikel);
+    // --- Erstellen ---
+    const realPositionen = positionen.filter(p => !p.leerzeile && p.artikel);
+    const canCreate = selectedKunde && positionen.length > 0 && realPositionen.length > 0 && lieferdatumISO;
 
-    const handleCreateAuftrag = async () => {
+    const handleCreate = async () => {
         if (!canCreate || creatingRef.current) return;
         creatingRef.current = true;
         setCreating(true);
         setError(null);
         try {
-            const auftrag = await api.createAuftrag({
+            const auftrag = await api.createAuftragCompleteMitPreis({
                 kunde: selectedKunde!.id!,
-                kundeName: selectedKunde!.name,
-                status: 'offen',
-                artikelPosition: []
+                lieferdatum: lieferdatumISO,
+                bemerkungen: bemerkungen.trim() || undefined,
+                positionen: positionen.map(p => ({
+                    artikel: p.leerzeile ? undefined : p.artikel,
+                    menge: p.menge,
+                    einheit: p.einheit,
+                    einzelpreis: p.einzelpreis,
+                    zerlegung: p.zerlegung,
+                    vakuum: p.vakuum,
+                    bemerkung: p.bemerkung,
+                    leerzeile: p.leerzeile,
+                })),
             });
-            const positionIds: string[] = [];
-            for (const pos of positionen) {
-                const created = await api.createArtikelPosition({
-                    artikel: pos.artikel,
-                    menge: pos.menge,
-                    einheit: pos.einheit,
-                    zerlegung: pos.zerlegung,
-                    vakuum: pos.vakuum,
-                    bemerkung: pos.bemerkung,
-                    auftragId: auftrag.id
-                });
-                if (created.id) positionIds.push(created.id);
-            }
-            await api.updateAuftrag(auftrag.id!, {
-                artikelPosition: positionIds,
-                lieferdatum: lieferdatumISO
-            });
-            navigate('/aufträge');
+            setLastAuftragId(auftrag.id || null);
+            setLastAuftragNr(auftrag.auftragsnummer || null);
+            creatingRef.current = false;
+            setCreating(false);
         } catch (err: any) {
-            setError(err.message || 'Fehler beim Erstellen des Auftrags');
+            setError(err.message || 'Fehler beim Erstellen');
             creatingRef.current = false;
             setCreating(false);
         }
     };
 
-    const handleCellKeyDown = (e: React.KeyboardEvent, rowIndex: number, colIndex: number) => {
-        const totalCols = 6;
-        const totalRows = positionen.length;
+    // --- Dropdown key helpers ---
+    const dropdownKeys = (
+        e: React.KeyboardEvent,
+        items: any[],
+        idx: number,
+        setIdx: (n: number) => void,
+        onSelect: (item: any) => void,
+        onClose: () => void,
+    ) => {
+        if (e.key === 'ArrowDown') { e.preventDefault(); setIdx((idx + 1) % items.length); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); setIdx((idx - 1 + items.length) % items.length); }
+        else if (e.key === 'Enter' && items[idx]) { e.preventDefault(); onSelect(items[idx]); }
+        else if (e.key === 'Escape') { e.preventDefault(); onClose(); }
+    };
 
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            if (rowIndex < totalRows - 1) {
-                setFocusedCell({ rowIndex: rowIndex + 1, colIndex });
-            } else {
-                // Bei der letzten Zeile: neue leere Position erstellen
-                const newPos: ArtikelPositionDraft = {
-                    tempId: Date.now().toString() + Math.random(),
-                    artikel: undefined,
-                    artikelName: '',
-                    artikelNummer: '',
-                    menge: undefined,
-                    einheit: 'kg',
-                    zerlegung: false,
-                    vakuum: false,
-                    bemerkung: ''
-                };
-                setPositionen([...positionen, newPos]);
-                // Direkt in den Bearbeitungsmodus für den Artikel wechseln
-                setTimeout(() => {
-                    setEditingArtikelRow(totalRows);
-                    setEditArtikelSearchTerm('');
-                    setEditArtikelDropdownOpen(false);
-                    setTimeout(() => editArtikelInputRef.current?.focus(), 0);
-                }, 0);
-            }
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            if (rowIndex > 0) {
-                setFocusedCell({ rowIndex: rowIndex - 1, colIndex });
-            } else {
-                artikelInputRef.current?.focus();
-                setFocusedCell(null);
-            }
-        } else if (e.key === 'ArrowRight') {
-            e.preventDefault();
-            if (colIndex < totalCols - 1) {
-                setFocusedCell({ rowIndex, colIndex: colIndex + 1 });
-            }
-        } else if (e.key === 'ArrowLeft') {
-            e.preventDefault();
-            if (colIndex > 0) {
-                setFocusedCell({ rowIndex, colIndex: colIndex - 1 });
-            }
-        } else if (e.key === 'Delete' && colIndex === totalCols - 1) {
-            e.preventDefault();
-            handleDeletePosition(positionen[rowIndex].tempId);
-        } else if (e.key === 'Enter' && colIndex === 1) {
-            e.preventDefault();
-            setEditArtikelDropdownOpen(false);
-            setEditArtikelSearchTerm('');
-            setEditingArtikelRow(rowIndex);
-            setTimeout(() => editArtikelInputRef.current?.focus(), 0);
+    // --- PDF Drucken ---
+    const handlePrint = async (auftragId: string, auftragNr?: string | null) => {
+        try {
+            const blob = await api.generateSchnellauftragPdf(auftragId);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Auftrag-${auftragNr || auftragId}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (err: any) {
+            setError('Fehler beim PDF-Erstellen: ' + (err.message || ''));
         }
+    };
+
+    // --- Neuer Auftrag (Formular zurücksetzen) ---
+    const handleNeu = () => {
+        setLastAuftragId(null);
+        setLastAuftragNr(null);
+        setSelectedKunde(null);
+        setKundeSearch('');
+        setBemerkungen('');
+        setPositionen([]);
+        setLieferdatumISO(nextBusinessDay());
+        setLieferdatumInput(formatDateGerman(nextBusinessDay()));
+        creatingRef.current = false;
+        setCreating(false);
+        setTimeout(() => kundeInputRef.current?.focus(), 0);
+    };
+
+    // --- Move position up/down ---
+    const movePos = (index: number, dir: -1 | 1) => {
+        const target = index + dir;
+        if (target < 0 || target >= positionen.length) return;
+        setPositionen(prev => {
+            const arr = [...prev];
+            [arr[index], arr[target]] = [arr[target], arr[index]];
+            return arr;
+        });
     };
 
     if (loading) {
@@ -501,29 +369,52 @@ const SchnellAuftragWriter: React.FC = () => {
 
     return (
         <div className="container-fluid py-3">
+            {/* Header */}
             <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                 <h4 className="mb-0">Schnellauftrag</h4>
                 <div className="d-flex align-items-center gap-2">
-                    <small className="text-muted d-none d-sm-inline">Ctrl+Enter</small>
-                    <button className="btn btn-primary btn-sm" disabled={!canCreate || creating} onClick={handleCreateAuftrag}>
-                        {creating ? <span className="spinner-border spinner-border-sm me-1"></span> : null}
-                        <span className="d-none d-sm-inline">Auftrag erstellen</span><span className="d-sm-none">Erstellen</span>
-                    </button>
+                    {lastAuftragId ? (
+                        <>
+                            <span className="badge bg-success">Auftrag {lastAuftragNr} erstellt</span>
+                            <button className="btn btn-outline-secondary btn-sm" onClick={() => handlePrint(lastAuftragId, lastAuftragNr)}>
+                                Drucken
+                            </button>
+                            <button className="btn btn-primary btn-sm" onClick={handleNeu}>
+                                Neuer Auftrag
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <small className="text-muted d-none d-sm-inline">Ctrl+Enter</small>
+                            <button className="btn btn-primary btn-sm" disabled={!canCreate || creating} onClick={handleCreate}>
+                                {creating && <span className="spinner-border spinner-border-sm me-1"></span>}
+                                Auftrag erstellen
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
 
-            {error && <div className="alert alert-danger alert-dismissible fade show" role="alert">
-                {error}
-                <button type="button" className="btn-close" onClick={() => setError(null)}></button>
-            </div>}
+            {error && (
+                <div className="alert alert-danger alert-dismissible fade show" role="alert">
+                    {error}
+                    <button type="button" className="btn-close" onClick={() => setError(null)}></button>
+                </div>
+            )}
 
+            {/* Kunde + Datum */}
             <div className="row mb-3">
                 <div className="col-md-6">
-                    <label className="form-label fw-bold">Kunde (Name oder Nr.)</label>
+                    <label className="form-label fw-bold">Kunde</label>
                     {selectedKunde ? (
                         <div className="d-flex align-items-center gap-2">
                             <span className="badge bg-success">{selectedKunde.kundenNummer} — {selectedKunde.name}</span>
-                            <a href="#" className="text-decoration-none small" onClick={(e) => { e.preventDefault(); setSelectedKunde(null); setKundeSearchTerm(''); setTimeout(() => kundeInputRef.current?.focus(), 0); }}>ändern</a>
+                            <a href="#" className="text-decoration-none small" onClick={(e) => {
+                                e.preventDefault();
+                                setSelectedKunde(null);
+                                setKundeSearch('');
+                                setTimeout(() => kundeInputRef.current?.focus(), 0);
+                            }}>ändern</a>
                         </div>
                     ) : (
                         <div style={{ position: 'relative' }}>
@@ -531,23 +422,24 @@ const SchnellAuftragWriter: React.FC = () => {
                                 ref={kundeInputRef}
                                 type="text"
                                 className="form-control form-control-sm"
-                                value={kundeSearchTerm}
-                                onChange={(e) => handleKundeInputChange(e.target.value)}
-                                onKeyDown={handleKundeKeyDown}
-                                onFocus={() => kundeSearchTerm.trim() && setKundeDropdownOpen(true)}
-                                onBlur={() => setTimeout(() => setKundeDropdownOpen(false), 200)}
-                                placeholder="Tippen zum Suchen..."
+                                value={kundeSearch}
+                                onChange={e => { setKundeSearch(e.target.value); setKundeOpen(e.target.value.trim().length > 0); setKundeIdx(0); }}
+                                onKeyDown={e => {
+                                    if (kundeOpen && filteredKunden.length > 0) {
+                                        dropdownKeys(e, filteredKunden, kundeIdx, setKundeIdx, selectKunde, () => setKundeOpen(false));
+                                    }
+                                }}
+                                onFocus={() => kundeSearch.trim() && setKundeOpen(true)}
+                                onBlur={() => setTimeout(() => setKundeOpen(false), 200)}
+                                placeholder="Name oder Kundennr. eingeben..."
                                 autoFocus
                             />
-                            {kundeDropdownOpen && filteredKunden.length > 0 && (
-                                <div ref={kundeDropdownRef} className="list-group position-absolute w-100" style={{ maxHeight: '250px', overflowY: 'auto', zIndex: 1000, boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-                                    {filteredKunden.map((k, idx) => (
-                                        <button
-                                            key={k.id}
-                                            type="button"
-                                            className={`list-group-item list-group-item-action ${idx === kundeHighlightIndex ? 'active' : ''}`}
-                                            onMouseDown={() => handleKundeSelect(k)}
-                                        >
+                            {kundeOpen && filteredKunden.length > 0 && (
+                                <div className="list-group position-absolute w-100" style={{ maxHeight: 250, overflowY: 'auto', zIndex: 1000, boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+                                    {filteredKunden.map((k, i) => (
+                                        <button key={k.id} type="button"
+                                            className={`list-group-item list-group-item-action ${i === kundeIdx ? 'active' : ''}`}
+                                            onMouseDown={() => selectKunde(k)}>
                                             {k.kundenNummer} — {k.name}
                                         </button>
                                     ))}
@@ -557,294 +449,237 @@ const SchnellAuftragWriter: React.FC = () => {
                     )}
                 </div>
                 <div className="col-md-6">
-                    <label className="form-label fw-bold">Lieferdatum (TT.MM.JJJJ)</label>
+                    <label className="form-label fw-bold">Lieferdatum</label>
                     <div className="d-flex flex-wrap gap-2">
                         <input
-                            ref={lieferdatumInputRef}
                             type="text"
                             className="form-control form-control-sm"
                             style={{ minWidth: 120, flex: '1 1 120px' }}
                             value={lieferdatumInput}
-                            onChange={(e) => handleLieferdatumChange(e.target.value)}
+                            onChange={e => {
+                                setLieferdatumInput(e.target.value);
+                                const parsed = parseGermanDate(e.target.value);
+                                if (parsed) setLieferdatumISO(parsed);
+                            }}
                             placeholder="TT.MM.JJJJ"
                         />
-                        <button className="btn btn-sm btn-outline-secondary" onClick={() => setLieferdatumShortcut(0)}>Heute</button>
-                        <button className="btn btn-sm btn-outline-secondary" onClick={() => setLieferdatumShortcut(1)}>Morgen</button>
-                        <button className="btn btn-sm btn-outline-secondary d-none d-sm-inline-block" onClick={setLieferdatumNextBusinessDay}>Nächster Werktag</button>
-                        <button className="btn btn-sm btn-outline-secondary d-sm-none" onClick={setLieferdatumNextBusinessDay}>Werktag</button>
+                        <button className="btn btn-sm btn-outline-secondary" onClick={() => setDatum(0)}>Heute</button>
+                        <button className="btn btn-sm btn-outline-secondary" onClick={() => setDatum(1)}>Morgen</button>
+                        <button className="btn btn-sm btn-outline-secondary" onClick={setDatumNextBusiness}>Werktag</button>
                     </div>
                 </div>
             </div>
 
+            {/* Auftragsbemerkung */}
             {selectedKunde && (
                 <div className="mb-3">
-                    <label className="form-label fw-bold">Artikel (Name oder Nr.)</label>
-                    <div style={{ position: 'relative' }}>
+                    <label className="form-label fw-bold">Auftragsbemerkung</label>
+                    <textarea
+                        className="form-control form-control-sm"
+                        rows={2}
+                        value={bemerkungen}
+                        onChange={e => setBemerkungen(e.target.value)}
+                        placeholder="Bemerkung zum gesamten Auftrag..."
+                    />
+                </div>
+            )}
+
+            {/* Artikel-Suche + Leerzeile */}
+            {selectedKunde && (
+                <div className="mb-3 d-flex gap-2 align-items-end">
+                    <div style={{ position: 'relative', flex: 1 }}>
+                        <label className="form-label fw-bold">Artikel hinzufügen</label>
                         <input
                             ref={artikelInputRef}
                             type="text"
                             className="form-control form-control-sm"
-                            value={artikelSearchTerm}
-                            onChange={(e) => handleArtikelInputChange(e.target.value)}
-                            onKeyDown={handleArtikelKeyDown}
-                            onFocus={() => artikelSearchTerm.trim() && setArtikelDropdownOpen(true)}
-                            onBlur={() => setTimeout(() => setArtikelDropdownOpen(false), 200)}
-                            placeholder="Artikel hinzufügen..."
+                            value={artikelSearch}
+                            onChange={e => { setArtikelSearch(e.target.value); setArtikelOpen(e.target.value.trim().length > 0); setArtikelIdx(0); }}
+                            onKeyDown={e => {
+                                if (artikelOpen && filteredArtikel.length > 0) {
+                                    dropdownKeys(e, filteredArtikel, artikelIdx, setArtikelIdx, addPosition, () => setArtikelOpen(false));
+                                }
+                            }}
+                            onFocus={() => artikelSearch.trim() && setArtikelOpen(true)}
+                            onBlur={() => setTimeout(() => setArtikelOpen(false), 200)}
+                            placeholder="Artikelname oder Nr...."
                         />
-                        {artikelDropdownOpen && filteredArtikel.length > 0 && (
-                            <div ref={artikelDropdownRef} className="list-group position-absolute w-100" style={{ maxHeight: '300px', overflowY: 'auto', zIndex: 1000, boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-                                {filteredArtikel.map((a, idx) => (
-                                    <button
-                                        key={a.id}
-                                        type="button"
-                                        className={`list-group-item list-group-item-action ${idx === artikelHighlightIndex ? 'active' : ''}`}
-                                        onMouseDown={() => handleArtikelSelect(a)}
-                                    >
+                        {artikelOpen && filteredArtikel.length > 0 && (
+                            <div className="list-group position-absolute w-100" style={{ maxHeight: 300, overflowY: 'auto', zIndex: 1000, boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+                                {filteredArtikel.map((a, i) => (
+                                    <button key={a.id} type="button"
+                                        className={`list-group-item list-group-item-action ${i === artikelIdx ? 'active' : ''}`}
+                                        onMouseDown={() => addPosition(a)}>
                                         <div>{a.name}</div>
-                                        <small className="text-muted">{a.artikelNummer}</small>
+                                        <small className="text-muted">{a.artikelNummer} — {a.preis?.toFixed(2)} €/kg</small>
                                     </button>
                                 ))}
                             </div>
                         )}
                     </div>
+                    <button className="btn btn-sm btn-outline-secondary" style={{ height: 31 }} onClick={addLeerzeile}>
+                        + Leerzeile
+                    </button>
                 </div>
             )}
 
+            {/* Positionen-Tabelle */}
             {positionen.length > 0 && (
                 <div className="table-responsive">
-                    <table className="table table-sm table-bordered">
+                    <table className="table table-sm table-bordered mb-0">
                         <thead className="table-light">
                             <tr>
-                                <th style={{ width: '40px' }}>#</th>
-                                <th style={{ minWidth: '350px' }}>Artikel</th>
-                                <th style={{ width: '120px' }}>Menge</th>
-                                <th style={{ width: '120px' }}>Einheit</th>
-                                <th style={{ width: '180px' }}>Optionen</th>
-                                <th style={{ width: '250px' }}>Bemerkung</th>
-                                <th style={{ width: '80px' }}>Aktionen</th>
+                                <th style={{ width: 40 }}>#</th>
+                                <th style={{ width: 90 }}>Menge</th>
+                                <th style={{ width: 100 }}>Einheit</th>
+                                <th style={{ minWidth: 250 }}>Artikel</th>
+                                <th style={{ width: 110 }}>€/kg</th>
+                                <th style={{ width: 140 }}>Optionen</th>
+                                <th style={{ width: 180 }}>Bemerkung</th>
+                                <th style={{ width: 100 }}></th>
                             </tr>
                         </thead>
                         <tbody>
-                            {positionen.map((pos, rowIndex) => {
-                                const isEditingArtikel = editingArtikelRow === rowIndex;
+                            {positionen.map((pos, ri) => {
+                                if (pos.leerzeile) {
+                                    return (
+                                        <tr key={pos.tempId} style={{ backgroundColor: '#f8f9fa' }}>
+                                            <td className="text-center text-muted">{ri + 1}</td>
+                                            <td colSpan={5} className="text-center text-muted fst-italic">— Leerzeile —</td>
+                                            <td className="text-center">
+                                                <div className="d-flex gap-1 justify-content-center">
+                                                    <button className="btn btn-sm btn-outline-secondary py-0 px-1" onClick={() => movePos(ri, -1)} disabled={ri === 0} title="Hoch">↑</button>
+                                                    <button className="btn btn-sm btn-outline-secondary py-0 px-1" onClick={() => movePos(ri, 1)} disabled={ri === positionen.length - 1} title="Runter">↓</button>
+                                                    <button className="btn btn-sm btn-outline-danger py-0 px-1" onClick={() => deletePos(pos.tempId)}>×</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                }
+
+                                const isEditing = editRow === ri;
                                 return (
                                     <tr key={pos.tempId}>
-                                        <td className="text-center">{rowIndex + 1}</td>
+                                        <td className="text-center">{ri + 1}</td>
+                                        {/* Menge */}
                                         <td>
-                                            {isEditingArtikel ? (
-                                                <div style={{ position: 'relative' }}>
-                                                    <input
-                                                        ref={editArtikelInputRef}
-                                                        type="text"
-                                                        className="form-control form-control-sm"
-                                                        value={editArtikelSearchTerm}
-                                                        onChange={(e) => handleEditArtikelInputChange(e.target.value)}
-                                                        onKeyDown={(e) => handleEditArtikelKeyDown(e, rowIndex)}
-                                                        onBlur={() => {
-                                                            setTimeout(() => {
-                                                                setEditArtikelDropdownOpen(false);
-                                                                setEditingArtikelRow(null);
-                                                            }, 200);
-                                                        }}
-                                                        placeholder="Tippen zum Suchen..."
-                                                        autoFocus
-                                                    />
-                                                    {editArtikelDropdownOpen && filteredEditArtikel.length > 0 && (
-                                                        <div
-                                                            ref={editArtikelDropdownRef}
-                                                            className="list-group position-fixed"
-                                                            style={{
-                                                                minWidth: '400px',
-                                                                maxHeight: '350px',
-                                                                overflowY: 'auto',
-                                                                zIndex: 9999,
-                                                                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                                                                backgroundColor: 'white',
-                                                                border: '1px solid #dee2e6',
-                                                                borderRadius: '0.25rem',
-                                                                top: editArtikelInputRef.current ?
-                                                                    `${editArtikelInputRef.current.getBoundingClientRect().bottom + 2}px` : '0px',
-                                                                left: editArtikelInputRef.current ?
-                                                                    `${editArtikelInputRef.current.getBoundingClientRect().left}px` : '0px'
-                                                            }}
-                                                        >
-                                                            {filteredEditArtikel.map((a, idx) => (
-                                                                <button
-                                                                    key={a.id}
-                                                                    type="button"
-                                                                    className={`list-group-item list-group-item-action ${idx === editArtikelHighlightIndex ? 'active' : ''}`}
-                                                                    onMouseDown={(e) => {
-                                                                        e.preventDefault();
-                                                                        handleEditArtikelSelect(a, rowIndex);
-                                                                    }}
-                                                                    style={{
-                                                                        cursor: 'pointer',
-                                                                        padding: '0.75rem 1rem',
-                                                                        textAlign: 'left'
-                                                                    }}
-                                                                >
-                                                                    <div><strong>{a.name}</strong></div>
-                                                                    <small className="text-muted">Nr: {a.artikelNummer}</small>
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ) : (
-                                                <div
-                                                    tabIndex={0}
-                                                    onClick={() => {
-                                                        setEditArtikelDropdownOpen(false);
-                                                        setEditArtikelSearchTerm('');
-                                                        setEditingArtikelRow(rowIndex);
-                                                        setTimeout(() => editArtikelInputRef.current?.focus(), 0);
-                                                    }}
-                                                    onKeyDown={(e) => {
-                                                        // Enter: in Bearbeitungsmodus wechseln
-                                                        if (e.key === 'Enter') {
-                                                            e.preventDefault();
-                                                            setEditArtikelDropdownOpen(false);
-                                                            setEditArtikelSearchTerm('');
-                                                            setEditingArtikelRow(rowIndex);
-                                                            setTimeout(() => editArtikelInputRef.current?.focus(), 0);
-                                                        }
-                                                        // Bei Buchstaben/Zahlen: in Bearbeitungsmodus mit diesem Zeichen
-                                                        else if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete') {
-                                                            e.preventDefault();
-                                                            setEditArtikelDropdownOpen(false);
-                                                            setEditArtikelSearchTerm(e.key.length === 1 ? e.key : '');
-                                                            setEditingArtikelRow(rowIndex);
-                                                            setTimeout(() => editArtikelInputRef.current?.focus(), 0);
-                                                        }
-                                                        // Andere Tasten: normale Navigation
-                                                        else {
-                                                            handleCellKeyDown(e, rowIndex, 1);
-                                                        }
-                                                    }}
-                                                    onFocus={() => setFocusedCell({ rowIndex, colIndex: 1 })}
-                                                    ref={(el) => { cellRefs.current[`${rowIndex}-1`] = el; }}
-                                                    style={{
-                                                        cursor: 'pointer',
-                                                        padding: '0.25rem',
-                                                        outline: focusedCell?.rowIndex === rowIndex && focusedCell?.colIndex === 1 ? '2px solid #6c757d' : 'none',
-                                                        outlineOffset: '-2px',
-                                                        borderRadius: '0.25rem'
-                                                    }}
-                                                >
-                                                    <div>{pos.artikelName}</div>
-                                                    <small className="text-muted">{pos.artikelNummer}</small>
-                                                </div>
-                                            )}
-                                        </td>
-                                        <td>
-                                            <input
-                                                type="number"
-                                                className="form-control form-control-sm"
-                                                value={pos.menge ?? ''}
-                                                onChange={(e) => handlePositionUpdate(pos.tempId, 'menge', e.target.value === '' ? undefined : parseFloat(e.target.value))}
-                                                onKeyDown={(e) => handleCellKeyDown(e, rowIndex, 2)}
-                                                onFocus={() => setFocusedCell({ rowIndex, colIndex: 2 })}
-                                                ref={(el) => { cellRefs.current[`${rowIndex}-2`] = el; }}
-                                                style={{
-                                                    outline: focusedCell?.rowIndex === rowIndex && focusedCell?.colIndex === 2 ? '2px solid #6c757d' : undefined,
-                                                    outlineOffset: '-2px'
-                                                }}
+                                            <input type="number" className="form-control form-control-sm"
+                                                ref={el => { cellRefs.current[`${ri}-menge`] = el; }}
+                                                value={pos.menge || ''}
+                                                onChange={e => updatePos(pos.tempId, { menge: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                                                min={0} step="any"
                                             />
                                         </td>
+                                        {/* Einheit */}
                                         <td>
-                                            <select
-                                                className="form-select form-select-sm"
-                                                value={pos.einheit || 'kg'}
-                                                onChange={(e) => handlePositionUpdate(pos.tempId, 'einheit', e.target.value)}
-                                                onKeyDown={(e) => handleCellKeyDown(e, rowIndex, 3)}
-                                                onFocus={() => setFocusedCell({ rowIndex, colIndex: 3 })}
-                                                ref={(el) => { cellRefs.current[`${rowIndex}-3`] = el; }}
-                                                style={{
-                                                    outline: focusedCell?.rowIndex === rowIndex && focusedCell?.colIndex === 3 ? '2px solid #6c757d' : undefined,
-                                                    outlineOffset: '-2px'
-                                                }}
-                                            >
+                                            <select className="form-select form-select-sm"
+                                                value={pos.einheit}
+                                                onChange={e => updatePos(pos.tempId, { einheit: e.target.value as any })}>
                                                 <option value="kg">kg</option>
                                                 <option value="stück">Stück</option>
                                                 <option value="kiste">Kiste</option>
                                                 <option value="karton">Karton</option>
                                             </select>
                                         </td>
+                                        {/* Artikel */}
                                         <td>
-                                            <div
-                                                className="d-flex gap-2"
-                                                tabIndex={0}
-                                                onKeyDown={(e) => handleCellKeyDown(e, rowIndex, 4)}
-                                                onFocus={() => setFocusedCell({ rowIndex, colIndex: 4 })}
-                                                ref={(el) => { cellRefs.current[`${rowIndex}-4`] = el; }}
-                                                style={{
-                                                    outline: focusedCell?.rowIndex === rowIndex && focusedCell?.colIndex === 4 ? '2px solid #6c757d' : 'none',
-                                                    outlineOffset: '-2px',
-                                                    borderRadius: '0.25rem',
-                                                    padding: '0.25rem'
-                                                }}
-                                            >
-                                                <div className="form-check">
+                                            {isEditing ? (
+                                                <div style={{ position: 'relative' }}>
                                                     <input
-                                                        type="checkbox"
-                                                        className="form-check-input"
-                                                        id={`zer-${pos.tempId}`}
-                                                        checked={pos.zerlegung || false}
-                                                        onChange={(e) => handlePositionUpdate(pos.tempId, 'zerlegung', e.target.checked)}
+                                                        ref={editInputRef}
+                                                        type="text"
+                                                        className="form-control form-control-sm"
+                                                        value={editSearch}
+                                                        onChange={e => { setEditSearch(e.target.value); setEditOpen(e.target.value.trim().length > 0); setEditIdx(0); }}
+                                                        onKeyDown={e => {
+                                                            if (editOpen && filteredEditArtikel.length > 0) {
+                                                                dropdownKeys(e, filteredEditArtikel, editIdx, setEditIdx,
+                                                                    (a: ArtikelResource) => selectEditArtikel(a, ri),
+                                                                    () => { setEditOpen(false); setEditRow(null); });
+                                                            } else if (e.key === 'Escape') {
+                                                                setEditRow(null);
+                                                                setEditOpen(false);
+                                                            }
+                                                        }}
+                                                        onBlur={() => setTimeout(() => { setEditOpen(false); setEditRow(null); }, 200)}
+                                                        placeholder="Suchen..."
+                                                        autoFocus
                                                     />
-                                                    <label className="form-check-label" htmlFor={`zer-${pos.tempId}`}>Zerlegung</label>
+                                                    {editOpen && filteredEditArtikel.length > 0 && (
+                                                        <div className="list-group position-fixed" style={{
+                                                            minWidth: 350, maxHeight: 300, overflowY: 'auto', zIndex: 9999,
+                                                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)', backgroundColor: 'white',
+                                                            border: '1px solid #dee2e6', borderRadius: '0.25rem',
+                                                            top: editInputRef.current ? `${editInputRef.current.getBoundingClientRect().bottom + 2}px` : 0,
+                                                            left: editInputRef.current ? `${editInputRef.current.getBoundingClientRect().left}px` : 0,
+                                                        }}>
+                                                            {filteredEditArtikel.map((a, i) => (
+                                                                <button key={a.id} type="button"
+                                                                    className={`list-group-item list-group-item-action ${i === editIdx ? 'active' : ''}`}
+                                                                    onMouseDown={e => { e.preventDefault(); selectEditArtikel(a, ri); }}>
+                                                                    <div><strong>{a.name}</strong></div>
+                                                                    <small className="text-muted">{a.artikelNummer} — {a.preis?.toFixed(2)} €/kg</small>
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <div style={{ cursor: 'pointer', padding: '0.25rem' }}
+                                                    onClick={() => { setEditSearch(''); setEditOpen(false); setEditRow(ri); setTimeout(() => editInputRef.current?.focus(), 0); }}>
+                                                    <div>{pos.artikelName || <span className="text-muted">Artikel wählen...</span>}</div>
+                                                    {pos.artikelNummer && <small className="text-muted">{pos.artikelNummer}</small>}
+                                                </div>
+                                            )}
+                                        </td>
+                                        {/* Einzelpreis */}
+                                        <td>
+                                            <input type="number" className="form-control form-control-sm"
+                                                value={pos.einzelpreis || ''}
+                                                onChange={e => updatePos(pos.tempId, { einzelpreis: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                                                min={0} step="0.01"
+                                            />
+                                        </td>
+                                        {/* Optionen */}
+                                        <td>
+                                            <div className="d-flex gap-2">
+                                                <div className="form-check">
+                                                    <input type="checkbox" className="form-check-input" id={`zer-${pos.tempId}`}
+                                                        checked={pos.zerlegung}
+                                                        onChange={e => updatePos(pos.tempId, { zerlegung: e.target.checked })} />
+                                                    <label className="form-check-label" htmlFor={`zer-${pos.tempId}`}>Z</label>
                                                 </div>
                                                 <div className="form-check">
-                                                    <input
-                                                        type="checkbox"
-                                                        className="form-check-input"
-                                                        id={`vak-${pos.tempId}`}
-                                                        checked={pos.vakuum || false}
-                                                        onChange={(e) => handlePositionUpdate(pos.tempId, 'vakuum', e.target.checked)}
-                                                    />
-                                                    <label className="form-check-label" htmlFor={`vak-${pos.tempId}`}>Vakuum</label>
+                                                    <input type="checkbox" className="form-check-input" id={`vak-${pos.tempId}`}
+                                                        checked={pos.vakuum}
+                                                        onChange={e => updatePos(pos.tempId, { vakuum: e.target.checked })} />
+                                                    <label className="form-check-label" htmlFor={`vak-${pos.tempId}`}>V</label>
                                                 </div>
                                             </div>
                                         </td>
+                                        {/* Bemerkung */}
                                         <td>
-                                            <input
-                                                type="text"
-                                                className="form-control form-control-sm"
-                                                value={pos.bemerkung || ''}
-                                                onChange={(e) => handlePositionUpdate(pos.tempId, 'bemerkung', e.target.value)}
-                                                onKeyDown={(e) => handleCellKeyDown(e, rowIndex, 5)}
-                                                onFocus={() => setFocusedCell({ rowIndex, colIndex: 5 })}
-                                                ref={(el) => { cellRefs.current[`${rowIndex}-5`] = el; }}
-                                                style={{
-                                                    outline: focusedCell?.rowIndex === rowIndex && focusedCell?.colIndex === 5 ? '2px solid #6c757d' : undefined,
-                                                    outlineOffset: '-2px'
-                                                }}
-                                            />
+                                            <input type="text" className="form-control form-control-sm"
+                                                value={pos.bemerkung}
+                                                onChange={e => updatePos(pos.tempId, { bemerkung: e.target.value })}
+                                                placeholder="..." />
                                         </td>
+                                        {/* Aktionen */}
                                         <td className="text-center">
-                                            <button
-                                                className="btn btn-sm btn-outline-danger"
-                                                onClick={() => handleDeletePosition(pos.tempId)}
-                                                onKeyDown={(e) => handleCellKeyDown(e, rowIndex, 6)}
-                                                onFocus={() => setFocusedCell({ rowIndex, colIndex: 6 })}
-                                                ref={(el) => { cellRefs.current[`${rowIndex}-6`] = el; }}
-                                                title="Löschen (Delete)"
-                                                style={{
-                                                    outline: focusedCell?.rowIndex === rowIndex && focusedCell?.colIndex === 6 ? '2px solid #6c757d' : undefined,
-                                                    outlineOffset: '-2px'
-                                                }}
-                                            >
-                                                ×
-                                            </button>
+                                            <div className="d-flex gap-1 justify-content-center">
+                                                <button className="btn btn-sm btn-outline-secondary py-0 px-1" onClick={() => movePos(ri, -1)} disabled={ri === 0} title="Hoch">↑</button>
+                                                <button className="btn btn-sm btn-outline-secondary py-0 px-1" onClick={() => movePos(ri, 1)} disabled={ri === positionen.length - 1} title="Runter">↓</button>
+                                                <button className="btn btn-sm btn-outline-danger py-0 px-1" onClick={() => deletePos(pos.tempId)}>×</button>
+                                            </div>
                                         </td>
                                     </tr>
                                 );
                             })}
                         </tbody>
                     </table>
-                </div >
+                </div>
             )}
-        </div >
+        </div>
     );
 };
 

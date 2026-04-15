@@ -984,6 +984,27 @@ export async function createAuftragComplete(data: {
   });
 }
 
+export async function createAuftragCompleteMitPreis(data: {
+  kunde: string;
+  lieferdatum: string;
+  bemerkungen?: string;
+  positionen: {
+    artikel?: string;
+    menge: number;
+    einheit: "kg" | "stück" | "kiste" | "karton";
+    einzelpreis: number;
+    zerlegung?: boolean;
+    vakuum?: boolean;
+    bemerkung?: string;
+    leerzeile?: boolean;
+  }[];
+}): Promise<AuftragResource> {
+  return apiFetch<AuftragResource>("/api/auftrag/complete-mit-preis", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
 export async function updateAuftrag(
   id: string,
   data: Partial<AuftragResource>
@@ -1597,6 +1618,19 @@ export async function moveTourStop(
 }
 
 /* Beleg-Funktionen */
+export async function generateSchnellauftragPdf(auftragId: string): Promise<Blob> {
+  const res = await fetch(`${API_URL}/api/beleg/${auftragId}/schnellauftrag/pdf`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
+    },
+    body: "{}",
+  });
+  if (!res.ok) throw new Error(`Fehler beim PDF-Generieren: ${res.statusText}`);
+  return res.blob();
+}
+
 export async function generateBelegPdf(
   auftragId: string,
   typ: "lieferschein" | "rechnung" | "gutschrift" | "preisdifferenz",
@@ -2146,11 +2180,34 @@ export async function deleteLeergutImport(importId: string): Promise<{ message: 
 export async function sendLeergutEmail(data: {
   kundenEmail: string;
   kundenName: string;
+  kundennr?: string;
   pdfBase64: string;
 }): Promise<{ message: string }> {
   return apiFetch<{ message: string }>("/api/leergut/send-email", {
     method: "POST",
     body: JSON.stringify(data),
+  });
+}
+
+export async function getLeergutBuchungen(kundennr: string): Promise<any[]> {
+  return apiFetch<any[]>(`/api/leergut/buchungen/${encodeURIComponent(kundennr)}`);
+}
+
+export async function uploadLeergutBuchung(data: {
+  kundennr: string;
+  kunde: string;
+  filename: string;
+  pdfBase64: string;
+}): Promise<any> {
+  return apiFetch<any>("/api/leergut/buchungen", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteLeergutBuchung(id: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(`/api/leergut/buchungen/${id}`, {
+    method: "DELETE",
   });
 }
 
@@ -2208,6 +2265,7 @@ export const api = {
   getAuftragLetzteArtikel,
   createAuftrag,
   createAuftragComplete,
+  createAuftragCompleteMitPreis,
   updateAuftrag,
   setAuftragInBearbeitung,
   beladeAuftrag,

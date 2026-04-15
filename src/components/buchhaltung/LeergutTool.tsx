@@ -9,6 +9,9 @@ import {
   deleteLeergutImport,
   deleteLeergutKunde,
   sendLeergutEmail,
+  getLeergutBuchungen,
+  uploadLeergutBuchung,
+  deleteLeergutBuchung,
 } from "../../backend/api";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
@@ -21,6 +24,7 @@ import jsPDF from "jspdf";
 interface LeergutRow {
   kundennr: string;
   kunde: string;
+  adresse: string;
   bestaende: Record<string, number>;
 }
 
@@ -48,18 +52,34 @@ const RE_LEERGUT = /^(.+?)\s+([-\d.]+)\s+[-\d.]+\s*$/;
 function parseSinglePdf(lines: string[]): LeergutRow | null {
   let kundennr = "";
   let kunde = "";
+  let adresse = "";
   const bestaende: Record<string, number> = {};
   let inLeergut = false;
+
+  // Adresse: Zeilen zwischen "Firma" und "Ihre Kundennummer"
+  let firmaFound = false;
+  const adressLines: string[] = [];
 
   for (const line of lines) {
     const s = line.trim();
     if (!s) continue;
 
+    // Adresse sammeln
     if (!kundennr) {
+      if (s.startsWith("Firma")) {
+        firmaFound = true;
+        continue;
+      }
       const m = RE_KUNDENNR.exec(s);
       if (m) {
         kunde = m[1].trim();
         kundennr = m[2].trim();
+        firmaFound = false;
+      } else if (firmaFound) {
+        // Zeilen zwischen "Firma" und Kundennummer = Adresse
+        if (!s.includes("Sachbearbeiter") && !s.includes("Lieferscheindatum") && !s.includes("DE 1")) {
+          adressLines.push(s);
+        }
       }
     }
 
@@ -82,8 +102,11 @@ function parseSinglePdf(lines: string[]): LeergutRow | null {
     }
   }
 
+  // Adresse zusammenbauen (Firma-Name ist oft erste Zeile)
+  adresse = adressLines.join(", ");
+
   if (!kunde && Object.keys(bestaende).length === 0) return null;
-  return { kundennr, kunde, bestaende };
+  return { kundennr, kunde, adresse, bestaende };
 }
 
 /* ------------------------------------------------------------------ */
@@ -154,7 +177,7 @@ async function exportExcel(rows: LeergutRow[], artikelColumns: string[]) {
 /* ------------------------------------------------------------------ */
 
 function pivotEntries(
-  entries: { kundennr: string; kunde: string; artikel: string; alterBestand: number }[]
+  entries: { kundennr: string; kunde: string; adresse?: string; artikel: string; alterBestand: number }[]
 ): { rows: LeergutRow[]; artikelColumns: string[] } {
   const kundenMap = new Map<string, LeergutRow>();
   const extraArtikel: string[] = [];
@@ -162,9 +185,10 @@ function pivotEntries(
   for (const e of entries) {
     let row = kundenMap.get(e.kundennr);
     if (!row) {
-      row = { kundennr: e.kundennr, kunde: e.kunde, bestaende: {} };
+      row = { kundennr: e.kundennr, kunde: e.kunde, adresse: e.adresse || "", bestaende: {} };
       kundenMap.set(e.kundennr, row);
     }
+    if (e.adresse && !row.adresse) row.adresse = e.adresse;
     row.bestaende[e.artikel] = e.alterBestand;
 
     if (!ARTIKEL_ORDER.includes(e.artikel) && !extraArtikel.includes(e.artikel)) {
@@ -216,6 +240,8 @@ export default function LeergutTool() {
   const [emailTarget, setEmailTarget] = useState<LeergutRow | null>(null);
   const [emailAddr, setEmailAddr] = useState("");
   const [emailSending, setEmailSending] = useState(false);
+  const [buchungen, setBuchungen] = useState<{ id: string; filename: string; uploadDatum: string }[]>([]);
+  const [buchungUploading, setBuchungUploading] = useState(false);
 
   // Toast
   useEffect(() => {
@@ -290,14 +316,22 @@ export default function LeergutTool() {
     });
     pdf.addImage(img, "JPEG", 0, 0, 210, 297);
 
-    // Empfänger
-    let y = 58;
+    // Empfänger mit Adresse
+    let y = 55;
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(11);
     pdf.text(`An: ${row.kunde}`, 20, y);
+    if (row.adresse) {
+      const adressParts = row.adresse.split(",").map((s) => s.trim()).filter(Boolean);
+      for (const part of adressParts) {
+        y += 5;
+        pdf.setFontSize(10);
+        pdf.text(part, 20, y);
+      }
+    }
 
     // Datum
-    y += 12;
+    y += 10;
     const now = new Date();
     const datumStr = now.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
     pdf.text(`Datum: ${datumStr}`, 20, y);
@@ -376,6 +410,50 @@ export default function LeergutTool() {
     return pdf.output("datauristring").split(",")[1]; // base64
   }, []);
 
+  // Buchungen laden wenn Modal geöffnet wird
+  const loadBuchungen = useCallback(async (kundennr: string) => {
+    try {
+      const data = await getLeergutBuchungen(kundennr);
+      setBuchungen(data);
+    } catch { setBuchungen([]); }
+  }, []);
+
+  // Buchung hochladen
+  const handleBuchungUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!emailTarget || !e.target.files) return;
+    setBuchungUploading(true);
+    try {
+      for (const file of Array.from(e.target.files)) {
+        const buf = await file.arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        let binary = "";
+        for (let j = 0; j < bytes.length; j++) binary += String.fromCharCode(bytes[j]);
+        const base64 = btoa(binary);
+        await uploadLeergutBuchung({
+          kundennr: emailTarget.kundennr,
+          kunde: emailTarget.kunde,
+          filename: file.name,
+          pdfBase64: base64,
+        });
+      }
+      await loadBuchungen(emailTarget.kundennr);
+      setToast({ type: "success", msg: "Buchung(en) hochgeladen." });
+    } catch (err: any) {
+      setToast({ type: "error", msg: "Upload fehlgeschlagen: " + (err?.message || "") });
+    } finally {
+      setBuchungUploading(false);
+      e.target.value = "";
+    }
+  }, [emailTarget, loadBuchungen]);
+
+  // Buchung löschen
+  const handleDeleteBuchung = useCallback(async (id: string) => {
+    try {
+      await deleteLeergutBuchung(id);
+      setBuchungen((prev) => prev.filter((b) => b.id !== id));
+    } catch { /* ignore */ }
+  }, []);
+
   // Email senden
   const handleSendEmail = useCallback(async () => {
     if (!emailTarget || !emailAddr) return;
@@ -385,15 +463,16 @@ export default function LeergutTool() {
       await sendLeergutEmail({
         kundenEmail: emailAddr,
         kundenName: emailTarget.kunde,
+        kundennr: emailTarget.kundennr,
         pdfBase64,
       });
-      setToast({ type: "success", msg: `E-Mail an ${emailAddr} gesendet.` });
+      setToast({ type: "success", msg: `E-Mail an ${emailAddr} gesendet (${1 + buchungen.length} Anhänge).` });
       setEmailTarget(null);
       setEmailAddr("");
     } catch (err: any) {
       setToast({ type: "error", msg: "E-Mail fehlgeschlagen: " + (err?.message || "") });
     } finally { setEmailSending(false); }
-  }, [emailTarget, emailAddr, generateLeergutPdf]);
+  }, [emailTarget, emailAddr, generateLeergutPdf, buchungen.length]);
 
   // PDF herunterladen (ohne E-Mail)
   const handleDownloadPdf = useCallback(async (row: LeergutRow) => {
@@ -570,10 +649,10 @@ export default function LeergutTool() {
       }
 
       // Create new single import with merged data
-      const eintraege: { kundennr: string; kunde: string; artikel: string; alterBestand: number }[] = [];
+      const eintraege: { kundennr: string; kunde: string; adresse?: string; artikel: string; alterBestand: number }[] = [];
       for (const row of allRows) {
         for (const [artikel, bestand] of Object.entries(row.bestaende)) {
-          eintraege.push({ kundennr: row.kundennr, kunde: row.kunde, artikel, alterBestand: bestand });
+          eintraege.push({ kundennr: row.kundennr, kunde: row.kunde, adresse: row.adresse, artikel, alterBestand: bestand });
         }
       }
       await createLeergutImport({ anzahlDateien: files.length, eintraege });
@@ -826,7 +905,7 @@ export default function LeergutTool() {
                     <button
                       className="btn btn-sm btn-outline-primary py-0 px-1 me-1"
                       title="E-Mail senden"
-                      onClick={() => { setEmailTarget(row); setEmailAddr(""); }}
+                      onClick={() => { setEmailTarget(row); setEmailAddr(""); loadBuchungen(row.kundennr); }}
                     >
                       <i className="bi bi-envelope" style={{ fontSize: "0.75rem" }} />
                     </button>
@@ -935,9 +1014,50 @@ export default function LeergutTool() {
                     autoFocus
                   />
                 </div>
+                {/* Buchungs-PDFs (Leergutauswertungen) */}
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">
+                    Buchungs-PDFs (Leergutauswertungen)
+                    <span className="badge bg-secondary ms-2">{buchungen.length}</span>
+                  </label>
+                  {buchungen.length > 0 && (
+                    <div className="mb-2" style={{ maxHeight: 120, overflowY: "auto" }}>
+                      {buchungen.map((b) => (
+                        <div key={b.id} className="d-flex justify-content-between align-items-center py-1 border-bottom">
+                          <small>
+                            <i className="bi bi-file-earmark-pdf text-danger me-1" />
+                            {b.filename}
+                          </small>
+                          <button className="btn btn-sm btn-outline-danger py-0 px-1" onClick={() => handleDeleteBuchung(b.id)}>
+                            <i className="bi bi-x" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="d-flex align-items-center gap-2">
+                    <label className={`btn btn-sm btn-outline-primary ${buchungUploading ? "disabled" : ""}`}>
+                      {buchungUploading ? (
+                        <><span className="spinner-border spinner-border-sm me-1" />Lade...</>
+                      ) : (
+                        <><i className="bi bi-plus-lg me-1" />PDF hochladen</>
+                      )}
+                      <input
+                        type="file"
+                        accept=".pdf"
+                        multiple
+                        className="d-none"
+                        onChange={handleBuchungUpload}
+                        disabled={buchungUploading}
+                      />
+                    </label>
+                    <span className="text-muted small">Werden automatisch als Anhang mitgesendet</span>
+                  </div>
+                </div>
+
                 <div className="small text-muted">
                   <i className="bi bi-info-circle me-1" />
-                  Es wird eine PDF mit Briefkopf, Anschreiben und Leergut-Tabelle generiert und als Anhang gesendet.
+                  Anhänge: 1 Leergut-Bestätigung (generiert) + {buchungen.length} Buchungs-PDF{buchungen.length !== 1 ? "s" : ""}.
                   Rücksendefrist: 3 Werktage ab heute.
                 </div>
               </div>
