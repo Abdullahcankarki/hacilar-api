@@ -1,5 +1,23 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  DndContext,
+  DragEndEvent,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
   getAllGefluegelZerleger,
   createGefluegelZerleger,
   updateGefluegelZerleger,
@@ -8,15 +26,96 @@ import {
 import { GefluegelZerlegerResource, ZerlegerKategorie } from "../../Resources";
 
 type Toast = { type: "success" | "error"; msg: string } | null;
+type Filter = "alle" | ZerlegerKategorie;
+
+const KATEGORIE_OPTIONEN: [ZerlegerKategorie, string][] = [
+  ["haehnchen", "Hähnchen"],
+  ["pute_fluegel", "Pute Flügel"],
+  ["pute_keule", "Pute Keule"],
+  ["ganz_haehnchen", "Ganz Hähnchen"],
+  ["brust", "Brust"],
+];
+
+const KATEGORIE_LABEL: Record<ZerlegerKategorie, string> = {
+  haehnchen: "Hähnchen",
+  pute_fluegel: "Pute Flügel",
+  pute_keule: "Pute Keule",
+  ganz_haehnchen: "Ganz Hähnchen",
+  brust: "Brust",
+};
+
+function SortableRow({
+  z,
+  onEdit,
+  onDelete,
+}: {
+  z: GefluegelZerlegerResource;
+  onEdit: (z: GefluegelZerlegerResource) => void;
+  onDelete: (z: GefluegelZerlegerResource) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: z.id!,
+  });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    backgroundColor: isDragging ? "#f8f9fa" : undefined,
+  };
+
+  return (
+    <tr ref={setNodeRef} style={style}>
+      <td style={{ width: 40 }}>
+        <span
+          {...attributes}
+          {...listeners}
+          className="text-muted"
+          style={{ cursor: "grab", userSelect: "none" }}
+          title="Ziehen zum Sortieren"
+        >
+          <i className="bi bi-grip-vertical" />
+        </span>
+      </td>
+      <td className="text-muted small">{z.reihenfolge}</td>
+      <td className="fw-medium">{z.name}</td>
+      <td>
+        {(z.kategorien ?? []).map((k) => (
+          <span key={k} className="badge bg-info me-1">
+            {KATEGORIE_LABEL[k]}
+          </span>
+        ))}
+      </td>
+      <td>
+        <span className={`badge ${z.aktiv ? "bg-success" : "bg-secondary"}`}>
+          {z.aktiv ? "Aktiv" : "Inaktiv"}
+        </span>
+      </td>
+      <td>
+        <button
+          className="btn btn-outline-secondary btn-sm rounded-3 me-1"
+          onClick={() => onEdit(z)}
+        >
+          <i className="bi bi-pencil-square" />
+        </button>
+        <button
+          className="btn btn-outline-danger btn-sm rounded-3"
+          onClick={() => onDelete(z)}
+        >
+          <i className="bi bi-trash" />
+        </button>
+      </td>
+    </tr>
+  );
+}
 
 export default function GefluegelZerlegerVerwaltung() {
   const [items, setItems] = useState<GefluegelZerlegerResource[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [onlyActive, setOnlyActive] = useState(true);
+  const [filter, setFilter] = useState<Filter>("alle");
   const [toast, setToast] = useState<Toast>(null);
 
-  // Modal state
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<GefluegelZerlegerResource | null>(null);
   const [formName, setFormName] = useState("");
@@ -25,8 +124,13 @@ export default function GefluegelZerlegerVerwaltung() {
   const [formReihenfolge, setFormReihenfolge] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 
-  // Delete
   const [deleting, setDeleting] = useState<GefluegelZerlegerResource | null>(null);
+
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   useEffect(() => {
     (async () => {
@@ -51,15 +155,16 @@ export default function GefluegelZerlegerVerwaltung() {
     const q = query.trim().toLowerCase();
     return items
       .filter((z) => (onlyActive ? z.aktiv : true))
+      .filter((z) => (filter === "alle" ? true : (z.kategorien ?? []).includes(filter)))
       .filter((z) => (q ? z.name.toLowerCase().includes(q) : true))
       .sort((a, b) => a.reihenfolge - b.reihenfolge || a.name.localeCompare(b.name));
-  }, [items, query, onlyActive]);
+  }, [items, query, onlyActive, filter]);
 
   const openCreate = () => {
     setEditing(null);
     setFormName("");
     setFormAktiv(true);
-    setFormKategorien(["haehnchen"]);
+    setFormKategorien(filter === "alle" ? ["haehnchen"] : [filter]);
     setFormReihenfolge(items.length);
     setShowModal(true);
   };
@@ -90,9 +195,7 @@ export default function GefluegelZerlegerVerwaltung() {
           aktiv: formAktiv,
           reihenfolge: formReihenfolge,
         });
-        setItems((prev) =>
-          prev.map((x) => (x.id === editing.id ? saved : x))
-        );
+        setItems((prev) => prev.map((x) => (x.id === editing.id ? saved : x)));
         setToast({ type: "success", msg: "Zerleger aktualisiert" });
       } else {
         const saved = await createGefluegelZerleger({
@@ -127,6 +230,52 @@ export default function GefluegelZerlegerVerwaltung() {
     }
   };
 
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIdx = filtered.findIndex((z) => z.id === active.id);
+    const newIdx = filtered.findIndex((z) => z.id === over.id);
+    if (oldIdx === -1 || newIdx === -1) return;
+
+    // Neue Reihenfolge der gefilterten Liste
+    const reordered = arrayMove(filtered, oldIdx, newIdx);
+    // Die bisherigen reihenfolge-Werte der gefilterten Items
+    // in aufsteigender Reihenfolge den neuen Positionen zuweisen.
+    const positions = filtered
+      .map((z) => z.reihenfolge)
+      .sort((a, b) => a - b);
+    const updates = reordered.map((z, i) => ({ id: z.id!, newReihenfolge: positions[i] }));
+
+    // Optimistic update
+    setItems((prev) =>
+      prev.map((z) => {
+        const u = updates.find((u) => u.id === z.id);
+        return u ? { ...z, reihenfolge: u.newReihenfolge } : z;
+      })
+    );
+
+    // Nur geänderte Items persistieren
+    const changed = updates.filter((u) => {
+      const orig = items.find((i) => i.id === u.id);
+      return orig && orig.reihenfolge !== u.newReihenfolge;
+    });
+
+    try {
+      await Promise.all(
+        changed.map((u) =>
+          updateGefluegelZerleger(u.id, { reihenfolge: u.newReihenfolge })
+        )
+      );
+      setToast({ type: "success", msg: "Reihenfolge aktualisiert" });
+    } catch (e: any) {
+      setToast({ type: "error", msg: e?.message ?? "Reihenfolge speichern fehlgeschlagen" });
+      // Rollback
+      try {
+        setItems(await getAllGefluegelZerleger());
+      } catch { /* ignore */ }
+    }
+  };
+
   if (loading)
     return (
       <div className="container my-4 text-center">
@@ -147,7 +296,7 @@ export default function GefluegelZerlegerVerwaltung() {
       <div className="card border-0 shadow-sm rounded-4 mb-3">
         <div className="card-body">
           <div className="row g-2 align-items-center">
-            <div className="col-md-8">
+            <div className="col-md-5">
               <div className="input-group">
                 <span className="input-group-text bg-light border-0">
                   <i className="bi bi-search" />
@@ -161,6 +310,20 @@ export default function GefluegelZerlegerVerwaltung() {
               </div>
             </div>
             <div className="col-md-4">
+              <select
+                className="form-select"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value as Filter)}
+              >
+                <option value="alle">Alle Kategorien</option>
+                {KATEGORIE_OPTIONEN.map(([k, l]) => (
+                  <option key={k} value={k}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="col-md-3">
               <div className="form-check form-switch">
                 <input
                   className="form-check-input"
@@ -172,6 +335,12 @@ export default function GefluegelZerlegerVerwaltung() {
               </div>
             </div>
           </div>
+          {filter !== "alle" && (
+            <div className="text-muted small mt-2">
+              <i className="bi bi-info-circle me-1" />
+              Sortierung per Drag &amp; Drop innerhalb der gewählten Kategorie.
+            </div>
+          )}
         </div>
       </div>
 
@@ -180,55 +349,39 @@ export default function GefluegelZerlegerVerwaltung() {
         <div className="text-muted text-center py-5">Keine Zerleger gefunden.</div>
       ) : (
         <div className="table-responsive">
-          <table className="table table-hover align-middle">
-            <thead className="table-light">
-              <tr>
-                <th>#</th>
-                <th>Name</th>
-                <th>Kategorien</th>
-                <th>Status</th>
-                <th style={{ width: 140 }}>Aktionen</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((z) => (
-                <tr key={z.id}>
-                  <td className="text-muted">{z.reihenfolge}</td>
-                  <td className="fw-medium">{z.name}</td>
-                  <td>
-                    {(z.kategorien ?? ["haehnchen"]).map((k) => (
-                      <span key={k} className="badge bg-info me-1">
-                        {k === "haehnchen" ? "Hähnchen" : k === "pute_fluegel" ? "Pute Flügel" : "Pute Keule"}
-                      </span>
-                    ))}
-                  </td>
-                  <td>
-                    <span
-                      className={`badge ${
-                        z.aktiv ? "bg-success" : "bg-secondary"
-                      }`}
-                    >
-                      {z.aktiv ? "Aktiv" : "Inaktiv"}
-                    </span>
-                  </td>
-                  <td>
-                    <button
-                      className="btn btn-outline-secondary btn-sm rounded-3 me-1"
-                      onClick={() => openEdit(z)}
-                    >
-                      <i className="bi bi-pencil-square" />
-                    </button>
-                    <button
-                      className="btn btn-outline-danger btn-sm rounded-3"
-                      onClick={() => setDeleting(z)}
-                    >
-                      <i className="bi bi-trash" />
-                    </button>
-                  </td>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <table className="table table-hover align-middle">
+              <thead className="table-light">
+                <tr>
+                  <th style={{ width: 40 }}></th>
+                  <th>#</th>
+                  <th>Name</th>
+                  <th>Kategorien</th>
+                  <th>Status</th>
+                  <th style={{ width: 140 }}>Aktionen</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                <SortableContext
+                  items={filtered.map((z) => z.id!)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {filtered.map((z) => (
+                    <SortableRow
+                      key={z.id}
+                      z={z}
+                      onEdit={openEdit}
+                      onDelete={setDeleting}
+                    />
+                  ))}
+                </SortableContext>
+              </tbody>
+            </table>
+          </DndContext>
         </div>
       )}
 
@@ -268,12 +421,8 @@ export default function GefluegelZerlegerVerwaltung() {
                 <div className="mb-3">
                   <label className="form-label">Kategorien</label>
                   <div>
-                    {([
-                      ["haehnchen", "Hähnchen"],
-                      ["pute_fluegel", "Pute Flügel"],
-                      ["pute_keule", "Pute Keule"],
-                    ] as [ZerlegerKategorie, string][]).map(([kat, label]) => (
-                      <div className="form-check form-check-inline" key={kat}>
+                    {KATEGORIE_OPTIONEN.map(([kat, label]) => (
+                      <div className="form-check" key={kat}>
                         <input
                           className="form-check-input"
                           type="checkbox"

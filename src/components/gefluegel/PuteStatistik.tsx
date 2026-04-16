@@ -10,6 +10,7 @@ import {
   PuteConfigResource,
   PuteKategorie,
 } from "../../Resources";
+import DateRangePicker from "./DateRangePicker";
 
 type Mode = "woche" | "monat";
 
@@ -50,8 +51,19 @@ export default function PuteStatistik({ mode }: Props) {
   const [configs, setConfigs] = useState<PuteConfigResource[]>([]);
   const [loading, setLoading] = useState(true);
   const [refDate, setRefDate] = useState(() => new Date());
+  const [customRange, setCustomRange] = useState<{ von: string; bis: string } | null>(null);
 
-  const { von, bis, label } = useMemo(() => {
+  const { von, bis, label, isCustom } = useMemo(() => {
+    if (customRange) {
+      const vonD = new Date(customRange.von + "T00:00:00");
+      const bisD = new Date(customRange.bis + "T00:00:00");
+      return {
+        von: customRange.von,
+        bis: customRange.bis,
+        label: `${vonD.toLocaleDateString("de-DE")} – ${bisD.toLocaleDateString("de-DE")}`,
+        isCustom: true,
+      };
+    }
     if (mode === "woche") {
       const saturday = getSaturday(refDate);
       const friday = new Date(saturday);
@@ -61,6 +73,7 @@ export default function PuteStatistik({ mode }: Props) {
         von: formatDate(saturday),
         bis: formatDate(friday),
         label: `KW ${kw} / ${saturday.getFullYear()}  (${saturday.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })} – ${friday.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })})`,
+        isCustom: false,
       };
     } else {
       const year = refDate.getFullYear();
@@ -72,12 +85,14 @@ export default function PuteStatistik({ mode }: Props) {
         von: formatDate(first),
         bis: formatDate(last),
         label: monthName.charAt(0).toUpperCase() + monthName.slice(1),
+        isCustom: false,
       };
     }
-  }, [mode, refDate]);
+  }, [mode, refDate, customRange]);
 
   const navigate = useCallback(
     (dir: number) => {
+      setCustomRange(null);
       setRefDate((prev) => {
         const d = new Date(prev);
         if (mode === "woche") d.setDate(d.getDate() + dir * 7);
@@ -88,7 +103,10 @@ export default function PuteStatistik({ mode }: Props) {
     [mode]
   );
 
-  useEffect(() => { setRefDate(new Date()); }, [mode]);
+  useEffect(() => {
+    setRefDate(new Date());
+    setCustomRange(null);
+  }, [mode]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -162,9 +180,25 @@ export default function PuteStatistik({ mode }: Props) {
         <button className="btn btn-outline-secondary btn-sm rounded-3" onClick={() => navigate(1)}>
           &raquo;
         </button>
-        <button className="btn btn-outline-dark btn-sm rounded-3 ms-2" onClick={() => setRefDate(new Date())}>
+        <button className="btn btn-outline-dark btn-sm rounded-3 ms-2" onClick={() => { setCustomRange(null); setRefDate(new Date()); }}>
           {mode === "woche" ? "Diese Woche" : "Dieser Monat"}
         </button>
+        <div className="ms-auto d-flex align-items-center gap-2">
+          <DateRangePicker
+            von={von}
+            bis={bis}
+            onChange={(v, b) => setCustomRange({ von: v, bis: b })}
+          />
+          {isCustom && (
+            <button
+              className="btn btn-link btn-sm text-decoration-none"
+              onClick={() => setCustomRange(null)}
+            >
+              <i className="bi bi-x-circle me-1" />
+              Zeitraum zurücksetzen
+            </button>
+          )}
+        </div>
       </div>
 
       {eintraege.length === 0 ? (

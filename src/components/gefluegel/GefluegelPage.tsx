@@ -3,6 +3,10 @@ import GefluegelUebersicht from "./GefluegelUebersicht";
 import GefluegelStatistik from "./GefluegelStatistik";
 import PuteUebersicht from "./PuteUebersicht";
 import PuteStatistik from "./PuteStatistik";
+import GanzHaehnchenUebersicht from "./GanzHaehnchenUebersicht";
+import GanzHaehnchenStatistik from "./GanzHaehnchenStatistik";
+import BrustUebersicht from "./BrustUebersicht";
+import BrustStatistik from "./BrustStatistik";
 
 type Tab =
   | "haehnchen_tag"
@@ -10,7 +14,13 @@ type Tab =
   | "haehnchen_monat"
   | "pute_tag"
   | "pute_woche"
-  | "pute_monat";
+  | "pute_monat"
+  | "ganz_tag"
+  | "ganz_woche"
+  | "ganz_monat"
+  | "brust_tag"
+  | "brust_woche"
+  | "brust_monat";
 
 const TABS: { key: Tab; label: string; group: string }[] = [
   { key: "haehnchen_tag", label: "Tag", group: "Hähnchen" },
@@ -19,12 +29,18 @@ const TABS: { key: Tab; label: string; group: string }[] = [
   { key: "pute_tag", label: "Tag", group: "Pute" },
   { key: "pute_woche", label: "Woche", group: "Pute" },
   { key: "pute_monat", label: "Monat", group: "Pute" },
+  { key: "ganz_tag", label: "Tag", group: "Ganz Hähnchen" },
+  { key: "ganz_woche", label: "Woche", group: "Ganz Hähnchen" },
+  { key: "ganz_monat", label: "Monat", group: "Ganz Hähnchen" },
+  { key: "brust_tag", label: "Tag", group: "Brust" },
+  { key: "brust_woche", label: "Woche", group: "Brust" },
+  { key: "brust_monat", label: "Monat", group: "Brust" },
 ];
 
 export default function GefluegelPage() {
   const [activeTab, setActiveTab] = useState<Tab>("haehnchen_tag");
 
-  const groups = ["Hähnchen", "Pute"];
+  const groups = ["Hähnchen", "Pute", "Ganz Hähnchen", "Brust"];
 
   return (
     <div className="container-fluid mt-3">
@@ -55,6 +71,12 @@ export default function GefluegelPage() {
       {activeTab === "pute_tag" && <PuteUebersicht />}
       {activeTab === "pute_woche" && <PuteStatistik mode="woche" />}
       {activeTab === "pute_monat" && <PuteStatistik mode="monat" />}
+      {activeTab === "ganz_tag" && <GanzHaehnchenUebersicht />}
+      {activeTab === "ganz_woche" && <GanzHaehnchenStatistik mode="woche" />}
+      {activeTab === "ganz_monat" && <GanzHaehnchenStatistik mode="monat" />}
+      {activeTab === "brust_tag" && <BrustUebersicht />}
+      {activeTab === "brust_woche" && <BrustStatistik mode="woche" />}
+      {activeTab === "brust_monat" && <BrustStatistik mode="monat" />}
     </div>
   );
 }

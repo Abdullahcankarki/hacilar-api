@@ -9,6 +9,7 @@ import {
   GefluegelZerlegerResource,
   GefluegelEintragResource,
 } from "../../Resources";
+import DateRangePicker from "./DateRangePicker";
 
 type Mode = "woche" | "monat";
 
@@ -71,8 +72,19 @@ export default function GefluegelStatistik({ mode }: Props) {
 
   // Referenzdatum für Navigation
   const [refDate, setRefDate] = useState(() => new Date());
+  const [customRange, setCustomRange] = useState<{ von: string; bis: string } | null>(null);
 
-  const { von, bis, label } = useMemo(() => {
+  const { von, bis, label, isCustom } = useMemo(() => {
+    if (customRange) {
+      const vonD = new Date(customRange.von + "T00:00:00");
+      const bisD = new Date(customRange.bis + "T00:00:00");
+      return {
+        von: customRange.von,
+        bis: customRange.bis,
+        label: `${vonD.toLocaleDateString("de-DE")} – ${bisD.toLocaleDateString("de-DE")}`,
+        isCustom: true,
+      };
+    }
     if (mode === "woche") {
       const saturday = getSaturday(refDate);
       const friday = new Date(saturday);
@@ -82,6 +94,7 @@ export default function GefluegelStatistik({ mode }: Props) {
         von: formatDate(saturday),
         bis: formatDate(friday),
         label: `KW ${kw} / ${saturday.getFullYear()}  (${saturday.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })} – ${friday.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })})`,
+        isCustom: false,
       };
     } else {
       const year = refDate.getFullYear();
@@ -93,12 +106,14 @@ export default function GefluegelStatistik({ mode }: Props) {
         von: formatDate(first),
         bis: formatDate(last),
         label: monthName.charAt(0).toUpperCase() + monthName.slice(1),
+        isCustom: false,
       };
     }
-  }, [mode, refDate]);
+  }, [mode, refDate, customRange]);
 
   const navigate = useCallback(
     (dir: number) => {
+      setCustomRange(null);
       setRefDate((prev) => {
         const d = new Date(prev);
         if (mode === "woche") {
@@ -112,11 +127,15 @@ export default function GefluegelStatistik({ mode }: Props) {
     [mode]
   );
 
-  const goToday = () => setRefDate(new Date());
+  const goToday = () => {
+    setCustomRange(null);
+    setRefDate(new Date());
+  };
 
   // Reset refDate when mode changes
   useEffect(() => {
     setRefDate(new Date());
+    setCustomRange(null);
   }, [mode]);
 
   const loadData = useCallback(async () => {
@@ -141,22 +160,22 @@ export default function GefluegelStatistik({ mode }: Props) {
     loadData();
   }, [loadData]);
 
-  // Im Wochenmodus: Sonntag ausschließen
+  // Im Wochenmodus (nicht custom range): Sonntag ausschließen
   const filteredEintraege = useMemo(() => {
-    if (mode !== "woche") return eintraege;
+    if (mode !== "woche" || isCustom) return eintraege;
     return eintraege.filter((e) => {
       const d = new Date(e.datum + "T00:00:00");
       return d.getDay() !== 0; // 0 = Sonntag
     });
-  }, [eintraege, mode]);
+  }, [eintraege, mode, isCustom]);
 
   const sonntagEintraege = useMemo(() => {
-    if (mode !== "woche") return [];
+    if (mode !== "woche" || isCustom) return [];
     return eintraege.filter((e) => {
       const d = new Date(e.datum + "T00:00:00");
       return d.getDay() === 0;
     });
-  }, [eintraege, mode]);
+  }, [eintraege, mode, isCustom]);
 
   const sonntagSummen = useMemo(() => {
     let kisten = 0, kg = 0;
@@ -252,6 +271,20 @@ export default function GefluegelStatistik({ mode }: Props) {
         <button className="btn btn-outline-dark btn-sm rounded-3 ms-2" onClick={goToday}>
           {mode === "woche" ? "Diese Woche" : "Dieser Monat"}
         </button>
+        <DateRangePicker
+          von={von}
+          bis={bis}
+          onChange={(v, b) => setCustomRange({ von: v, bis: b })}
+        />
+        {isCustom && (
+          <button
+            className="btn btn-link btn-sm text-decoration-none"
+            onClick={() => setCustomRange(null)}
+          >
+            <i className="bi bi-x-circle me-1" />
+            Zeitraum zurücksetzen
+          </button>
+        )}
         <button
           className="btn btn-outline-danger btn-sm rounded-3 ms-auto"
           onClick={() => setShowVerlust(true)}

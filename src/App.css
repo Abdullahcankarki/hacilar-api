@@ -104,6 +104,27 @@ success-overlay {
   z-index: 10000;
 }
 
+/* DateRange (zwei Monate) — Wrapper */
+.date-range-calendar {
+  font-size: 0.9rem;
+}
+
+.date-range-calendar .react-datepicker__month-container {
+  float: none;
+  display: inline-block;
+}
+
+/* Auf schmalen Screens DatePicker zentrieren */
+@media (max-width: 575.98px) {
+  .react-datepicker-popper {
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    inset: auto !important;
+    position: fixed !important;
+    top: 70px !important;
+  }
+}
+
 .icon-btn:hover i.bi-cart {
   color: var(--bs-success);
   /* grün beim Hover */

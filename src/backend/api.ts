@@ -19,6 +19,10 @@ import {
   GefluegelEintragResource,
   PuteEintragResource,
   PuteConfigResource,
+  GanzHaehnchenEintragResource,
+  GanzHaehnchenConfigResource,
+  BrustEintragResource,
+  BrustConfigResource,
 } from "../Resources";
 import {
   ErrorFromValidation,
@@ -2111,6 +2115,96 @@ export async function upsertPuteConfig(
   data: Omit<PuteConfigResource, "id">
 ): Promise<PuteConfigResource> {
   return apiFetch<PuteConfigResource>("/api/pute/config", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+// ===== Ganz Hähnchen =====
+
+export async function getGanzHaehnchenEintraege(
+  datum: string
+): Promise<GanzHaehnchenEintragResource[]> {
+  return apiFetch<GanzHaehnchenEintragResource[]>(
+    `/api/ganz-haehnchen/eintraege?datum=${datum}`
+  );
+}
+
+export async function getGanzHaehnchenEintraegeRange(
+  von: string,
+  bis: string
+): Promise<GanzHaehnchenEintragResource[]> {
+  return apiFetch<GanzHaehnchenEintragResource[]>(
+    `/api/ganz-haehnchen/eintraege/range?von=${von}&bis=${bis}`
+  );
+}
+
+export async function upsertGanzHaehnchenEintrag(
+  data: Omit<GanzHaehnchenEintragResource, "id">
+): Promise<GanzHaehnchenEintragResource> {
+  return apiFetch<GanzHaehnchenEintragResource>("/api/ganz-haehnchen/eintraege", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteGanzHaehnchenEintrag(id: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(`/api/ganz-haehnchen/eintraege/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function getGanzHaehnchenConfig(): Promise<GanzHaehnchenConfigResource> {
+  return apiFetch<GanzHaehnchenConfigResource>("/api/ganz-haehnchen/config");
+}
+
+export async function updateGanzHaehnchenConfig(
+  data: GanzHaehnchenConfigResource
+): Promise<GanzHaehnchenConfigResource> {
+  return apiFetch<GanzHaehnchenConfigResource>("/api/ganz-haehnchen/config", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+// ===== Brust =====
+
+export async function getBrustEintraege(datum: string): Promise<BrustEintragResource[]> {
+  return apiFetch<BrustEintragResource[]>(`/api/brust/eintraege?datum=${datum}`);
+}
+
+export async function getBrustEintraegeRange(
+  von: string,
+  bis: string
+): Promise<BrustEintragResource[]> {
+  return apiFetch<BrustEintragResource[]>(
+    `/api/brust/eintraege/range?von=${von}&bis=${bis}`
+  );
+}
+
+export async function upsertBrustEintrag(
+  data: Omit<BrustEintragResource, "id">
+): Promise<BrustEintragResource> {
+  return apiFetch<BrustEintragResource>("/api/brust/eintraege", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteBrustEintrag(id: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(`/api/brust/eintraege/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function getBrustConfig(): Promise<BrustConfigResource> {
+  return apiFetch<BrustConfigResource>("/api/brust/config");
+}
+
+export async function updateBrustConfig(
+  data: BrustConfigResource
+): Promise<BrustConfigResource> {
+  return apiFetch<BrustConfigResource>("/api/brust/config", {
     method: "PUT",
     body: JSON.stringify(data),
   });
