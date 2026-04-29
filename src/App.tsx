@@ -48,6 +48,7 @@ import MobileShop from './components/mobile/MobileShop';
 import MobileOrders from './components/mobile/MobileOrders';
 import MobileOrderDetail from './components/mobile/MobileOrderDetail';
 import MobileProfile from './components/mobile/MobileProfile';
+import LicenseGate from './license/LicenseGate';
 
 const PackingList = React.lazy(() => import('./components/gefluegel/PackingList'));
 const OffenePostenTool = React.lazy(() => import('./components/buchhaltung/OffenePostenTool'));
@@ -194,11 +195,13 @@ const AppRoutes: React.FC = () => {
 // 🚀 Hauptkomponente
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
-    </AuthProvider>
+    <LicenseGate>
+      <AuthProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </AuthProvider>
+    </LicenseGate>
   );
 };
 
