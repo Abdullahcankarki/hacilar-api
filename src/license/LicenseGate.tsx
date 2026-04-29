@@ -63,18 +63,24 @@ const BlockedScreen: React.FC = () => (
     style={{
       position: "fixed",
       inset: 0,
-      background: "#000",
-      color: "#fff",
+      background: "#fff",
+      color: "#333",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      fontSize: "10rem",
-      fontFamily: "monospace",
+      fontFamily: "system-ui, -apple-system, 'Segoe UI', sans-serif",
       zIndex: 99999,
-      userSelect: "none",
+      padding: "1rem",
     }}
   >
-    5005
+    <div style={{ textAlign: "center" }}>
+      <div style={{ fontSize: "3rem", fontWeight: 300, color: "#888", marginBottom: "0.5rem" }}>
+        5005
+      </div>
+      <div style={{ fontSize: "1rem", color: "#555" }}>
+        Service nicht verfügbar
+      </div>
+    </div>
   </div>
 );
 
