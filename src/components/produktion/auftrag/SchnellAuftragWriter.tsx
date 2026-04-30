@@ -18,7 +18,6 @@ interface ArtikelResource {
 
 interface PositionDraft {
     tempId: string;
-    leerzeile: boolean;
     artikel?: string;
     artikelName?: string;
     artikelNummer?: string;
@@ -154,29 +153,11 @@ const SchnellAuftragWriter: React.FC = () => {
     const filteredArtikel = filterArtikel(artikelSearch);
     const filteredEditArtikel = filterArtikel(editSearch);
 
-    // --- Leerzeilen am Anfang (für Briefpapier-Druck) ---
-    const INITIAL_LEERZEILEN = 7;
-    const createLeerzeilen = (count: number): PositionDraft[] =>
-        Array.from({ length: count }, () => ({
-            tempId: newTempId(),
-            leerzeile: true,
-            menge: 0,
-            einheit: 'kg' as const,
-            einzelpreis: 0,
-            zerlegung: false,
-            vakuum: false,
-            bemerkung: '',
-        }));
-
     // --- Kunde ---
     const selectKunde = (k: KundeResource) => {
         setSelectedKunde(k);
         setKundeSearch('');
         setKundeOpen(false);
-        // Auto-Leerzeilen wenn noch keine Positionen
-        if (positionen.length === 0) {
-            setPositionen(createLeerzeilen(INITIAL_LEERZEILEN));
-        }
         setTimeout(() => artikelInputRef.current?.focus(), 0);
     };
 
@@ -185,7 +166,6 @@ const SchnellAuftragWriter: React.FC = () => {
         const einheit = a.erfassungsModus === 'STÜCK' ? 'stück' : a.erfassungsModus === 'KARTON' ? 'karton' : 'kg';
         const pos: PositionDraft = {
             tempId: newTempId(),
-            leerzeile: false,
             artikel: a.id,
             artikelName: a.name,
             artikelNummer: a.artikelNummer,
@@ -204,20 +184,6 @@ const SchnellAuftragWriter: React.FC = () => {
             const el = cellRefs.current[`${positionen.length}-menge`];
             if (el) (el as HTMLInputElement).focus();
         }, 50);
-    };
-
-    // --- Leerzeile ---
-    const addLeerzeile = () => {
-        setPositionen(prev => [...prev, {
-            tempId: newTempId(),
-            leerzeile: true,
-            menge: 0,
-            einheit: 'kg',
-            einzelpreis: 0,
-            zerlegung: false,
-            vakuum: false,
-            bemerkung: '',
-        }]);
     };
 
     // --- Position updaten ---
@@ -239,7 +205,6 @@ const SchnellAuftragWriter: React.FC = () => {
             artikel: a.id,
             artikelName: a.name,
             artikelNummer: a.artikelNummer,
-            leerzeile: false,
             einheit,
             einzelpreis: a.preis || 0,
         });
@@ -268,8 +233,8 @@ const SchnellAuftragWriter: React.FC = () => {
     };
 
     // --- Erstellen ---
-    const realPositionen = positionen.filter(p => !p.leerzeile && p.artikel);
-    const canCreate = selectedKunde && positionen.length > 0 && realPositionen.length > 0 && lieferdatumISO;
+    const realPositionen = positionen.filter(p => p.artikel);
+    const canCreate = selectedKunde && realPositionen.length > 0 && lieferdatumISO;
 
     const handleCreate = async () => {
         if (!canCreate || creatingRef.current) return;
@@ -282,14 +247,13 @@ const SchnellAuftragWriter: React.FC = () => {
                 lieferdatum: lieferdatumISO,
                 bemerkungen: bemerkungen.trim() || undefined,
                 positionen: positionen.map(p => ({
-                    artikel: p.leerzeile ? undefined : p.artikel,
+                    artikel: p.artikel,
                     menge: p.menge,
                     einheit: p.einheit,
                     einzelpreis: p.einzelpreis,
                     zerlegung: p.zerlegung,
                     vakuum: p.vakuum,
                     bemerkung: p.bemerkung,
-                    leerzeile: p.leerzeile,
                 })),
             });
             setLastAuftragId(auftrag.id || null);
@@ -484,7 +448,7 @@ const SchnellAuftragWriter: React.FC = () => {
                 </div>
             )}
 
-            {/* Artikel-Suche + Leerzeile */}
+            {/* Artikel-Suche */}
             {selectedKunde && (
                 <div className="mb-3 d-flex gap-2 align-items-end">
                     <div style={{ position: 'relative', flex: 1 }}>
@@ -517,9 +481,6 @@ const SchnellAuftragWriter: React.FC = () => {
                             </div>
                         )}
                     </div>
-                    <button className="btn btn-sm btn-outline-secondary" style={{ height: 31 }} onClick={addLeerzeile}>
-                        + Leerzeile
-                    </button>
                 </div>
             )}
 
@@ -541,22 +502,6 @@ const SchnellAuftragWriter: React.FC = () => {
                         </thead>
                         <tbody>
                             {positionen.map((pos, ri) => {
-                                if (pos.leerzeile) {
-                                    return (
-                                        <tr key={pos.tempId} style={{ backgroundColor: '#f8f9fa' }}>
-                                            <td className="text-center text-muted">{ri + 1}</td>
-                                            <td colSpan={5} className="text-center text-muted fst-italic">— Leerzeile —</td>
-                                            <td className="text-center">
-                                                <div className="d-flex gap-1 justify-content-center">
-                                                    <button className="btn btn-sm btn-outline-secondary py-0 px-1" onClick={() => movePos(ri, -1)} disabled={ri === 0} title="Hoch">↑</button>
-                                                    <button className="btn btn-sm btn-outline-secondary py-0 px-1" onClick={() => movePos(ri, 1)} disabled={ri === positionen.length - 1} title="Runter">↓</button>
-                                                    <button className="btn btn-sm btn-outline-danger py-0 px-1" onClick={() => deletePos(pos.tempId)}>×</button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    );
-                                }
-
                                 const isEditing = editRow === ri;
                                 return (
                                     <tr key={pos.tempId}>
